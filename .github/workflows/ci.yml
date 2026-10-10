@@ -1,9 +1,14 @@
 # .github/workflows/ci.yml
 #
-# Continuous integration for the Nito.cash monorepo.
-#   - installs the workspace with pnpm (frozen lockfile)
-#   - builds the web wallet (apps/web)
-#   - runs the web unit tests
+# Continuous integration + deploy for the Nito.cash monorepo.
+#
+#   1. build-test — install (frozen lockfile), build the web wallet, run the unit
+#      tests, upload coverage to Codecov. The built `apps/web/dist` is saved as an
+#      artifact for the deploy job.
+#   2. deploy     — runs ONLY after build-test succeeds (on master). Uploads the
+#      pre-built, pre-tested `dist/` to Cloudflare Pages (`nitocash`) via Wrangler
+#      Direct Upload. Cloudflare does NOT build from git — it only ever receives a
+#      tested artifact.
 #
 # Mirrors the "Build & Verify" steps in AGENTS.md.
 
@@ -50,3 +55,31 @@ jobs:
           # Repo is public; CODECOV_TOKEN is set as a repo secret for reliability.
           token: ${{ secrets.CODECOV_TOKEN }}
           fail_ci_if_error: false
+
+      - name: Upload build artifact (dist)
+        uses: actions/upload-artifact@v4
+        with:
+          name: web-dist
+          path: apps/web/dist
+          # Only needed by the immediately-following deploy job in this run.
+          retention-days: 1
+
+  deploy:
+    # Deploy only after a green build-test, and only on pushes to master (not PRs).
+    needs: build-test
+    if: github.event_name == 'push' && github.ref == 'refs/heads/master'
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Download build artifact (dist)
+        uses: actions/download-artifact@v4
+        with:
+          name: web-dist
+          path: dist
+
+      - name: Deploy to Cloudflare Pages (nitocash)
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: 38907316ed118886fa8035039f92056d
+          command: pages deploy dist --project-name=nitocash
