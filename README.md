@@ -11,8 +11,7 @@
 ![Cloudflare](https://img.shields.io/badge/Cloudflare-Pages%20%2B%20Workers-F38020?logo=cloudflare&logoColor=white)
 ![BCH](https://img.shields.io/badge/Bitcoin%20Cash-BCH-0AC18E)
 
-`bitcoin-cash` `bch` `privacy` `wallet` `zk` `halo2` `orchard` `zerocash`
-`cloudflare-workers` `vue` `pnpm-monorepo` `bchblaze2026`
+> **The most user-friendly, privacy shielding wallet for crypto newcomers.**
 
 A privacy-focused Bitcoin Cash (BCH) wallet and ZK proving stack, built for
 **[BCH Blaze 2026](https://dorahacks.io/hackathon/bchblaze2026)**.
