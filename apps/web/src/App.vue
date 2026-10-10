@@ -348,6 +348,37 @@ svg {
     }
 }
 
+/* Responsive shell — Tablet & Desktop.
+   NOTE: breakpoints layer on top of the base `.app` rule (which caps the
+   phone frame at --max-width/--max-height). Mobile-first: the smallest
+   screens keep the base 425px cap; wider screens progressively open up.
+   `--max-width`/`--max-height` are re-scoped per breakpoint so the popups
+   (Popup.vue et al., which read the same vars) widen along with the shell. */
+
+/* Tablet — full screen width (fills the viewport edge-to-edge). */
+@media only screen and (min-width: 768px) {
+    .app {
+        --max-width: 100vw;
+        --max-height: 100%;
+        max-width: var(--max-width);
+        max-height: var(--max-height); /* iOS bug with vh */
+        box-shadow: none;
+    }
+}
+
+/* Desktop — cap the width so the wallpaper stays visible around a
+   centered, elevated "app frame". */
+@media only screen and (min-width: 1024px) {
+    .app {
+        --max-width: 768px;
+        --max-height: 860px;
+        max-width: var(--max-width);
+        max-height: var(--max-height);
+        border-radius: 12px;
+        box-shadow: 0px 20px 30px 5px rgba(0, 0, 0, 0.25);
+    }
+}
+
 @media only screen and (max-height: 680px) {
     body {
         display: block;
