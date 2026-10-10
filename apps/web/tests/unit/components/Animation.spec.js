@@ -1,12 +1,15 @@
 /* Import test utilities. */
 import { shallowMount } from '@vue/test-utils'
 
+/* Mock lottie-web (its mount hook needs canvas + does real animation work). */
+jest.mock('lottie-web', () => ({
+    loadAnimation: jest.fn(() => ({ destroy: jest.fn() })),
+}))
+
 /* Import component. */
 import Animation from '@/components/Animation.vue'
 
-/* Describe test.
-   NOTE: `mounted()` dynamically imports lottie-web + animation JSON, so we only
-   assert the static render here (the animation itself is exercised in-app). */
+/* Describe test. */
 describe('Animation.vue', () => {
     it('is a registered component', () => {
         const wrapper = shallowMount(Animation)
