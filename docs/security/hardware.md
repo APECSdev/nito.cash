@@ -1,3 +1,0 @@
-# Hardware Wallets
-
-Support for Ledger coming soon...

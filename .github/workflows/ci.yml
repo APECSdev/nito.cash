@@ -1,0 +1,43 @@
+# .github/workflows/ci.yml
+#
+# Continuous integration for the Nito.cash monorepo.
+#   - installs the workspace with pnpm (frozen lockfile)
+#   - builds the web wallet (apps/web)
+#   - runs the web unit tests
+#
+# Mirrors the "Build & Verify" steps in AGENTS.md.
+
+name: ci
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+
+jobs:
+  build-test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - name: Install dependencies (frozen lockfile)
+        run: pnpm install --frozen-lockfile
+
+      - name: Build web wallet
+        run: pnpm build
+
+      - name: Run unit tests
+        run: pnpm test:unit

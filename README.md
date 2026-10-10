@@ -1,9 +1,38 @@
+<!-- README.md -->
+
 # Nito.cash — Hush Your Money™
 
-![Nito.cash Poster](https://nito.cash/poster.jpg?1586230039)
+A privacy-focused Bitcoin Cash (BCH) wallet and ZK proving stack, built for
+**[BCH Blaze 2026](https://dorahacks.io/hackathon/bchblaze2026)**.
 
-[![Build Status](https://travis-ci.com/modenero/nito-cash.svg?branch=master)](https://travis-ci.com/modenero/nito-cash)
-[![Greenkeeper badge](https://badges.greenkeeper.io/modenero/nito-cash.svg)](https://greenkeeper.io/)
+This is a pnpm **monorepo** with two packages:
+
+| Package            | Path             | What it is                                                          |
+| ------------------ | ---------------- | ------------------------------------------------------------------- |
+| `@nito.cash/web`   | `apps/web/`      | The Nito.cash wallet — a client-side Vue SPA, deployed to Cloudflare Pages. |
+| `@nito.cash/prover`| `workers/prover/`| A Halo 2 / Orchard ZK prover (Rust → WASM), deployed as a Cloudflare Worker at `prover.nito.cash`. |
+
+## Getting started
+
+Requires **Node 24** and **pnpm** (`corepack enable && corepack prepare pnpm@latest --activate`).
+
+```bash
+pnpm install          # install the whole workspace (frozen lockfile)
+
+pnpm dev              # run the wallet dev server (apps/web)
+pnpm build            # production build of the wallet -> apps/web/dist
+pnpm test:unit        # unit tests (apps/web)
+pnpm lint             # eslint (apps/web)
+
+pnpm prover:deploy    # deploy the ZK prover via the apecsdev VM -> prover.nito.cash
+```
+
+The prover's WebAssembly artifact (`workers/prover/src/orchard.wasm`) is committed, so
+deploying it does **not** require a Rust toolchain. See `AGENTS.md` for full contributor
+guidance (PNPM rules, Ledger integration plan, monorepo layout, and the in-flight Vue 3
+migration).
+
+---
 
 ## Anatomy of Nito.cash wallet
 
@@ -23,7 +52,7 @@ __Today's newcomers will commonly experience the following:__
 4. Create a new wallet.
 5. Secure the 12 seed words protecting their new wallet.
 6. Confirm (all or some of) the 12 words to complete the setup process.
-7. Open the 'Receive' screen for a QR code.  
+7. Open the 'Receive' screen for a QR code.
 _(sponsor scans QR code for their address and sends)_
 8. Newcomer confirms receipt of "first crypto" from their sponsor.
 
@@ -70,10 +99,9 @@ _and the list goes on and on..._
 
 > Everyone should have a right to privacy when it comes to THEIR OWN MONEY.
 
-Nito.cash is currently in development for integrating two emerging technologies that will greatly improve the privacy long sought after by the crypto community.
-
-- [ ] [CashFusion]()
-- [ ] [zkSNARKS]()
+Nito.cash integrates emerging technology that improves the privacy long sought after by
+the crypto community — including a Halo 2 / Orchard zero-knowledge proving service
+(`@nito.cash/prover`, live at `prover.nito.cash`) for shielded transitions.
 
 _Please visit __[r/NitoCash](https://reddit.com/r/NitoCash/)__ for the latest information regarding ongoing development._
 
@@ -87,11 +115,5 @@ __Guides are available in-app, on topics including:__
 
 - [ ] Which wallet(s) will eventually best serve their needs.
 - [ ] How to safely and securely protect their private keys.
-
-## What's next?
-
-Check out our __[Roadmap](docs/ROADMAP.md)__ for what we have in store.
-
-As crypto fast approaches its teen years, Nito.cash aims to serve as the __optimal first impression__ necessary to drive tidal waves of fresh new crypto users, for years to come...
 
 __Cheers to that!__
