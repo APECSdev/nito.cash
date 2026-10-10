@@ -92,6 +92,8 @@ workers/
 pnpm-workspace.yaml     packages globs + allowBuilds
 package.json            private workspace root (delegating scripts via `pnpm --filter`)
 scripts/deploy-prover.sh  Deploys workers/prover to Cloudflare via the apecsdev VM
+.github/workflows/ci.yml  GitHub Actions CI (build + test + Codecov) and the
+                          test-gated Cloudflare Pages deploy (see "CI / CD" below)
 ```
 
 ### Prover deployment (via the apecsdev VM)
@@ -108,6 +110,29 @@ VM resource policy (host has 8 CPUs / 31 GB): **APECS is capped at 4 CPUs / 8 GB
 **only ONE VM runs at a time** (the `Sansbank` VM stays powered off while APECS runs, and
 vice versa). Do not raise APECS's allocation or run both VMs simultaneously without an
 explicit instruction.
+
+### CI / CD (GitHub Actions → Cloudflare Pages)
+
+`.github/workflows/ci.yml` runs on every push to `master` and on PRs, on Node 24 + pnpm 10
+(matching Cloudflare's build env). It has two jobs:
+
+1. **`build-test`** — `pnpm install --frozen-lockfile` → `pnpm build` (apps/web) →
+   `pnpm test:unit` (Jest) → upload coverage to **Codecov** (`apps/web/coverage/lcov.info`,
+   via `codecov/codecov-action@v5`, secret `CODECOV_TOKEN`) → save `apps/web/dist` as an
+   artifact (`web-dist`).
+2. **`deploy`** — runs **only** `needs: build-test` succeeds **and** on `push` to `master`
+   (PRs never deploy). Downloads `web-dist` and pushes it to Cloudflare Pages **`nitocash`**
+   via `cloudflare/wrangler-action@v3` → `wrangler pages deploy dist --project-name=nitocash`
+   (**Direct Upload**). Secrets: `CLOUDFLARE_API_TOKEN`; account id `38907316ed118886fa8035039f92056d`.
+
+**Cloudflare Pages does NOT auto-build from git** — the Git integration was disconnected.
+Pages only ever receives a pre-built, pre-tested `dist/`, so a failing test or broken build
+blocks the deploy. The CF-side "output dir" setting is now moot (Direct Upload bypasses CF's
+build config). Production domains `nito.cash` / `www.nito.cash`; deploy previews at
+`<hash>.nitocash.pages.dev`.
+
+The **prover Worker** (`workers/prover`) is deployed separately/manually via the `apecsdev` VM
+(`pnpm run prover:deploy` = `bash scripts/deploy-prover.sh`), not by this CI workflow.
 
 ### Routes (apps/web/src/router/index.js)
 
@@ -138,9 +163,10 @@ pnpm run build-for-all                            # must compile cleanly
 pnpm run test:unit                                # unit tests must pass
 ```
 
-Deployment (e.g. Cloudflare Pages) runs `pnpm install --frozen-lockfile`; if `package.json`
-and `pnpm-lock.yaml` disagree, the deploy fails with "The lockfile would have been modified by
-this install." Always commit an updated `pnpm-lock.yaml` alongside any `package.json` change.
+CI runs `pnpm install --frozen-lockfile`; if `package.json` and `pnpm-lock.yaml` disagree,
+the build fails with "The lockfile would have been modified by this install." Always commit an
+updated `pnpm-lock.yaml` alongside any `package.json` change. (Cloudflare Pages no longer
+builds from source — see "CI / CD" — but CI enforces the same frozen-lockfile guarantee.)
 
 > **Note — eslint is disabled during builds:** `vue.config.js` sets `lintOnSave: false`. The
 > app intentionally uses `console.*` debug logging, and `.eslintrc.js` promotes `no-console`
@@ -173,6 +199,11 @@ Ledger hardware-wallet support is being expanded from a single debug screen into
 7. **Error handling** — user-facing states for locked device, wrong app, user rejection
    (`0x6985`), and transport disconnects; route through the existing `displayError`/
    `displayNotification` system store actions.
+
+## In-Flight: Responsive UI (Tablet + Desktop)
+
+The app was designed mobile-first; a responsive pass for **larger screens (Tablet and Desktop)**
+is planned as the next workstream. Until then, layouts target a single-column mobile viewport.
 
 ## In-Flight: Vue 3 Migration
 
