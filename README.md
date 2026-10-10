@@ -5,10 +5,10 @@
 ![Nito.cash Poster](https://nito.cash/poster.jpg)
 
 [![ci](https://github.com/APECSdev/nito.cash/actions/workflows/ci.yml/badge.svg)](https://github.com/APECSdev/nito.cash/actions/workflows/ci.yml)
+[![codecov](https://codecov.io/gh/APECSdev/nito.cash/graph/badge.svg)](https://codecov.io/gh/APECSdev/nito.cash)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 ![Vue](https://img.shields.io/badge/Vue-2.6-4FC08D?logo=vue.js&logoColor=white)
 ![pnpm](https://img.shields.io/badge/pnpm-workspace-F69220?logo=pnpm&logoColor=white)
-![Cloudflare](https://img.shields.io/badge/Cloudflare-Pages%20%2B%20Workers-F38020?logo=cloudflare&logoColor=white)
 ![BCH](https://img.shields.io/badge/Bitcoin%20Cash-BCH-0AC18E)
 
 > **The most user-friendly, privacy shielding wallet for crypto newcomers.**

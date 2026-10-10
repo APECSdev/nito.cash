@@ -41,3 +41,12 @@ jobs:
 
       - name: Run unit tests
         run: pnpm test:unit
+
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v5
+        with:
+          # Jest (lcov) writes the report here via apps/web/jest.config.js.
+          files: apps/web/coverage/lcov.info
+          # Repo is public; CODECOV_TOKEN is set as a repo secret for reliability.
+          token: ${{ secrets.CODECOV_TOKEN }}
+          fail_ci_if_error: false
