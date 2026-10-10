@@ -80,9 +80,12 @@ export default {
             // console.log('COUNTRY ID', countryId)
 
             /* Return flag's svg (image). */
-            return require(`@/assets/flags/${countryId}.svg`)
-            // FIXME: Workaround for Bug in Jest testing
-            // return require('@/assets/flags/united-states-of-america.svg')
+            // NOTE: `require.context` (vs. a dynamic `require`) builds a static
+            //       module map so this resolves identically under webpack AND Jest.
+            //       (Resolves the FIXME: "Workaround for Bug in Jest testing".)
+            const flags = require.context('@/assets/flags', false, /\.svg$/)
+
+            return flags(`./${countryId}.svg`)
         },
 
         clickOutside() {
