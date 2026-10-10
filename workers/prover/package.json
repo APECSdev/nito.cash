@@ -1,0 +1,14 @@
+{
+  "name": "@nito.cash/prover",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Halo 2 Orchard prover (ZK) worker for Nito.cash shielded transitions, deployed to prover.nito.cash",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "build:wasm": "bash scripts/build-wasm.sh"
+  },
+  "devDependencies": {
+    "wrangler": "4.10.0"
+  }
+}

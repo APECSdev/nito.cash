@@ -1,7 +1,17 @@
-# Explicitly approve dependency build scripts so `pnpm install` is
-# deterministic across pnpm 10 (warns) and pnpm 11 (errors on ignored builds).
+# pnpm workspace for the Nito.cash monorepo.
+#   apps/web       — the Vue 2 SPA (Nito.cash wallet), deployed to Cloudflare Pages.
+#   workers/prover — the Halo 2 / Orchard ZK prover, deployed as a Cloudflare Worker.
+packages:
+  - "apps/*"
+  - "workers/*"
+
+# Explicitly approve dependency build scripts so `pnpm install` is deterministic
+# across pnpm 10 (warns) and pnpm 11 (errors on ignored build scripts).
 allowBuilds:
   core-js: true
   deasync: true
   ejs: true
   yorkie: true
+  esbuild: true
+  sharp: true
+  workerd: true

@@ -23,3 +23,9 @@ yarn-error.log*
 *.sw?
 
 NOTES
+
+# Build / test artifacts (any package)
+**/dist
+**/coverage
+workers/*/target
+workers/*/node_modules

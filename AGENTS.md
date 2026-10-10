@@ -55,28 +55,61 @@ referenced in comments and were safe to drop). Already removed: `chartist`, `ipf
 > therefore been **kept/restored** and must remain until the Vite migration removes the
 > Babel/cli-service toolchain — only then is it safe to drop. (See "Build & Verify".)
 
-## Repository Layout
+## Repository Layout (pnpm monorepo)
+
+This is a pnpm workspace with two packages:
 
 ```
-public/            Static assets + index.html (loads window.BITBOX via public/js/bitbox.js)
-src/
-  api/             External API helpers (e.g. telr.js)
-  assets/          Styles / images
-  compiled-icons/  vue-svgicon icon modules (GENERATED — regenerate, don't hand-edit)
-  components/      Reusable UI (inputs/, popups/, etc.)
-  i18n/            Locale JSON (en-US, de, fr, zh-CN, zh-HK)
-  media/           Audio / media assets
-  plugins/         Vue plugins (bugsnag.js, i18n.js)
-  router/          vue-router routes
-  store/           Vuex store + modules (blockchain, concierge, profile, system, utils, wallets)
-  views/           Route-level views (Splash, Setup, Dashboard, Send, Receive, History,
-                   Settings, Concierge/*)
-  App.vue  main.js
-svg-icons/         Source SVGs for generate-icons
-tests/unit/        Jest unit tests
+apps/
+  web/                  @nito.cash/web — the Vue 2 SPA (the Nito.cash wallet), deployed to
+                        Cloudflare Pages. All web-app sources/config live here now:
+    public/             Static assets + index.html (loads window.BITBOX via public/js/bitbox.js)
+    src/
+      api/              External API helpers (e.g. telr.js)
+      assets/           Styles / images
+      compiled-icons/   vue-svgicon icon modules (GENERATED — regenerate, don't hand-edit)
+      components/       Reusable UI (inputs/, popups/, etc.)
+      i18n/             Locale JSON (en-US, de, fr, zh-CN, zh-HK)
+      media/            Audio / media assets
+      plugins/          Vue plugins (bugsnag.js, i18n.js)
+      router/           vue-router routes
+      store/            Vuex store + modules (blockchain, concierge, profile, system, utils, wallets)
+      views/            Route-level views (Splash, Setup, Dashboard, Send, Receive, History,
+                        Settings, Concierge/*)
+      App.vue  main.js
+    svg-icons/          Source SVGs for generate-icons
+    tests/unit/         Jest unit tests
+    package.json  vue.config.js  babel.config.js  jest.config.js  .eslintrc.js
+workers/
+  prover/               @nito.cash/prover — Halo 2 / Orchard ZK prover, a Cloudflare Worker
+                        (Rust→WASM). Vendored from the Sansbank `wasm-prover` project (history
+                        dropped). Deployed to the custom domain `prover.nito.cash`.
+    src/index.js        Worker entry (imports src/orchard.wasm as a static module)
+    src/lib.rs          Rust crate (cdylib) — the prover
+    src/orchard.wasm    Committed build artifact (rebuild via scripts/build-wasm.sh)
+    wrangler.jsonc      Worker config (name `nito-prover`, route `prover.nito.cash`)
+    Cargo.toml          Rust deps (orchard / halo2 fork, getrandom custom, sha2)
+pnpm-workspace.yaml     packages globs + allowBuilds
+package.json            private workspace root (delegating scripts via `pnpm --filter`)
+scripts/deploy-prover.sh  Deploys workers/prover to Cloudflare via the apecsdev VM
 ```
 
-### Routes (src/router/index.js)
+### Prover deployment (via the apecsdev VM)
+
+Deploys run from the **`apecsdev` VirtualBox VM** (ssh alias `apecsdev` = 127.0.0.1:2222,
+user `apecs`; node v24 via nvm, pnpm via corepack). `scripts/deploy-prover.sh` rsyncs the
+workspace to `apecsdev:~/apps/nito.cash`, installs only the prover's deps
+(`pnpm install --frozen-lockfile --filter @nito.cash/prover`), and runs `wrangler deploy`
+there. The committed `workers/prover/src/orchard.wasm` means no Rust toolchain is needed
+to deploy. Cloudflare auth on the VM is required (`CLOUDFLARE_API_TOKEN` or a prior
+`wrangler login`).
+
+VM resource policy (host has 8 CPUs / 31 GB): **APECS is capped at 4 CPUs / 8 GB RAM**, and
+**only ONE VM runs at a time** (the `Sansbank` VM stays powered off while APECS runs, and
+vice versa). Do not raise APECS's allocation or run both VMs simultaneously without an
+explicit instruction.
+
+### Routes (apps/web/src/router/index.js)
 
 `/` Splash · `/setup` · `/dashboard` · `/send` · `/receive` · `/history` · `/settings` ·
 `/concierge` · `/concierge/spend/advanced`

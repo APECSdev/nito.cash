@@ -1,0 +1,60 @@
+[package]
+name = "wasm-prover"
+version = "0.1.0"
+edition = "2021"
+publish = false
+
+# This crate is compiled to `wasm32-unknown-unknown` and imported as a static
+# asset by the Worker. Two constraints drive the dependency set below and both
+# were established by measurement, not assumption:
+#
+#   1. `workerd` refuses `WebAssembly.compile()` at runtime, so the module must
+#      be linked at deploy time and instantiated with an empty import object.
+#      That rules out `wasm-bindgen`, which would emit `__wbindgen_placeholder__`
+#      imports. We therefore export a plain C ABI.
+#
+#   2. `wasm32-unknown-unknown` has no clock. `std::time::Instant::now()` panics
+#      with "time not implemented on this platform", so this crate must never
+#      call `std::time`. Callers time the work from JavaScript.
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+# `default-features = false` is REQUIRED, not an optimisation. The orchard fork's
+# default feature set includes `multicore`, and `halo2_proofs-0.3.5/src/multicore.rs:5-13`
+# is a literal `compile_error!` on wasm32 without atomics. Enabling only
+# `circuit` compiles the prover, including `ProvingKey::build()`.
+orchard = { git = "https://github.com/dashpay/orchard.git", tag = "dashified-0.14.1", default-features = false, features = ["circuit"] }
+
+# `getrandom` is pulled in transitively by orchard's RNG usage. The `custom`
+# feature makes it call our `__getrandom_custom` symbol instead of trying to
+# reach a browser/host RNG, which keeps the wasm free of imports.
+getrandom = { version = "0.2", features = ["custom"] }
+rand_core = { version = "0.6", features = ["getrandom"] }
+
+# `Scalar::to_repr` (used by `pczt_to_wire` to serialize the per-action spend
+# randomizer) is a `ff::PrimeField` trait method. Version must match the
+# fork's `ff` (0.13) so it is the SAME trait the fork's scalar implements.
+ff = { version = "0.13", default-features = false }
+
+# Required to compute the platform sighash that the RedPallas binding signature
+# signs: SHA-256("DashPlatformSighash" || bundle_commitment || extra_data).
+# Using `sha2` rather than reimplementing SHA-256 keeps this crate's output byte
+# identical to rs-dpp's `compute_platform_sighash`.
+sha2 = "0.10"
+
+[profile.release]
+# Size and determinism matter more than throughput here: this artifact is
+# uploaded with every deploy. 4.06 MB -> 1.56 MB measured with these settings.
+opt-level = "z"
+lto = true
+strip = true
+codegen-units = 1
+panic = "abort"
+
+[dev-dependencies]
+# `MerkleHashOrchard::empty_leaf` is an `incrementalmerkletree::Hashable` trait
+# method, used by the fork round-trip test to build the all-zero auth path the
+# same way rs-dpp's own test helpers do. Version matches the fork's dependency
+# (orchard Cargo.toml: `incrementalmerkletree = "0.8.1"`).
+incrementalmerkletree = "0.8.1"

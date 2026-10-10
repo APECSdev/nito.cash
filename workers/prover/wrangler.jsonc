@@ -1,0 +1,46 @@
+// wrangler.jsonc
+//
+// Cloudflare Worker configuration for the Nito.cash proving service.
+//
+// This service is shared across Nito.cash clients. It is vendored from the
+// Sansbank `wasm-prover` project (history intentionally dropped) and deployed
+// at `prover.nito.cash`.
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "nito-prover",
+  "main": "src/index.js",
+  "compatibility_date": "2025-01-29",
+  "compatibility_flags": ["nodejs_compat"],
+
+  // A custom domain, not a route pattern. `prover.nito.cash` is a hostname
+  // in the `nito.cash` zone (the same Cloudflare account), and
+  // `custom_domain` makes Wrangler create the DNS record AND the certificate
+  // for it. A bare route would need that record to exist already.
+  "routes": [
+    {
+      "pattern": "prover.nito.cash",
+      "custom_domain": true
+    }
+  ],
+
+  // The Halo 2 proving key is built once per isolate and kept in a `OnceLock`
+  // inside the wasm. It takes ~30-50 s, so the isolate must not be recycled
+  // between requests.
+  "limits": {
+    "cpu_ms": 300000
+  },
+
+  // The wasm is imported as a static module so workerd links it at deploy time.
+  // `WebAssembly.compile()` at runtime is disallowed in workerd.
+  "rules": [
+    {
+      "type": "CompiledWasm",
+      "globs": ["**/*.wasm"],
+      "fallthrough": true
+    }
+  ],
+
+  "observability": {
+    "enabled": true
+  }
+}

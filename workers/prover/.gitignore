@@ -1,0 +1,11 @@
+# .gitignore
+#
+# `target/` is the Rust build directory. The compiled wasm that actually ships
+# is copied to `src/orchard.wasm` and IS committed, on purpose: a deploy must not
+# need a Rust toolchain. Everything under `target/` is reproducible and stays out.
+target/
+node_modules/
+.wrangler/
+.dev.vars
+*.log
+.DS_Store
