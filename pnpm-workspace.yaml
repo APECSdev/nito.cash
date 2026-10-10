@@ -1,0 +1,7 @@
+# Explicitly approve dependency build scripts so `pnpm install` is
+# deterministic across pnpm 10 (warns) and pnpm 11 (errors on ignored builds).
+allowBuilds:
+  core-js: true
+  deasync: true
+  ejs: true
+  yorkie: true

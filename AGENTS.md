@@ -39,6 +39,8 @@ Full dependency list lives in `package.json`; the authoritative lockfile is `pnp
 - **Never** hand-edit `pnpm-lock.yaml`. Regenerate it via `pnpm install` after manifest changes.
 - A repo-local `.npmrc` sets `blockExoticSubdeps=false` to tolerate a legacy git-based
   transitive dep; leave it in place until the dependency tree is fully modernized.
+- `pnpm-workspace.yaml` sets `allowBuilds` (core-js, deasync, ejs, yorkie) so `pnpm install`
+  is deterministic across pnpm 10 (warns) and pnpm 11 (errors on ignored build scripts).
 
 ### Prune unused dependencies
 
@@ -106,6 +108,11 @@ pnpm run test:unit                                # unit tests must pass
 Deployment (e.g. Cloudflare Pages) runs `pnpm install --frozen-lockfile`; if `package.json`
 and `pnpm-lock.yaml` disagree, the deploy fails with "The lockfile would have been modified by
 this install." Always commit an updated `pnpm-lock.yaml` alongside any `package.json` change.
+
+> **Note — eslint is disabled during builds:** `vue.config.js` sets `lintOnSave: false`. The
+> app intentionally uses `console.*` debug logging, and `.eslintrc.js` promotes `no-console`
+> to an error when `NODE_ENV=production` (Cloudflare's build env), which failed CI builds.
+> Lint remains available as a separate step via `pnpm run lint` rather than gating the build.
 
 ## Ledger Integration (IN PROGRESS — plan for FULL integration)
 
