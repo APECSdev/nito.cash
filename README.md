@@ -16,13 +16,6 @@
 A privacy-focused Bitcoin Cash (BCH) wallet and ZK proving stack, built for
 **[BCH Blaze 2026](https://dorahacks.io/hackathon/bchblaze2026)**.
 
-This is a pnpm **monorepo** with two packages:
-
-| Package            | Path             | What it is                                                          |
-| ------------------ | ---------------- | ------------------------------------------------------------------- |
-| `@nito.cash/web`   | `apps/web/`      | The Nito.cash wallet — a client-side Vue SPA, deployed to Cloudflare Pages. |
-| `@nito.cash/prover`| `workers/prover/`| A Halo 2 / Orchard ZK prover (Rust → WASM), deployed as a Cloudflare Worker at `prover.nito.cash`. |
-
 ## Getting started
 
 Requires **Node 24** and **pnpm** (`corepack enable && corepack prepare pnpm@latest --activate`).
@@ -128,3 +121,14 @@ __Guides are available in-app, on topics including:__
 - [ ] How to safely and securely protect their private keys.
 
 __Cheers to that!__
+
+---
+
+## Repository structure
+
+This is a pnpm **monorepo** with two packages:
+
+| Package             | Path             | What it is                                                          |
+| ------------------- | ---------------- | ------------------------------------------------------------------- |
+| `@nito.cash/web`    | `apps/web/`      | The Nito.cash wallet — a client-side Vue SPA, deployed to Cloudflare Pages. |
+| `@nito.cash/prover` | `workers/prover/`| A Halo 2 / Orchard ZK prover (Rust → WASM), deployed as a Cloudflare Worker at `prover.nito.cash`. |
