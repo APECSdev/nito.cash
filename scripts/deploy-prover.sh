@@ -39,6 +39,7 @@ echo "==> [3/3] wrangler deploy on ${REMOTE}"
 ssh "${REMOTE}" "bash -lc '
   set -euo pipefail
   source ~/.nvm/nvm.sh >/dev/null 2>&1
+  source ~/.cloudflare/token.env
   cd ~/${REMOTE_DIR}/workers/prover
   pnpm run deploy
 '"

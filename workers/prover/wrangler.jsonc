@@ -23,12 +23,15 @@
     }
   ],
 
-  // The Halo 2 proving key is built once per isolate and kept in a `OnceLock`
-  // inside the wasm. It takes ~30-50 s, so the isolate must not be recycled
-  // between requests.
-  "limits": {
-    "cpu_ms": 300000
-  },
+  // NOTE: the original config set `limits.cpu_ms = 300000` so the Halo 2 proving
+  // key (~30-50 s `OnceLock` build per isolate) could complete. CPU limits are a
+  // PAID-plan feature; Cloudflare rejects the deploy on the Free plan with
+  // code 100328 ("CPU limits are not supported for the Free plan"). It is removed
+  // here so the deploy succeeds on the current plan — restore this block once the
+  // account is upgraded, since Free-plan CPU time is too low for keygen.
+  // "limits": {
+  //   "cpu_ms": 300000
+  // },
 
   // The wasm is imported as a static module so workerd links it at deploy time.
   // `WebAssembly.compile()` at runtime is disallowed in workerd.
