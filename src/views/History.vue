@@ -1,0 +1,424 @@
+<template>
+    <div>
+        <Header :label="$t('history-view.title')" />
+
+        <Tabs :tabs="tabs" :tab="tab" v-on:tab-change="updateTab" />
+
+        <main :class="{ empty: items.length === 0}">
+            <Transaction
+                :txHash="selectedHash"
+                :tx="selected"
+                :active="showDetails"
+                v-on:close-details="showDetails = false" />
+
+            <p v-if="items.length === 0">
+                You haven’t {{ tab === 'Sent' ? 'sent' : 'made' }} any transactions yet
+            </p>
+
+            <div v-for="tx of items" :key="tx.id">
+                <div class="date" v-if="tx.day">{{ formatDate(tx.day, 'short') }}</div>
+
+                <div class="item"
+                    @click="openDetails(tx.hash)"
+                    :class="{ incoming: tx.incoming, pending: !tx.persistence }"
+                >
+                    <svg width="14" height="8" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M7.055 0L14 6.459l-1.563 1.453-5.382-5.006L1.563 8 0 6.547z" />
+                    </svg>
+
+                    <svg width="18" height="18" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M8 5a1 1 0 112 0v3h2a1 1 0 110 2H9a1 1 0 01-1-1V5z" />
+                        <path
+                            fill-rule="evenodd"
+                            clip-rule="evenodd"
+                            d="M18 9A9 9 0 110 9a9 9 0 0118 0zm-2 0A7 7 0 112 9a7 7 0 0114 0z" />
+                    </svg>
+
+                    <h5>{{ tx.persistence ? (tx.incoming ? 'Received' : 'Sent') : (tx.incoming ? 'Receiving' : 'Sending') }}</h5>
+
+                    <article>
+                        <strong>
+                            <em>{{tx.value.rounded}}</em>
+                            <span>{{tx.value.unit}}</span>
+                        </strong>
+
+                        <small>{{tx.value.fiat}}</small>
+
+                        <time>{{ formatDate(tx.timestamp, 'time') }}</time>
+                    </article>
+                </div>
+            </div>
+        </main>
+    </div>
+</template>
+
+<script>
+/* Initialize vuex. */
+import { mapActions, mapGetters } from 'vuex'
+
+/* Import modules. */
+import { v4 as uuid } from 'uuid'
+
+/* Import components. */
+import { Header, Tabs, Transaction } from '@/components'
+
+export default {
+    components: {
+        Header,
+        Tabs,
+        Transaction,
+    },
+    data: () => {
+        return {
+            addresses: [],
+            history: [],
+            historyItems: [],
+
+            selectedHash: null,
+            showDetails: false,
+            tab: 'All',
+            tabs: ['All', 'Sent', 'Received'],
+        }
+    },
+    computed: {
+        ...mapGetters('utils', [
+            'getFormattedValue',
+            'getUUID',
+        ]),
+
+        ...mapGetters('wallets', [
+            'getHistory',
+        ]),
+
+        /* Returns history items. */
+        items() {
+            /* Return items (from history). */
+            // return this.setItems()
+            return this.historyItems
+        },
+
+        /* Returns selected transaction (from history). */
+        selected() {
+            /* Return selected (item). */
+            return this.items.find((item) => item.hash === this.selectedHash)
+        },
+    },
+    methods: {
+        ...mapActions([
+            'displayError',
+            'displayNotification',
+        ]),
+
+        /**
+         * Update Tab
+         */
+        updateTab(_tab) {
+            /* Update tab. */
+            this.tab = _tab
+
+            /* Set items. */
+            this.setItems()
+        },
+
+        /**
+         * Open Details
+         */
+        openDetails(_hash) {
+            /* Set selected hash. */
+            this.selectedHash = _hash
+
+            /* Set (details) display flag. */
+            this.showDetails = true
+        },
+
+        /**
+         * Format Date
+         *
+         * TODO Consider switching to momentjs.
+         */
+        formatDate(_time, _type) {
+            /* Define date (formatting) options. */
+            const options = {
+                weekday: 'short',
+                year: 'numeric',
+                month: 'long',
+                day: 'numeric'
+            }
+
+            /* Initialize date. */
+            const date = new Date(_time * 1000)
+
+            /* Select a (formatting) type. */
+            switch (_type) {
+                case 'long':
+                    return `${date.toLocaleDateString(navigator.language, options)}, ${date.toLocaleTimeString(navigator.language)}`
+                case 'short':
+                    return date.toLocaleDateString(navigator.language, options)
+                default:
+                    return date.toLocaleTimeString(navigator.language)
+            }
+        },
+
+        /**
+         * Set Items
+         */
+        setItems() {
+            console.log('SET ITEMS', this.history)
+
+            /* Initialize history items. */
+            this.historyItems = []
+
+            /* Initialize filtered. */
+            const filtered =
+                this.tab === 'All'
+                    ? this.history.filter((item) => item.hash)
+                    : this.history.filter((item) =>
+                        item.hash && (
+                            (this.tab === 'Sent' && !item.incoming) || (this.tab === 'Received' && item.incoming)
+                        )
+                    )
+
+            /* Sort filtered. */
+            filtered.sort((a, b) => b.timestamp - a.timestamp)
+
+            /* Initialize current day. */
+            let currentDay = null
+
+            /* Return filtered (transactions). */
+            return filtered.map(item => {
+                /* Initialize transaction day. */
+                const txDay = item.timestamp - (item.timestamp % (24 * 60 * 60))
+
+                /* Sets the (display) day (null if already set for the "current" day). */
+                const day = txDay !== currentDay ? txDay : null
+
+                /* Saves the current (displayed) day (on the UI). */
+                currentDay = txDay
+
+                /* Set history id. */
+                // const historyId = this.getUUID
+                const historyId = uuid()
+                // console.log('HISTORY ID', historyId)
+
+                /* Format history item. */
+                const historyItem = Object.assign(
+                    {},
+                    item,
+                    {
+                        id: historyId,
+                        day,
+                        value: this.getFormattedValue(item.value, this.marketPrice, 'USD')
+                    }
+                )
+                console.log('HISTORY ITEM', historyItem)
+
+                /* Return history item. */
+                // return historyItem
+                this.historyItems.push(historyItem)
+            })
+        },
+    },
+    created: async function () {
+        /* Update wallet history. */
+        this.history = await this.getHistory
+        // console.log('HISTORY', this.history)
+
+        /* Set itmes. */
+        // FIXME: Add a watcher to trigger the item loading.
+        setTimeout(() => {
+            this.setItems(this.history.slice())
+        }, 1000)
+    },
+    mounted: function () {
+        //
+    }
+}
+</script>
+
+<style scoped>
+main {
+    flex: 1;
+    flex-direction: column;
+    padding: 0 20px;
+    height: calc(100vh - var(--header-height) - var(--tabs-height));
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+}
+
+/**
+ * iOS Viewport Height Fix/Hack
+ *
+ * Useful References:
+ *   - http://whatismyscreenresolution.net/
+ *   - https://www.paintcodeapp.com/news/ultimate-guide-to-iphone-resolutions
+ */
+
+/* iPhone 6, 7, 8 */
+@media only screen and (device-width: 375px) and (device-height: 667px) and (orientation: portrait) {
+    main {
+        /* border: 5pt solid red; */
+        height: calc(667px - var(--header-height) - var(--tabs-height) - var(--iphone-height-fix));
+    }
+}
+/* iPhone 6+, 7+, 8+ */
+@media only screen and (device-width: 414px) and (device-height: 736px) and (orientation: portrait) {
+    main {
+        /* border: 5pt solid red; */
+        height: calc(736px - var(--header-height) - var(--tabs-height) - var(--iphone-height-fix));
+    }
+}
+/* iPhone X, Xs, 11 Pro */
+@media only screen and (device-width: 375px) and (device-height: 812px) and (orientation: portrait) {
+    main {
+        /* border: 5pt solid red; */
+        height: calc(736px - var(--header-height) - var(--tabs-height) - var(--iphone-height-fix));
+    }
+}
+/* iPhone 11, Xr, 11 Pro Max, Xs Max */
+@media only screen and (device-width: 414px) and (device-height: 896px) and (orientation: portrait) {
+    main {
+        /* border: 5pt solid red; */
+        height: calc(736px - var(--header-height) - var(--tabs-height) - var(--iphone-height-fix));
+    }
+}
+/* iPad Original */
+@media only screen and (device-width: 768px) and (device-height: 1024px) and (orientation: portrait) {
+    main {
+        /* border: 5pt solid red; */
+        height: calc(736px - var(--header-height) - var(--tabs-height) - var(--ipad-height-fix));
+    }
+}
+
+main.empty {
+    text-align: center;
+    padding-top: 150px;
+    font-size: 14px;
+}
+
+main:before {
+    display: block;
+    position: absolute;
+    top: 185px;
+    left: 35px;
+    content: '';
+    width: 2px;
+    height: calc(100vh - 165px);
+    background: var(--list-bg);
+}
+
+main.empty:before {
+    display: none;
+}
+
+div .date {
+    font-size: 11px;
+    display: block;
+    text-align: center;
+    margin: 26px 0 15px;
+}
+
+div .item {
+    display: block;
+    cursor: pointer;
+    padding: 6px 0 0 48px;
+    position: relative;
+}
+
+div .item:before {
+    content: '';
+    position: absolute;
+    top: 0px;
+    left: 0px;
+    width: 32px;
+    height: 32px;
+    border-radius: 32px;
+    background: var(--secondary);
+}
+
+div .item.incoming:before {
+    background: var(--trinary);
+}
+
+div .item.pending:before {
+    background: var(--pending);
+}
+
+svg {
+    position: absolute;
+    z-index: 2;
+    top: 11px;
+    left: 9px;
+}
+
+svg:last-of-type {
+    display: none;
+    top: 7px;
+    left: 7px;
+}
+
+svg path {
+    fill: var(--primary-fg);
+}
+
+div .item.incoming svg path {
+    transform: rotate(180deg) translate(0, -2px);
+    transform-origin: center center;
+}
+
+div .item.pending svg:first-of-type {
+    display: none;
+}
+
+div .item.pending svg:last-of-type {
+    display: block;
+}
+
+div .item.pending svg path {
+    transform: none;
+}
+
+h5 {
+    font-size: 14px;
+    font-weight: 600;
+    margin: 0 0 9px 4px;
+}
+
+article {
+    position: relative;
+    background: var(--list-bg);
+    border-radius: 10px;
+    padding: 17px 10px 13px 16px;
+    margin-bottom: 17px;
+    transition: box-shadow 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+div .item:hover article {
+    box-shadow: 0px 4px 30px rgba(0, 0, 0, 0.25);
+}
+
+strong {
+    display: flex;
+    margin-bottom: 13px;
+}
+strong em {
+    font-style: normal;
+    font-size: 20px;
+    font-weight: 600;
+}
+strong span {
+    font-size: 11px;
+    line-height: 11px;
+    margin-left: 3px;
+}
+small {
+    font-size: 11px;
+}
+time {
+    font-size: 11px;
+    position: absolute;
+    top: 14px;
+    right: 15px;
+    font-weight: 600;
+    opacity: 0.4;
+}
+</style>

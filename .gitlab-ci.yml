@@ -1,0 +1,15 @@
+image: node:latest
+
+cache:
+  paths:
+  - node_modules/
+
+test:
+  script:
+   - npm install
+   - npm run test:unit
+
+include:
+  - template: Dependency-Scanning.gitlab-ci.yml
+  - template: License-Scanning.gitlab-ci.yml
+  - template: SAST.gitlab-ci.yml

@@ -1,0 +1,21 @@
+{
+    "Hello": "Hello",
+    "concierge-view": {
+        "title": "Concierge"
+    },
+    "concierge-spend-advanced-view": {
+        "title": "Advanced Spending"
+    },
+    "history-view": {
+        "title": "History"
+    },
+    "receive-view": {
+        "title": "Receive a Payment"
+    },
+    "send-view": {
+        "title": "Send a Payment"
+    },
+    "settings-view": {
+        "title": "Settings"
+    }
+}
