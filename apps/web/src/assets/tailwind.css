@@ -1,0 +1,8 @@
+/* apps/web/src/assets/tailwind.css
+ *
+ * Tailwind v4 entry point. Imported once by the Vite entry (src/main.js) so the
+ * utility layer is generated at build time. Component <style> blocks remain the
+ * source of truth until Phase D converts them to Tailwind utilities component-
+ * by-component; this sheet only provides the Tailwind layers + preflight.
+ */
+@import "tailwindcss";

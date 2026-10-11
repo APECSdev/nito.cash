@@ -26,6 +26,7 @@ NOTES
 
 # Build / test artifacts (any package)
 **/dist
+**/dist-vite
 **/coverage
 workers/*/target
 workers/*/node_modules

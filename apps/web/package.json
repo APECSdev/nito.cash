@@ -9,7 +9,10 @@
     "build-for-nito": "VUE_APP_TARGET=nito vue-cli-service build",
     "lint": "vue-cli-service lint",
     "test:unit": "vue-cli-service test:unit",
-    "generate-icons": "vsvg -s ./svg-icons -t ./src/compiled-icons"
+    "generate-icons": "vsvg -s ./svg-icons -t ./src/compiled-icons",
+    "vite:dev": "vite",
+    "vite:build": "vite build",
+    "vite:preview": "vite preview"
   },
   "dependencies": {
     "@bugsnag/js": "6.5.2",
@@ -26,7 +29,7 @@
     "qr-scanner": "1.1.1",
     "qrcode": "1.4.4",
     "uuid": "7.0.3",
-    "vue": "2.6.11",
+    "vue": "2.7.16",
     "vue-i18n": "8.16.0",
     "vue-router": "3.1.6",
     "vuex": "3.1.2",
@@ -37,6 +40,8 @@
     "@babel/plugin-transform-nullish-coalescing-operator": "^8.0.1",
     "@babel/plugin-transform-optional-chaining": "^8.0.5",
     "@babel/plugin-transform-private-methods": "^8.0.1",
+    "@tailwindcss/vite": "4.3.3",
+    "@vitejs/plugin-vue2": "2.3.4",
     "@vue/cli-plugin-babel": "4.2.3",
     "@vue/cli-plugin-eslint": "4.2.2",
     "@vue/cli-plugin-unit-jest": "4.2.3",
@@ -46,7 +51,9 @@
     "coveralls": "3.0.9",
     "eslint": "6.8.0",
     "eslint-plugin-vue": "6.2.1",
+    "tailwindcss": "4.3.3",
+    "vite": "8.3.4",
     "vue-svgicon": "3.2.6",
-    "vue-template-compiler": "2.6.11"
+    "vue-template-compiler": "2.7.16"
   }
 }
