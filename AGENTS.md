@@ -205,12 +205,36 @@ Ledger hardware-wallet support is being expanded from a single debug screen into
 The app was designed mobile-first; a responsive pass for **larger screens (Tablet and Desktop)**
 is planned as the next workstream. Until then, layouts target a single-column mobile viewport.
 
-## In-Flight: Vue 3 Migration
+## In-Flight: Vue 3 Migration (phased)
 
-A migration is underway (approved plan): **Vue 3 + Vite + Pinia + vue-router 4 + vue-i18n 11 + Vitest.**
+A migration is underway (approved plan): **Vue 3 + Vite + Pinia + vue-router 4 + vue-i18n 11 + Vitest + Tailwind v4.**
+Executed in phases so the app stays buildable/green at each checkpoint. **Phase A is DONE**:
+
+- **Phase A (done) — toolchain bridge.** `vue@2.6.11 → 2.7.16` (+ `vue-template-compiler@2.7.16`),
+  added `vite@8` + `@vitejs/plugin-vue2` + `tailwindcss@4` + `@tailwindcss/vite`. New files:
+  `apps/web/vite.config.js` (relative base `./`, `@`→`src` alias, `.vue` in `resolve.extensions`,
+  `process.env` shims, `outDir: dist-vite`), `apps/web/index.html` (Vite entry, replaces
+  `public/index.html`'s webpack `<%= BASE_URL %>`), `apps/web/src/assets/tailwind.css` (Tailwind
+  entry, imported ONLY by the Vite `index.html`, never by webpack). Vite scripts: `vite:dev` /
+  `vite:build` / `vite:preview`; `dist-vite/` is gitignored. **webpack / `@vue/cli-service`
+  (`pnpm build`) is STILL the production build** — Vite is proven-but-parallel until the runtime flip.
+- **Phase B (next) — runtime flip.** Vue 3 + Pinia (rewrite the 6 Vuex modules) + vue-router 4 +
+  vue-i18n 11 + replace `vue-svgicon` (18 files use `<svgicon>`) with a small global plugin. After
+  this, Vite becomes the production build and webpack/cli-service/babel/core-js are removed.
+- **Phase C — Vitest** port of the 17 Jest suites. **Phase D — convert scoped CSS → Tailwind**
+  utilities component-by-component. **Phase E — remove legacy** (vue.config.js, babel.config.js,
+  jest.config.js, the 4 Babel plugins, `transpileDependencies`, core-js).
+
 Key mappings: Vuex → Pinia (`mapGetters`/`mapActions` → `mapState`/`mapActions` on Pinia stores),
 vue-svgicon → a small global `<svgicon>` plugin, `process.env.VUE_APP_*` → `import.meta.env.VITE_*`,
-Jest → Vitest. Until it lands, the codebase above (Vue 2 + cli-service) is the buildable truth.
+Jest → Vitest.
+
+> **Env note (this dev box):** the host has **no IPv6 route**, and pnpm/npm (Node fetch/undici)
+> prefer IPv6 and hang. Workaround used for installs: run a **Node-based pnpm 11** with
+> `NODE_OPTIONS="--require ~/.local/force-ipv4.cjs"` (a preload forcing `dns.lookup` family=4).
+> The default `~/.bun/bin/pnpm` is bun-bundled and ignores `NODE_OPTIONS`; use the nvm Node
+> (`~/.nvm/versions/node/v24.18.1/bin`) + `node ~/.local/pnpm11-dist/package/bin/pnpm.cjs`.
+> CI/Cloudflare have working IPv6/IPv4 and are unaffected.
 
 ## Conventions & Rules for Agents
 
