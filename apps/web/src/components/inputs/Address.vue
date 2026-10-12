@@ -3,7 +3,7 @@
         placeholder="Recipient address"
         :value="modelValue"
         @input="$emit('update:modelValue', $event.target.value)"
-        class="h-[65px] inline-block align-middle py-[5px] px-[15px]"
+        class="input-base h-[65px] inline-block align-middle py-[5px] px-[15px]"
     />
 </template>
 
@@ -26,11 +26,12 @@ export default {
 /*
  * Phase D: the scoped `textarea` overrides are converted to Tailwind utilities
  * on the template above (`h-[65px] inline-block align-middle py-[5px]
- * px-[15px]`); being in `@layer utilities` they correctly override App.vue's
- * global `input, textarea` base rule (in `@layer base`) for height and
- * padding, exactly as the original scoped CSS did. The remaining base styling
- * (background, border, colour, focus, placeholder) still comes from that
- * global rule, which is retained for now (shared with Amount/Send/Spend).
+ * px-[15px]`). The remaining base styling (margin, background, border,
+ * border-radius, font, colour, width, height, focus, placeholder) comes from
+ * the shared `input-base` component class (the relocated former global
+ * `input, textarea` rule, now in `@layer components`); the utilities sit in
+ * `@layer utilities` and override its height/padding exactly as the original
+ * scoped CSS overrode the global rule.
  *
  * Original commented-out declaration preserved:
  * text-transform: uppercase;

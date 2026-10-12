@@ -92,3 +92,62 @@
    queries (iPhone X etc.) are handled per-component with arbitrary variants. */
 @custom-variant short (@media only screen and (max-height: 600px));
 @custom-variant xs-mobile (@media (max-width: 520px));
+
+/*
+ * `.input-base` — the former App.vue global `input, textarea` element-selector
+ * rule, relocated here as a named component class in `@layer components`
+ * (Phase D batch 4a). App.vue's global stylesheet is being dismantled; this
+ * base is shared by exactly four consumers (Amount, Address, Send:note-input,
+ * Spend:payment-textarea), so it is extracted once rather than repeated as
+ * ~25 utilities per element. `@layer components` sits between `base` and
+ * `utilities`, so each consumer's per-instance utility overrides (height,
+ * padding, …) still win — exactly as the original scoped CSS overrode the
+ * global rule. Declarations are byte-for-byte the original global rule (plain
+ * CSS, zero translation risk); the bare-global `::placeholder` is scoped to
+ * `.input-base::placeholder`, which is equivalent because only these four
+ * inputs carry a placeholder.
+ */
+@layer components {
+    .input-base {
+        margin-bottom: 18px;
+        padding: 0 14px;
+        background: var(--input-bg);
+        border-radius: 7px;
+        border: 1px solid var(--input-border);
+        font-family: 'Poppins', sans-serif;
+        -webkit-appearance: none;
+        color: var(--fg);
+        font-size: 16px;
+        width: 100%;
+        height: 52px;
+        resize: none;
+        transition: border-color 0.12s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    .input-base::-ms-clear {
+        display: none;
+        width: 0;
+        height: 0;
+    }
+
+    .input-base:focus {
+        border-color: var(--input-active);
+    }
+
+    .input-base::placeholder {
+        color: var(--input-placeholder);
+        font-weight: 600;
+        font-size: 13px;
+    }
+
+    @media only screen and (max-height: 600px) {
+        .input-base {
+            margin-bottom: 16px;
+            height: 44px;
+        }
+
+        .input-base::placeholder {
+            line-height: 26px;
+        }
+    }
+}

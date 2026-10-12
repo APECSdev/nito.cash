@@ -1,24 +1,29 @@
 <template>
-    <div>
+    <div class="relative">
         <input
             type="number"
             placeholder="Enter your amount"
             :value="amount"
             @input="updateAmount($event.target.value)"
+            class="input-base"
         />
 
-        <span v-if="amount">{{fiatDisplay}}</span>
+        <span v-if="amount" class="absolute top-[18px] right-[90px] text-[13px] text-light text-right short:top-[15px] short:right-[50px]">{{fiatDisplay}}</span>
 
         <button
-            @click.prevent.stop="dropdown = !dropdown">
+            @click.prevent.stop="dropdown = !dropdown"
+            class="absolute top-[8px] right-[8px] w-[75px] h-[36px] rounded-[5px] bg-secondary text-secondary-fg text-center text-[14px] leading-[37px] font-bold short:top-[4px] short:right-[4px]">
             {{activeUnit}}
         </button>
 
-        <nav :class="{ active: dropdown }">
+        <nav
+            class="absolute top-[48px] right-0 bg-input-bg shadow-[0px_4px_30px_rgba(0,0,0,0.25)] rounded-[3px] transition-opacity duration-100 ease-[cubic-bezier(0.4,0,0.2,1)]"
+            :class="dropdown ? 'active opacity-100 pointer-events-all' : 'opacity-0 pointer-events-none'">
             <button
                 v-for="item of units"
                 :key="item"
-                :class="{ active: activeUnit === item }"
+                class="block h-[36px] w-[75px] text-center text-[14px] first:rounded-t-[3px]"
+                :class="activeUnit === item ? 'active bg-dropdown-active' : 'bg-input-bg hover:bg-dropdown-hover'"
                 @click.prevent="selectedUnit = item">
                 {{item}}
             </button>
@@ -150,90 +155,27 @@ export default {
 </script>
 
 <style scoped>
-div {
-    position: relative;
-}
+/*
+ * Phase D: all of Amount's scoped styles are converted to Tailwind utilities
+ * on the template above — the root `div` (relative), the fiat `span`, the unit
+ * `div > button` selector (utilities on the button itself), the `nav` unit menu
+ * (opacity/pointer-events made fully conditional like Dropdown), and the
+ * `nav button` rows (active-beats-hover parity + `first:rounded-t-[3px]`). The
+ * native `<input>` now carries the shared `input-base` component class (the
+ * relocated former global `input, textarea` rule).
+ *
+ * On-disk quirk preserved: `nav button:last-child { border-radius: 0 0¬ 3px 3px; }`
+ * contains a stray U+00AC (¬) making it invalid, so browsers DROP it — no
+ * `last:` radius utility is emitted (visual parity); the quirk is kept here:
+ *   nav button:last-child { border-radius: 0 0¬ 3px 3px; }
+ *
+ * The `::-webkit-outer/inner-spin-button` rule below is KEPT as scoped CSS: a
+ * vendor-prefixed pseudo-element hack to hide the number-input spinners, which
+ * is genuinely CSS territory (not expressible as clean utilities).
+ */
 input::-webkit-outer-spin-button,
 input::-webkit-inner-spin-button {
     -webkit-appearance: none;
     margin: 0;
-}
-div > button {
-    position: absolute;
-    top: 8px;
-    right: 8px;
-    width: 75px;
-    height: 36px;
-    border-radius: 5px;
-    background: var(--secondary);
-    color: var(--secondary-fg);
-    text-align: center;
-    font-size: 14px;
-    line-height: 37px;
-    font-weight: 700;
-}
-
-@media only screen and (max-height: 600px) {
-    div > button {
-        top: 4px;
-        right: 4px;
-    }
-}
-
-span {
-    position: absolute;
-    top: 18px;
-    right: 90px;
-    font-size: 13px;
-    color: var(--light);
-    text-align: right;
-}
-
-@media only screen and (max-height: 600px) {
-    span {
-        top: 15px;
-        right: 50px;
-    }
-}
-
-nav {
-    position: absolute;
-    top: 48px;
-    right: 0px;
-    background: var(--input-bg);
-    box-shadow: 0px 4px 30px rgba(0, 0, 0, 0.25);
-    border-radius: 3px;
-    opacity: 0;
-    transition: opacity 0.1s cubic-bezier(0.4, 0, 0.2, 1);
-    pointer-events: none;
-}
-
-nav.active {
-    opacity: 1;
-    pointer-events: all;
-}
-
-nav button {
-    display: block;
-    background: var(--input-bg);
-    height: 36px;
-    width: 75px;
-    text-align: center;
-    font-size: 14px;
-}
-
-nav button:hover {
-    background: var(--dropdown-hover);
-}
-
-nav button.active {
-    background: var(--dropdown-active);
-}
-
-nav button:first-child {
-    border-radius: 3px 3px 0 0;
-}
-nav button:last-child {
-    border-radius: 0 0¬ 3px 3px;
 }
 </style>

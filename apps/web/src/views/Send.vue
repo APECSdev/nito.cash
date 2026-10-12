@@ -68,6 +68,7 @@
                                 placeholder="Add an optional note / reference"
                                 type="text"
                                 v-model="note"
+                                class="input-base"
                             />
                         </form>
                     </div>

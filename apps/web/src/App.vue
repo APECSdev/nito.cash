@@ -276,50 +276,16 @@ button {
     color: var(--fg);
 }
 
-input, textarea {
-    margin-bottom: 18px;
-    padding: 0 14px;
-    background: var(--input-bg);
-    border-radius: 7px;
-    border: 1px solid var(--input-border);
-    font-family: 'Poppins', sans-serif;
-    -webkit-appearance: none;
-    color: var(--fg);
-    font-size: 16px;
-    width: 100%;
-    height: 52px;
-    resize: none;
-    transition: border-color 0.12s cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-input::-ms-clear {
-    display: none;
-    width: 0;
-    height: 0;
-}
-
-input:focus {
-    border-color: var(--input-active);
-}
-
-@media only screen and (max-height: 600px) {
-    input, textarea {
-        margin-bottom: 16px;
-        height: 44px;
-    }
-}
-
-::placeholder {
-    color: var(--input-placeholder);
-    font-weight: 600;
-    font-size: 13px;
-}
-
-@media only screen and (max-height: 600px) {
-    ::placeholder {
-        line-height: 26px;
-    }
-}
+/*
+ * Phase D (batch 4a): the global `input, textarea` rule (base + `::-ms-clear`
+ * + `:focus` + bare-global `::placeholder` + the two `max-height: 600px`
+ * overrides) is RELOCATED to the `.input-base` component class in
+ * `@layer components` in `src/assets/tailwind.css`, applied as a class to the
+ * four consumers (Amount, Address, Send:note-input, Spend:payment-textarea).
+ * Declarations are byte-for-byte identical; scoping `::placeholder` to
+ * `.input-base::placeholder` is equivalent because only those four inputs
+ * carry a placeholder.
+ */
 
 h6 {
     color: var(--warning);

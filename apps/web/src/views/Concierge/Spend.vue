@@ -15,6 +15,7 @@
                 type="text"
                 v-model="note"
                 @paste="handlePastedNote"
+                class="input-base h-[65px] inline-block align-middle py-[5px] px-[15px]"
             />
         </div>
 
@@ -154,11 +155,13 @@ hr {
     background: var(--hr);
 }
 
-textarea {
-    height: 65px;
-    display: inline-block;
-    vertical-align: middle;
-    padding: 5px 15px;
-}
+/*
+ * Phase D (batch 4a): the scoped `textarea` rule is converted to Tailwind
+ * utilities on the template (`h-[65px] inline-block align-middle py-[5px]
+ * px-[15px]`), layered over the shared `input-base` component class (the
+ * relocated former global `input, textarea` rule) — identical to Address.vue.
+ * The remaining Spend scoped rules above (main/header/hr/.payment .divider)
+ * are view-level styles and convert in the views batch.
+ */
 
 </style>
