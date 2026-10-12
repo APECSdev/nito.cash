@@ -10,38 +10,38 @@ const stubs = { Header: true }
 /* Describe test. */
 describe('Modal.vue', () => {
     it('is a registered component', () => {
-        const wrapper = shallowMount(Modal, { stubs })
+        const wrapper = shallowMount(Modal, { global: { stubs } })
 
-        expect(wrapper.isVueInstance()).toBeTruthy()
+        expect(wrapper.exists()).toBeTruthy()
     })
 
     it('renders the Header by default', () => {
-        const wrapper = shallowMount(Modal, { stubs })
+        const wrapper = shallowMount(Modal, { global: { stubs } })
 
         expect(wrapper.find('header-stub').exists()).toBeTruthy()
     })
 
     it('hides the Header when hideHeader is set', () => {
-        const wrapper = shallowMount(Modal, { propsData: { hideHeader: true }, stubs })
+        const wrapper = shallowMount(Modal, { props: { hideHeader: true }, global: { stubs } })
 
         expect(wrapper.find('header-stub').exists()).toBeFalsy()
     })
 
     it('applies the hideHeader class to the slot container when hideHeader is set', () => {
-        const wrapper = shallowMount(Modal, { propsData: { hideHeader: true }, stubs })
+        const wrapper = shallowMount(Modal, { props: { hideHeader: true }, global: { stubs } })
 
         expect(wrapper.find('.slot').classes()).toContain('hideHeader')
     })
 
     it('passes the label prop to the Header', () => {
-        const wrapper = shallowMount(Modal, { propsData: { label: 'Settings' }, stubs })
+        const wrapper = shallowMount(Modal, { props: { label: 'Settings' }, global: { stubs } })
 
         expect(wrapper.find('header-stub').attributes('label')).toBe('Settings')
     })
 
     it('renders slot content', () => {
         const wrapper = shallowMount(Modal, {
-            stubs,
+            global: { stubs },
             slots: { default: '<p class="body">modal body</p>' },
         })
 

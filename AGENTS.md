@@ -26,7 +26,7 @@ backend server — the app runs entirely in the browser and talks to the BCH net
 | Errors         | `@bugsnag/js@9` + `@bugsnag/plugin-vue@9`   | v9 API (`Bugsnag.start` + `app.use(getPlugin('vue'))`). |
 | Node polyfill  | `vite-plugin-node-polyfills` + `buffer`     | webpack 4 auto-polyfilled `Buffer`/`process`; Vite needs this for BITBOX + Ledger. |
 | Ledger (HW)    | `@ledgerhq/hw-app-btc@11.6.0`, `@ledgerhq/hw-transport-webusb@6.35.0` | See "Ledger Integration" below. |
-| Testing        | **PAUSED** — Vitest port is Phase C          | Jest + `@vue/test-utils@1` (Vue 2) are incompatible with the Vue 3 runtime. |
+| Testing        | **Vitest** `@5.0.4` + `@vue/test-utils@2.5.1` + jsdom | 17 suites / 86 tests. Jest + `@vue/cli-plugin-unit-jest` REMOVED (Phase C). |
 
 Full dependency list lives in `package.json`; the authoritative lockfile is `pnpm-lock.yaml`.
 
@@ -82,8 +82,9 @@ apps/
                         Settings, Concierge/*)
       App.vue  main.js
     svg-icons/          Source SVGs for generate-icons
-    tests/unit/         Jest unit tests
-    package.json  vue.config.js  babel.config.js  jest.config.js  .eslintrc.js
+    tests/unit/         Vitest unit tests (17 suites / 86 tests)
+    vitest.config.js    Vitest config (jsdom, `@` alias, v8 coverage -> coverage/lcov.info)
+    package.json  vue.config.js  babel.config.js  .eslintrc.js   (jest.config.js removed)
 workers/
   prover/               @nito.cash/prover — Halo 2 / Orchard ZK prover, a Cloudflare Worker
                         (Rust→WASM). Vendored from the Sansbank `wasm-prover` project (history
@@ -237,11 +238,27 @@ verifiable phases. **A (toolchain) and B (runtime flip + Vite-as-production) are
   `vuex-persistedstate` cookie/localStorage behaviour, and the cross-namespace refs
   (`rootGetters['profile/getFlags']` etc. in 5 files). Then rewrite the 12 components'
   `mapGetters`/`mapActions` to idiomatic Pinia `mapState`/`mapActions`.
-- **Phase C — Vitest** port of the 17 Jest suites (jsdom canvas/lottie mocks, `@vue/test-utils` v2,
-  `@click.native` → Vue 3 equivalent). Restores `pnpm test:unit` + Codecov coverage (currently paused).
+- **Phase C — Vitest** — **DONE.** All 17 Jest suites ported to Vitest `@5.0.4` + `@vue/test-utils@2.5.1`
+  (jsdom env, `vitest.config.js`). 86 tests pass. Restores `pnpm test:unit` + Codecov coverage (lcov at
+  `apps/web/coverage/lcov.info`). Jest/`@vue/cli-plugin-unit-jest`/`jest.config.js` removed. VTU v2 changes:
+  `propsData`→`props`, `isVueInstance()`→`exists()`, `{store,stubs}`→`global.{plugins,stubs}`,
+  `findAll(Comp)`→`findAllComponents(Comp)`, no `.wrappers`, `jest.fn/mock`→`vi.fn/mock`, and — because
+  shallowMount stubs a `Popup` parent (dropping its slot) — popup specs un-stub `Popup` via `global.stubs`.
 - **Phase D — convert scoped CSS → Tailwind** utilities component-by-component.
-- **Phase E — remove legacy** (`vue.config.js`, `babel.config.js`, `jest.config.js`, the 4 Babel
-  plugins, `transpileDependencies`, `@vue/cli-*`, `@vue/test-utils@1`, eslint-6 stack, core-js).
+- **Phase E — remove legacy** (`vue.config.js`, `babel.config.js`, the 4 Babel
+  plugins, `transpileDependencies`, `@vue/cli-*`, eslint-6 stack, core-js).
+  NOTE: `jest.config.js` + `@vue/cli-plugin-unit-jest` were already removed in Phase C.
+
+**Source bugs fixed during Phase C** (latent Vue-2-isms that broke the Vue 3 / Vite build; all logic-preserving):
+- `inputs/Dropdown.vue` — `getFlagName` used webpack-only `require()`/`require.context()` for flag SVGs;
+  ported to `import.meta.glob('../../assets/flags/*.svg', { eager: true, query: '?url', import: 'default' })`
+  (glob keys are the literal relative paths). This was breaking the currency dropdown under the Vite build.
+- `popups/Popup.vue` — the escape handler mutated the read-only `active` prop (Vue 3 proxy TypeError);
+  now routed through a `activeFlag` computed get/set (set is a no-op; parent owns state, 1-way flow preserved).
+- `QR.vue` — an HTML comment inside a `v-html` div tripped the Vue 3 compiler (`v-html will override element
+  children`); comment moved out, `v-html` div left empty (its `qr` computed already returns `''`).
+- `compiled-icons/*.js` — converted the `require('./register')` (CJS) to `import icon from './register'`
+  (ESM) so Vitest's `@` alias resolves the chain into `@/plugins/svgicon`.
 
 Key mappings (applied): Vuex → Pinia (`mapGetters`/`mapActions` → `mapState`/`mapActions` on Pinia stores),
 vue-svgicon → a small global `<svgicon>` plugin, `process.env.VUE_APP_*` → `import.meta.env.VITE_*`

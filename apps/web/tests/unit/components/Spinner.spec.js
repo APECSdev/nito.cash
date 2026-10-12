@@ -10,7 +10,7 @@ describe('Spinner.vue', () => {
     const wrapper = shallowMount(Spinner)
 
     it('is a registered component', () => {
-        expect(wrapper.isVueInstance()).toBeTruthy()
+        expect(wrapper.exists()).toBeTruthy()
     })
 
     it('renders a figure container', () => {

@@ -9,31 +9,31 @@ describe('Toggle.vue', () => {
     it('is a registered component', () => {
         const wrapper = shallowMount(Toggle)
 
-        expect(wrapper.isVueInstance()).toBeTruthy()
+        expect(wrapper.exists()).toBeTruthy()
     })
 
     it('renders inactive by default (on = false)', () => {
-        const wrapper = shallowMount(Toggle, { propsData: { on: false } })
+        const wrapper = shallowMount(Toggle, { props: { on: false } })
 
         expect(wrapper.find('.knob').classes()).not.toContain('active')
         expect(wrapper.vm.active).toBe(false)
     })
 
     it('renders active when on', () => {
-        const wrapper = shallowMount(Toggle, { propsData: { on: true } })
+        const wrapper = shallowMount(Toggle, { props: { on: true } })
 
         expect(wrapper.find('.knob').classes()).toContain('active')
         expect(wrapper.vm.active).toBe(true)
     })
 
     it('applies the disabled class from the prop', () => {
-        const wrapper = shallowMount(Toggle, { propsData: { disabled: true } })
+        const wrapper = shallowMount(Toggle, { props: { disabled: true } })
 
         expect(wrapper.find('.toggle').classes()).toContain('disabled')
     })
 
     it('toggles active state on click', async () => {
-        const wrapper = shallowMount(Toggle, { propsData: { on: false } })
+        const wrapper = shallowMount(Toggle, { props: { on: false } })
 
         await wrapper.find('.toggle').trigger('click')
         expect(wrapper.vm.active).toBe(true)

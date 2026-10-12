@@ -6,19 +6,19 @@ import Backup from '@/components/popups/Backup.vue'
 import Popup from '@/components/popups/Popup.vue'
 
 /* Stub the lottie-driven Animation child (needs canvas + dynamic JSON imports). */
-const stubs = { Animation: true }
+const stubs = { Animation: true, svgicon: true, Popup: false }
 
 /* Describe test. */
 describe('popups/Backup.vue', () => {
     /* Initialize wrapper. */
-    const wrapper = shallowMount(Backup, { stubs })
+    const wrapper = shallowMount(Backup, { global: { stubs } })
 
     it('is a registered component', () => {
-        expect(wrapper.isVueInstance()).toBeTruthy()
+        expect(wrapper.exists()).toBeTruthy()
     })
 
     it('renders inside a Popup', () => {
-        expect(wrapper.find(Popup).exists()).toBeTruthy()
+        expect(wrapper.findComponent(Popup).exists()).toBeTruthy()
     })
 
     it('renders the backup header', () => {
@@ -30,7 +30,7 @@ describe('popups/Backup.vue', () => {
     })
 
     it('renders No and Yes action buttons', () => {
-        const labels = wrapper.findAll('button-stub').wrappers.map((btn) => btn.attributes('label'))
+        const labels = wrapper.findAll('button-stub').map((btn) => btn.attributes('label'))
 
         expect(labels).toEqual(expect.arrayContaining(['No', 'Yes']))
     })

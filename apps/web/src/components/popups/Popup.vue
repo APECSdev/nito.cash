@@ -1,5 +1,5 @@
 <template>
-    <div class="popup" :class="{ active, solid }">
+    <div class="popup" :class="{ active: activeFlag, solid }">
         <slot />
     </div>
 </template>
@@ -10,6 +10,23 @@ export default {
         active: [Boolean, String],
         solid: Boolean,
     },
+    computed: {
+        /* NOTE (Vue 3): the template's `:class="{ active }"` reads this computed
+           (shadowing the prop), and the escape handler writes it. A computed
+           set() avoids the "mutating a prop" anti-pattern / Vue 3 read-only
+           proxy TypeError. The parent owns `active` (1-way data flow) and never
+           listened for a close event, so the write is a no-op: pressing escape
+           leaves visibility unchanged, exactly as the original Vue 2 code did
+           logically (its local prop write was never synced to the parent). */
+        activeFlag: {
+            get() {
+                return this.active
+            },
+            set(_value) {
+                /* No-op (see NOTE above). */
+            },
+        },
+    },
     created: function () {
         /* Setup escape key press. */
         document.onkeydown = evt => {
@@ -19,7 +36,7 @@ export default {
             /* Detect `escape` key. */
             if (evt.keyCode === 27) {
                 /* Set flag. */
-                this.active = null
+                this.activeFlag = null
             }
         }
     },

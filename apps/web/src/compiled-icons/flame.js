@@ -1,5 +1,5 @@
 /* eslint-disable */
-var icon = require('./register').default
+import icon from './register'
 icon.register({
   'flame': {
     width: 16,

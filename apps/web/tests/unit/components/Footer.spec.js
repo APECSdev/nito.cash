@@ -9,7 +9,7 @@ describe('Footer.vue', () => {
     it('is a registered component', () => {
         const wrapper = shallowMount(Footer)
 
-        expect(wrapper.isVueInstance()).toBeTruthy()
+        expect(wrapper.exists()).toBeTruthy()
     })
 
     it('renders a footer element', () => {
@@ -34,7 +34,7 @@ describe('Footer.vue', () => {
     })
 
     it('applies the tooltip class when the tooltip prop is set', () => {
-        const wrapper = shallowMount(Footer, { propsData: { tooltip: true } })
+        const wrapper = shallowMount(Footer, { props: { tooltip: true } })
 
         expect(wrapper.find('footer').classes()).toContain('tooltip')
     })

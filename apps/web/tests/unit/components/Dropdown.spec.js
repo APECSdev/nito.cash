@@ -12,43 +12,43 @@ const items = [
 
 /* Initialize base props (a `flag` is required: the template renders
    getFlagName(activeFlag) immediately). */
-const propsData = { items, value: 'USD', flag: 'United States' }
+const props = { items, value: 'USD', flag: 'United States' }
 
 /* Describe test. */
 describe('inputs/Dropdown.vue', () => {
     it('is a registered component', () => {
-        const wrapper = shallowMount(Dropdown, { propsData })
+        const wrapper = shallowMount(Dropdown, { props })
 
-        expect(wrapper.isVueInstance()).toBeTruthy()
+        expect(wrapper.exists()).toBeTruthy()
     })
 
     it('renders one button per item', () => {
-        const wrapper = shallowMount(Dropdown, { propsData })
+        const wrapper = shallowMount(Dropdown, { props })
 
         expect(wrapper.findAll('nav button').length).toBe(items.length)
     })
 
     it('shows the current value as the active country', () => {
-        const wrapper = shallowMount(Dropdown, { propsData })
+        const wrapper = shallowMount(Dropdown, { props })
 
         expect(wrapper.vm.activeCountry).toBe('USD')
     })
 
     it('resolves a flag image via require.context (no Jest crash)', () => {
-        const wrapper = shallowMount(Dropdown, { propsData })
+        const wrapper = shallowMount(Dropdown, { props })
 
         /* Previously a dynamic require() threw under Jest (the FIXME). */
         expect(() => wrapper.vm.getFlagName('Andorra')).not.toThrow()
     })
 
     it('maps the United States special case to its flag', () => {
-        const wrapper = shallowMount(Dropdown, { propsData })
+        const wrapper = shallowMount(Dropdown, { props })
 
         expect(() => wrapper.vm.getFlagName('United States')).not.toThrow()
     })
 
     it('applies the disabled class from the prop', () => {
-        const wrapper = shallowMount(Dropdown, { propsData: { ...propsData, disabled: true } })
+        const wrapper = shallowMount(Dropdown, { props: { ...props, disabled: true } })
 
         expect(wrapper.classes()).toContain('disabled')
     })

@@ -9,32 +9,32 @@ describe('Button.vue', () => {
     it('is a registered component', () => {
         const wrapper = shallowMount(Button)
 
-        expect(wrapper.isVueInstance()).toBeTruthy()
+        expect(wrapper.exists()).toBeTruthy()
     })
 
     it('renders the label', () => {
-        const wrapper = shallowMount(Button, { propsData: { label: 'Send' } })
+        const wrapper = shallowMount(Button, { props: { label: 'Send' } })
 
         expect(wrapper.text()).toBe('Send')
     })
 
     it('renders the loading label when loading', () => {
         const wrapper = shallowMount(Button, {
-            propsData: { label: 'Send', loadingLabel: 'Sending…', loading: true },
+            props: { label: 'Send', loadingLabel: 'Sending…', loading: true },
         })
 
         expect(wrapper.text()).toBe('Sending…')
     })
 
     it('applies the loading class when loading', () => {
-        const wrapper = shallowMount(Button, { propsData: { loading: true } })
+        const wrapper = shallowMount(Button, { props: { loading: true } })
 
         expect(wrapper.classes()).toContain('loading')
     })
 
     it('applies style modifier classes from props', () => {
         const wrapper = shallowMount(Button, {
-            propsData: { secondary: true, small: true, warning: true },
+            props: { secondary: true, small: true, warning: true },
         })
 
         expect(wrapper.classes()).toEqual(
@@ -43,7 +43,7 @@ describe('Button.vue', () => {
     })
 
     it('applies the disabled class from the prop', () => {
-        const wrapper = shallowMount(Button, { propsData: { disabled: true } })
+        const wrapper = shallowMount(Button, { props: { disabled: true } })
 
         expect(wrapper.classes()).toContain('disabled')
     })

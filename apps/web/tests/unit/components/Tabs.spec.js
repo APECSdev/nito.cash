@@ -7,24 +7,25 @@ import Tabs from '@/components/Tabs.vue'
 /* Describe test. */
 describe('Tabs.vue', () => {
     /* Initialize props. */
-    const propsData = {
+    const props = {
         tab: 'Send',
         tabs: ['Send', 'Receive'],
     }
 
     /* Initialize wrapper. */
-    const wrapper = shallowMount(Tabs, { propsData })
+    const wrapper = shallowMount(Tabs, { props })
 
     it('is a registered component', () => {
-        expect(wrapper.isVueInstance()).toBeTruthy()
+        expect(wrapper.exists()).toBeTruthy()
     })
 
     it('renders one button per tab', () => {
-        expect(wrapper.findAll('button').length).toBe(propsData.tabs.length)
+        expect(wrapper.findAll('button').length).toBe(props.tabs.length)
     })
 
     it('renders the tab labels', () => {
-        const labels = wrapper.findAll('button').wrappers.map((btn) => btn.text())
+        /* NOTE (VTU v2): `findAll` returns the wrappers array directly (no `.wrappers`). */
+        const labels = wrapper.findAll('button').map((btn) => btn.text())
 
         expect(labels).toEqual(['Send', 'Receive'])
     })

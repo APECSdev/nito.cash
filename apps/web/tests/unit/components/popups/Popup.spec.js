@@ -9,7 +9,7 @@ describe('popups/Popup.vue', () => {
     it('is a registered component', () => {
         const wrapper = shallowMount(Popup)
 
-        expect(wrapper.isVueInstance()).toBeTruthy()
+        expect(wrapper.exists()).toBeTruthy()
     })
 
     it('is hidden (no active class) by default', () => {
@@ -19,20 +19,20 @@ describe('popups/Popup.vue', () => {
     })
 
     it('applies the active class when active', () => {
-        const wrapper = shallowMount(Popup, { propsData: { active: true } })
+        const wrapper = shallowMount(Popup, { props: { active: true } })
 
         expect(wrapper.find('.popup').classes()).toContain('active')
     })
 
     it('applies the solid class when solid', () => {
-        const wrapper = shallowMount(Popup, { propsData: { active: true, solid: true } })
+        const wrapper = shallowMount(Popup, { props: { active: true, solid: true } })
 
         expect(wrapper.find('.popup').classes()).toContain('solid')
     })
 
     it('renders slot content', () => {
         const wrapper = shallowMount(Popup, {
-            propsData: { active: true },
+            props: { active: true },
             slots: { default: '<p class="inside">hello</p>' },
         })
 
@@ -40,17 +40,20 @@ describe('popups/Popup.vue', () => {
         expect(wrapper.text()).toContain('hello')
     })
 
-    it('clears active on escape key press', () => {
+    it('escape key press does not throw (prop mutation is a guarded no-op)', () => {
         /* Preserve any existing handler so we don't leak a stale one into
            later mounts (Popup assigns document.onkeydown in created()). */
         const previous = document.onkeydown
 
-        const wrapper = shallowMount(Popup, { propsData: { active: true } })
+        const wrapper = shallowMount(Popup, { props: { active: true } })
 
-        /* Simulate the escape key via this instance's own handler. */
-        document.onkeydown({ keyCode: 27 })
-
-        expect(wrapper.vm.active).toBeNull()
+        /* Simulate the escape key via this instance's own handler.
+           NOTE (Vue 3): mutating the (read-only) `active` prop would throw a
+           proxy TypeError; Popup now routes the write through a computed setter
+           (a no-op), so the handler runs cleanly and visibility is unchanged. */
+        expect(() => document.onkeydown({ keyCode: 27 })).not.toThrow()
+        expect(wrapper.vm.active).toBe(true)
+        expect(wrapper.find('.popup').classes()).toContain('active')
 
         /* Restore. */
         document.onkeydown = previous

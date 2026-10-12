@@ -1,8 +1,9 @@
 <template>
     <main class="qr">
-        <div v-html="qr">
-            <!-- placeholder for QRCode -->
-        </div>
+        <!-- placeholder for QRCode -->
+        <!-- NOTE (Vue 3): `v-html` overrides element children, so this div must
+             stay empty (the old inner comment tripped the Vue 3 compiler). -->
+        <div v-html="qr"></div>
 
         <!-- <svg width="204" height="204" xmlns="http://www.w3.org/2000/svg">
             <path

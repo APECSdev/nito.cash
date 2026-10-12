@@ -53,20 +53,27 @@ export default {
         getFlagName(_country) {
             // console.log('GET FLAG NAME', _country)
 
+            /* NOTE (Vite): webpack's `require()` / `require.context()` are gone.
+               `import.meta.glob(..., { eager: true })` builds the same static
+               module map at build time; `?url` yields each flag's asset URL. */
+            const flags = import.meta.glob('../../assets/flags/*.svg', { eager: true, query: '?url', import: 'default' })
+            /* NOTE: `import.meta.glob` keys are the literal (relative) paths. */
+            const flagUrl = (name) => flags[`../../assets/flags/${name}.svg`]
+
             if (_country === 'American Samoa' || _country === 'United States') {
-                return require('@/assets/flags/united-states-of-america.svg')
+                return flagUrl('united-states-of-america')
             }
 
             if (_country === 'Bouvet Island') {
-                return require('@/assets/flags/norway.svg')
+                return flagUrl('norway')
             }
 
             if (_country === 'Andorra') {
-                return require('@/assets/flags/european-union.svg')
+                return flagUrl('european-union')
             }
 
             if (_country === 'United Kingdom of Great Britain and Northern Ireland (The)') {
-                return require('@/assets/flags/united-kingdom.svg')
+                return flagUrl('united-kingdom')
             }
 
             /* Decode country id. */
@@ -80,12 +87,7 @@ export default {
             // console.log('COUNTRY ID', countryId)
 
             /* Return flag's svg (image). */
-            // NOTE: `require.context` (vs. a dynamic `require`) builds a static
-            //       module map so this resolves identically under webpack AND Jest.
-            //       (Resolves the FIXME: "Workaround for Bug in Jest testing".)
-            const flags = require.context('@/assets/flags', false, /\.svg$/)
-
-            return flags(`./${countryId}.svg`)
+            return flagUrl(countryId)
         },
 
         clickOutside() {

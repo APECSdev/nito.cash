@@ -1,10 +1,3 @@
-/* Import modules. */
-import Vue from 'vue'
-import VueSVGIcon from 'vue-svgicon'
-
-/* Initialize SVG icons. */
-Vue.use(VueSVGIcon)
-
 /* Import test utilities. */
 import { shallowMount } from '@vue/test-utils'
 
@@ -17,7 +10,7 @@ describe('Splash.vue', () => {
     const wrapper = shallowMount(Splash)
 
     it('is a registered component', () => {
-        expect(wrapper.isVueInstance()).toBeTruthy()
+        expect(wrapper.exists()).toBeTruthy()
     })
 
     it('is app title present', () => {

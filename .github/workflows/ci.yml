@@ -44,12 +44,17 @@ jobs:
       - name: Build web wallet
         run: pnpm build
 
-      # NOTE (Vue 3 migration): unit tests are temporarily disabled until the
-      # Vitest port (Phase C). `pnpm test:unit` is a no-op message for now.
+      # Unit tests (Phase C): Vitest + @vue/test-utils v2. Coverage (lcov) is
+      # generated at apps/web/coverage/lcov.info for the Codecov upload below.
       - name: Run unit tests
-        run: pnpm test:unit
+        run: pnpm test:unit --coverage
 
-      # Codecov upload is paused until the Vitest port restores coverage (Phase C).
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v4
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          files: apps/web/coverage/lcov.info
+          fail_ci_if_error: true
 
       - name: Upload build artifact (dist)
         uses: actions/upload-artifact@v4

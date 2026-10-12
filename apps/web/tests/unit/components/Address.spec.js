@@ -9,7 +9,7 @@ describe('inputs/Address.vue', () => {
     it('is a registered component', () => {
         const wrapper = shallowMount(Address)
 
-        expect(wrapper.isVueInstance()).toBeTruthy()
+        expect(wrapper.exists()).toBeTruthy()
     })
 
     it('renders a textarea with the recipient placeholder', () => {
@@ -20,20 +20,21 @@ describe('inputs/Address.vue', () => {
         expect(textarea.attributes('placeholder')).toBe('Recipient address')
     })
 
-    it('binds the address prop to the textarea value', () => {
-        const wrapper = shallowMount(Address, { propsData: { address: 'bitcoincash:qq…' } })
+    it('binds the modelValue prop to the textarea value', () => {
+        const wrapper = shallowMount(Address, { props: { modelValue: 'bitcoincash:qq…' } })
 
         expect(wrapper.find('textarea').element.value).toBe('bitcoincash:qq…')
     })
 
-    it('emits input with the new value on typing', async () => {
+    /* NOTE (Vue 3): v-model now emits `update:modelValue` (was `input` in Vue 2). */
+    it('emits update:modelValue with the new value on typing', async () => {
         const wrapper = shallowMount(Address)
         const textarea = wrapper.find('textarea')
 
         /* Simulate user input. */
         await textarea.setValue('bitcoincash:qr…')
 
-        expect(wrapper.emitted('input')).toBeTruthy()
-        expect(wrapper.emitted('input')[0]).toEqual(['bitcoincash:qr…'])
+        expect(wrapper.emitted('update:modelValue')).toBeTruthy()
+        expect(wrapper.emitted('update:modelValue')[0]).toEqual(['bitcoincash:qr…'])
     })
 })
