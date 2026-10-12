@@ -34,10 +34,18 @@ export default defineConfig({
     ],
 
     resolve: {
-        alias: {
+        alias: [
             /* Mirror webpack's `@ -> src` alias used across the codebase. */
-            '@': fileURLToPath(new URL('./src', import.meta.url)),
-        },
+            { find: '@', replacement: fileURLToPath(new URL('./src', import.meta.url)) },
+
+            /* Phase B-half-2 (Vuex → Pinia): components still
+               `import { mapGetters, mapActions, mapState } from 'vuex'`.
+               Alias the bare `vuex` specifier to the shim, which re-implements
+               those helpers against the Pinia-backed facade in `@/store`.
+               The regex anchors an EXACT match so `vuex-persistedstate` and
+               other `vuex*` packages are NOT clobbered. */
+            { find: /^vuex$/, replacement: fileURLToPath(new URL('./src/store/vuex-shim.js', import.meta.url)) },
+        ],
         /* The codebase imports SFCs extensionless (`@/views/Splash`). Webpack
            resolves `.vue` automatically; Vite does not, so add it here. */
         extensions: ['.mjs', '.js', '.mts', '.ts', '.jsx', '.tsx', '.json', '.vue'],

@@ -29,6 +29,7 @@
     "msgpack-lite": "0.1.26",
     "numeral": "2.0.6",
     "pinia": "4.0.3",
+    "pinia-plugin-persistedstate": "4.7.1",
     "qr-scanner": "1.1.1",
     "qrcode": "1.4.4",
     "uuid": "7.0.3",

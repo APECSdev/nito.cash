@@ -1,9 +1,13 @@
-/* Import modules. */
-import { createStore } from 'vuex'
-
 /* Import test utilities. */
 import { shallowMount } from '@vue/test-utils'
 import { vi } from 'vitest'
+import { createPinia, setActivePinia } from 'pinia'
+
+/* Import the (Pinia-backed) store + facade and the system module, so the
+   component's `mapActions(['displayNotification'])` resolves through the
+   facade and we can stub the global (system) actions it dispatches. */
+import { useStore, getStoreFacade, StoreCompatPlugin, ensureStoreFacade } from '@/store'
+import systemModule from '@/store/modules/system'
 
 /* Import component. */
 import Import from '@/components/popups/Import.vue'
@@ -15,25 +19,26 @@ const stubs = { Animation: true, svgicon: true, Popup: false }
 describe('popups/Import.vue', () => {
     /* Initialize (mock) store. */
     let displayNotification
-    let store
+    let displayError
 
     beforeEach(() => {
-        /* Stub the system actions used by the component. */
-        displayNotification = vi.fn()
+        /* Activate a fresh Pinia and build the `$store` facade. */
+        const pinia = createPinia()
+        pinia.use(StoreCompatPlugin)
+        setActivePinia(pinia)
+        ensureStoreFacade(useStore()) /* instantiate + build the facade */
 
-        store = createStore({
-            actions: {
-                displayNotification,
-                displayError: vi.fn(),
-            },
-        })
+        /* Stub the (global) system actions used by the component. */
+        displayNotification = vi.fn()
+        displayError = vi.fn()
+        systemModule.actions.displayNotification = displayNotification
+        systemModule.actions.displayError = displayError
     })
 
-    /* Helper: mount with the (mock) Vuex store + Animation stub.
-       NOTE (VTU v2): store/stubs moved under `global`. */
+    /* Helper: mount with the `$store` facade + Animation stub. */
     const mountPopup = () => shallowMount(Import, {
         global: {
-            plugins: [store],
+            mocks: { $store: getStoreFacade() },
             stubs,
         },
     })

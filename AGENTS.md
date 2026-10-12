@@ -19,7 +19,7 @@ backend server — the app runs entirely in the browser and talks to the BCH net
 | Framework      | `vue@3.5.43` (Vue 3)                        | Migrated from Vue 2 (Phase B done).                |
 | Build tool     | `vite@8` + `@vitejs/plugin-vue@6`           | **Production build** (replaces webpack/cli-service). Output `apps/web/dist-vite/`. |
 | Styling        | `tailwindcss@4` + `@tailwindcss/vite`       | Utility layer; component `<style>` blocks remain until Phase D. |
-| State          | `vuex@4` + `vuex-persistedstate@4`          | Vue-3-compatible bridge; **Pinia conversion pending** (Phase B-half-2). Persisted to cookies; msgpack-serialized. |
+| State          | `pinia@4.0.3` + `pinia-plugin-persistedstate@4.7.1` | Single store + Vuex-shaped facade (Phase B-half-2). Persisted to cookies (nito)/localStorage. |
 | Routing        | `vue-router@4.6.4` (hash mode)              | `createWebHashHistory` — same `#/...` URLs.        |
 | i18n           | `vue-i18n@11.4.14` (`legacy: true`)         | Locales in `src/i18n/`.                            |
 | Icons          | Global `<svgicon>` plugin (`src/plugins/svgicon.js`) + `src/compiled-icons/` | Replaces `vue-svgicon`; generated files re-pointed via `compiled-icons/register.js`. |
@@ -77,7 +77,8 @@ apps/
       media/            Audio / media assets
       plugins/          Vue plugins (bugsnag.js, i18n.js)
       router/           vue-router routes
-      store/            Vuex store + modules (blockchain, concierge, profile, system, utils, wallets)
+      store/            Pinia store (index.js facade + vuex-shim.js) + modules (blockchain,
+                        concierge, profile, system, utils, wallets)
       views/            Route-level views (Splash, Setup, Dashboard, Send, Receive, History,
                         Settings, Concierge/*)
       App.vue  main.js
@@ -229,15 +230,31 @@ verifiable phases. **A (toolchain) and B (runtime flip + Vite-as-production) are
   **Vite is now the production build** (`pnpm build` → `vite build` → `apps/web/dist-vite/`); CI
   uploads `dist-vite/` and Cloudflare Pages deploys it. Live site confirmed serving the Vue 3 build.
 
-- **Phase B-half-2 (NEXT) — Vuex → Pinia.** The store is currently **Vuex 4** (`createStore`) as a
-  Vue-3-compatible bridge so the 50 store sub-files (getters/actions/mutations using the Vuex
-  `(state, getters, rootState, rootGetters)` / `({commit})` signatures) work unchanged. Convert all
-  6 modules + their sub-files to Pinia `defineStore`, preserving: the short state keys (`as`, `em`,
-  `n`, `nm`, `sv`, `a`, `is`, `m`, `f`, `l`, `miv`, `ms`, `q`, `t`), namespacing (5 namespaced
-  modules + the deliberately GLOBAL `system` module — `NOTE: We DO NOT namespace...`),
-  `vuex-persistedstate` cookie/localStorage behaviour, and the cross-namespace refs
-  (`rootGetters['profile/getFlags']` etc. in 5 files). Then rewrite the 12 components'
-  `mapGetters`/`mapActions` to idiomatic Pinia `mapState`/`mapActions`.
+- **Phase B-half-2 — Vuex → Pinia. DONE** via a **Pinia-backed compatibility layer** (the pragmatic
+  path, chosen over a big-bang rewrite of 57 coupled files). The store is now a single Pinia store
+  (`defineStore('main')` in `apps/web/src/store/index.js`) whose `state()` is the union of each
+  module's `state` under its module key. A **`StoreCompatPlugin`** builds a Vuex-shaped **facade**
+  over the Pinia store — `state.<module>.<key>` (reactive), `getters['<module>/<name>']`,
+  `dispatch`/`commit` with namespaced + `{ root: true }` + local (same-module) resolution — so the
+  **50 store sub-files and 12 components are byte-for-byte UNCHANGED** (they keep their
+  `(state, getters, rootState, rootGetters)` / `({commit, dispatch})` signatures and
+  `mapGetters/mapActions/mapState` calls). Components' `import { ... } from 'vuex'` is **aliased to
+  `src/store/vuex-shim.js`** (exact-match regex `/^vuex$/` in `vite.config.js` + `vitest.config.js`),
+  which re-implements `mapGetters/mapActions/mapState/mapMutations` against the facade. The facade is
+  cached on **`globalThis.__nito_store_facade__`** (NOT a module `let`) because Vitest/Vite can load
+  `@/store` in more than one realm; built idempotently by `ensureStoreFacade(useStore())` in
+  `main.js` (Pinia plugins don't reliably re-fire for an already-instantiated store). Persistence is
+  `pinia-plugin-persistedstate@4.7.1` replicating the original `vuex-persistedstate` exactly (key
+  `vuex`, JSON, `nito`→secure cross-subdomain cookie `.nito.cash`, else localStorage). Preserved:
+  short state keys, 5 namespaced modules + GLOBAL `system` (detected via `namespaced === true`, NOT
+  `!== false`, because system's `namespaced` is commented-out `undefined`), cross-namespace
+  `rootGetters[...]` refs, and live `get fn()` action/mutation lookup so tests can stub actions.
+  `tests/unit/setup.js` stubs `window.BITBOX` (a chainable Proxy) because store sub-files do
+  `new window.BITBOX()` at top-level and jsdom has no bitbox bundle. **86/86 Vitest tests pass; app
+  boots with 0 errors and writes `localStorage['vuex']`.** `Import.spec.js` now builds the facade
+  (`ensureStoreFacade`) + stubs `system.actions.displayNotification/Error` instead of a Vuex mock
+  store. A future idiomatic-Pinia rewrite of each component (dropping the shim) remains optional
+  cleanup, not required for correctness.
 - **Phase C — Vitest** — **DONE.** All 17 Jest suites ported to Vitest `@5.0.4` + `@vue/test-utils@2.5.1`
   (jsdom env, `vitest.config.js`). 86 tests pass. Restores `pnpm test:unit` + Codecov coverage (lcov at
   `apps/web/coverage/lcov.info`). Jest/`@vue/cli-plugin-unit-jest`/`jest.config.js` removed. VTU v2 changes:

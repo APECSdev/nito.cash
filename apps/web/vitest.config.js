@@ -17,10 +17,14 @@ export default defineConfig({
     ],
 
     resolve: {
-        alias: {
+        alias: [
             /* Mirror the app's `@ -> src` alias. */
-            '@': fileURLToPath(new URL('./src', import.meta.url)),
-        },
+            { find: '@', replacement: fileURLToPath(new URL('./src', import.meta.url)) },
+
+            /* Components import { mapGetters, mapActions, mapState } from
+               'vuex'; alias the bare specifier to the Pinia-backed shim. */
+            { find: /^vuex$/, replacement: fileURLToPath(new URL('./src/store/vuex-shim.js', import.meta.url)) },
+        ],
         /* The codebase imports SFCs extensionless in places. */
         extensions: ['.mjs', '.js', '.mts', '.ts', '.jsx', '.tsx', '.json', '.vue'],
     },
@@ -28,6 +32,10 @@ export default defineConfig({
     test: {
         /* Browser-like environment. */
         environment: 'jsdom',
+
+        /* Global setup: stub `window.BITBOX` so store modules (which do
+           `new window.BITBOX()` at top-level) can be imported in tests. */
+        setupFiles: ['./tests/unit/setup.js'],
 
         /* Jest-style globals (describe/it/expect) without imports. */
         globals: true,
