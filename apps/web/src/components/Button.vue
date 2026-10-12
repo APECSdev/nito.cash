@@ -6,6 +6,14 @@
 
 <script>
 export default {
+    /*
+     * NOTE (Vue 3): `.native` was removed. Parent templates listen with
+     *       `@click.native="..."` / `@click="..."`; declaring `click` here lets
+     *       Vue 3 treat it as fallthrough onto the inner `<button>`, so those
+     *       handlers keep firing without touching every call site.
+     */
+    emits: ['click'],
+
     props: {
         label: String,
         loadingLabel: String,

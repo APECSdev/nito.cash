@@ -1,16 +1,23 @@
 <template>
     <textarea
         placeholder="Recipient address"
-        :value="address"
-        @input="$emit('input', $event.target.value)"
+        :value="modelValue"
+        @input="$emit('update:modelValue', $event.target.value)"
     />
 </template>
 
 <script>
 export default {
+    /*
+     * NOTE (Vue 3): `v-model` now passes `modelValue` and listens for
+     *       `update:modelValue` (previously `value` / `input`). The parent
+     *       `<Address v-model="receiver" :address="receiver" />` keeps working;
+     *       its `:address` prop is now simply unused by this component.
+     */
     props: {
-        address: String,
-    }
+        modelValue: String,
+    },
+    emits: ['update:modelValue'],
 }
 </script>
 

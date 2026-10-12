@@ -1,5 +1,4 @@
-import Vue from 'vue'
-import VueRouter from 'vue-router'
+import { createRouter, createWebHashHistory } from 'vue-router'
 
 /* Import MAIN components. */
 import Splash from '@/views/Splash'
@@ -17,9 +16,6 @@ import Receive from '@/views/Receive'
 import Send from '@/views/Send'
 
 import Settings from '@/views/Settings'
-
-/* Initialize Vue Router. */
-Vue.use(VueRouter)
 
 /**
  * Initialize Routes
@@ -54,4 +50,8 @@ const routes = [{
 }]
 
 /* Export Vue Router. */
-export default new VueRouter({ routes })
+export default createRouter({
+    /* Hash mode preserves the existing (Vue 2) '#/...' URLs and static hosting. */
+    history: createWebHashHistory(),
+    routes,
+})

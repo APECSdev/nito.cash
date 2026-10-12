@@ -8,8 +8,9 @@
 import { fileURLToPath, URL } from 'node:url'
 
 import { defineConfig } from 'vite'
-import vue from '@vitejs/plugin-vue2'
+import vue from '@vitejs/plugin-vue'
 import tailwindcss from '@tailwindcss/vite'
+import { nodePolyfills } from 'vite-plugin-node-polyfills'
 
 export default defineConfig({
     /* Relative base so the static SPA can be served from any sub-path
@@ -22,6 +23,14 @@ export default defineConfig({
 
         /* Tailwind v4 (scans sources, generates the utility layer). */
         tailwindcss(),
+
+        /* Node builtins/globals for the browser. webpack 4 auto-polyfilled these
+           (Buffer, process, stream, crypto) and BITBOX / the Ledger deps use bare
+           `Buffer` at runtime; Vite does NOT polyfill, so provide them here. */
+        nodePolyfills({
+            globals: { Buffer: true, global: true, process: true },
+            protocolImports: true,
+        }),
     ],
 
     resolve: {

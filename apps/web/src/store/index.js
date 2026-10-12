@@ -1,6 +1,5 @@
 /* Import (core) modules. */
-import Vue from 'vue'
-import Vuex from 'vuex'
+import { createStore } from 'vuex'
 
 /* Import persisted state (for vuex). */
 import createPersistedState from 'vuex-persistedstate'
@@ -13,9 +12,6 @@ import profile from './modules/profile'
 import system from './modules/system'
 import utils from './modules/utils'
 import wallets from './modules/wallets'
-
-/* Initialize Vuex. */
-Vue.use(Vuex)
 
 /* Set modules. */
 const modules = {
@@ -91,7 +87,7 @@ if (process.env.VUE_APP_TARGET === 'nito') {
 const strict = process.env.NODE_ENV !== 'production'
 
 /* Export store. */
-export default new Vuex.Store({
+export default createStore({
     modules,
     plugins,
     strict,

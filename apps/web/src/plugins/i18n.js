@@ -1,8 +1,13 @@
-import Vue from 'vue'
-import VueI18n from 'vue-i18n'
+import { createI18n } from 'vue-i18n'
 
 /* Import (default) locale. */
-import en from '@/i18n/en-US'
+import en from '@/i18n/en-US.json'
+
+/* Import (additional) locales. */
+import de from '@/i18n/de.json' // German
+import fr from '@/i18n/fr.json' // French
+import zhCN from '@/i18n/zh-CN.json' // Chinese (PRC)
+import zhHK from '@/i18n/zh-HK.json' // Chinese (Hong Kong)
 
 /* Initialize messages. */
 const messages = { en }
@@ -13,11 +18,11 @@ const messages = { en }
 // messages.ar = require('@/i18n/ar') // Arabic
 // messages.cs = require('@/i18n/cs') // Czech
 // messages.da = require('@/i18n/da') // Danish
-messages.de = require('@/i18n/de') // German
+messages.de = de // German
 // messages.es = require('@/i18n/es') // Spanish
 // messages.et = require('@/i18n/et') // Estonian
 // messages.fi = require('@/i18n/fi') // Finnish
-messages.fr = require('@/i18n/fr') // French
+messages.fr = fr // French
 // messages.ga = require('@/i18n/ga') // Irish
 // messages.hi = require('@/i18n/hi') // Hindi
 // messages.hr = require('@/i18n/hr') // Croatian
@@ -39,13 +44,14 @@ messages.fr = require('@/i18n/fr') // French
 // messages.tr = require('@/i18n/tr') // Turkish
 // messages.uk = require('@/i18n/uk') // Ukrainian
 // messages.vi = require('@/i18n/vi') // Vietnamese
-messages['zh-CN'] = require('@/i18n/zh-CN') // Chinese (PRC)
-messages['zh-HK'] = require('@/i18n/zh-HK') // Chinese (Hong Kong)
+messages['zh-CN'] = zhCN // Chinese (PRC)
+messages['zh-HK'] = zhHK // Chinese (Hong Kong)
 
-/* Initialize plugin. */
-Vue.use(VueI18n)
+export const i18n = createI18n({
+    /* Use the legacy (Vue 2 / Options API) mode so existing `$t` calls and
+       component `this.$i18n` usage keep working unchanged during the migration. */
+    legacy: true,
 
-export const i18n = new VueI18n({
     /* Set (default) locale. */
     locale: 'en',
 

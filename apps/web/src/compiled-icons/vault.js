@@ -1,5 +1,5 @@
 /* eslint-disable */
-var icon = require('vue-svgicon')
+var icon = require('./register').default
 icon.register({
   'vault': {
     width: 16,
