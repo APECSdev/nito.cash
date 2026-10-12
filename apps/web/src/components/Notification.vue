@@ -1,14 +1,15 @@
 <template>
     <main>
         <!-- transition:fly={{ x: 20, duration: 200, opacity: 0, easing: quintOut }} -->
-        <p v-if="notification"  @:click="notification = null">
+        <p v-if="notification"  @:click="notification = null"
+            class="cursor-pointer absolute top-[65px] left-0 w-full h-[55px] leading-[55px] text-center font-medium text-primary-fg bg-success z-10">
             {{notification}}
         </p>
 
         <!-- transition:fly={{ x: 20, duration: 200, opacity: 0, easing: quintOut }} -->
         <p
             v-if="error"
-            class="error"
+            class="error cursor-pointer absolute top-[65px] left-0 w-full h-[55px] leading-[55px] text-center font-medium text-warning-fg bg-warning z-10"
 
             @click="error = null">
             {{error}}
@@ -44,23 +45,12 @@ export default {
 </script>
 
 <style scoped>
-p {
-    cursor: pointer;
-    position: absolute;
-    top: 65px;
-    left: 0px;
-    width: 100%;
-    height: 55px;
-    line-height: 55px;
-    text-align: center;
-    font-weight: 500;
-    color: var(--primary-fg);
-    background: var(--success);
-    z-index: 10;
-}
-
-p.error {
-    color: var(--warning-fg);
-    background: var(--warning);
-}
+/*
+ * Phase D: the base `p` banner and its `p.error` variant are converted to
+ * Tailwind utilities on the template above (the error banner swaps
+ * `text-primary-fg`/`bg-success` for `text-warning-fg`/`bg-warning`). The
+ * `error` class is kept as a state hook, now carrying no scoped CSS. The
+ * banners render only when a notification/error is set (v-if), so this change
+ * is invisible in the default state; parity verified by computed-style probe.
+ */
 </style>

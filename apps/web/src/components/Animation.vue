@@ -1,5 +1,5 @@
 <template>
-    <div id="container"></div>
+    <div id="container" class="relative h-full w-full"></div>
 </template>
 
 <script>
@@ -70,9 +70,9 @@ export default {
 </script>
 
 <style scoped>
-div {
-    position: relative;
-    height: 100%;
-    width: 100%;
-}
+/*
+ * Phase D: `div { position: relative; height: 100%; width: 100% }` converted to
+ * `relative h-full w-full` on the template above. The `#container` id is kept
+ * (lottie targets it by id; unit tests assert it).
+ */
 </style>
