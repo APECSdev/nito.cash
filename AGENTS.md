@@ -16,14 +16,17 @@ backend server — the app runs entirely in the browser and talks to the BCH net
 
 | Concern        | Package / version                          | Notes                                             |
 | -------------- | ------------------------------------------ | ------------------------------------------------- |
-| Framework      | `vue@2.6.11` (Vue 2, **EOL**)               | Migration to Vue 3 is IN PROGRESS (see below).    |
-| Build tool     | `@vue/cli-service@4.2.3` (webpack 4)        | Being replaced by Vite in the migration.          |
-| State          | `vuex@3.1.2` + `vuex-persistedstate@2.7.1`  | Persisted to cookies; msgpack-serialized.          |
-| Routing        | `vue-router@3.1.6` (hash mode)              |                                                   |
-| i18n           | `vue-i18n@8.16.0`                           | Locales in `src/i18n/`.                            |
-| Icons          | `vue-svgicon@3.2.6` + `src/compiled-icons/` | Generated from `svg-icons/` via `generate-icons`. |
+| Framework      | `vue@3.5.43` (Vue 3)                        | Migrated from Vue 2 (Phase B done).                |
+| Build tool     | `vite@8` + `@vitejs/plugin-vue@6`           | **Production build** (replaces webpack/cli-service). Output `apps/web/dist-vite/`. |
+| Styling        | `tailwindcss@4` + `@tailwindcss/vite`       | Utility layer; component `<style>` blocks remain until Phase D. |
+| State          | `vuex@4` + `vuex-persistedstate@4`          | Vue-3-compatible bridge; **Pinia conversion pending** (Phase B-half-2). Persisted to cookies; msgpack-serialized. |
+| Routing        | `vue-router@4.6.4` (hash mode)              | `createWebHashHistory` — same `#/...` URLs.        |
+| i18n           | `vue-i18n@11.4.14` (`legacy: true`)         | Locales in `src/i18n/`.                            |
+| Icons          | Global `<svgicon>` plugin (`src/plugins/svgicon.js`) + `src/compiled-icons/` | Replaces `vue-svgicon`; generated files re-pointed via `compiled-icons/register.js`. |
+| Errors         | `@bugsnag/js@9` + `@bugsnag/plugin-vue@9`   | v9 API (`Bugsnag.start` + `app.use(getPlugin('vue'))`). |
+| Node polyfill  | `vite-plugin-node-polyfills` + `buffer`     | webpack 4 auto-polyfilled `Buffer`/`process`; Vite needs this for BITBOX + Ledger. |
 | Ledger (HW)    | `@ledgerhq/hw-app-btc@11.6.0`, `@ledgerhq/hw-transport-webusb@6.35.0` | See "Ledger Integration" below. |
-| Testing        | `@vue/test-utils@1.0.0-beta.31` + Jest      | `tests/unit/`; being migrated to Vitest.          |
+| Testing        | **PAUSED** — Vitest port is Phase C          | Jest + `@vue/test-utils@1` (Vue 2) are incompatible with the Vue 3 runtime. |
 
 Full dependency list lives in `package.json`; the authoritative lockfile is `pnpm-lock.yaml`.
 
@@ -49,11 +52,12 @@ and distinguish *actual imports/calls* from *comment mentions* (e.g. `ipfs`, `mo
 referenced in comments and were safe to drop). Already removed: `chartist`, `ipfs`, `moment`,
 `orbit-db`, `@ledgerhq/hw-app-eth`, `npm`, `crypto-js`.
 
-> **Caveat — `core-js`:** `@vue/cli-service@4` (Babel) auto-injects `core-js` polyfill imports
-> at build time even though no source file imports it directly. Removing `core-js` breaks the
-> current Vue-2/webpack build with 62 "core-js/modules/* not found" errors. `core-js` has
-> therefore been **kept/restored** and must remain until the Vite migration removes the
-> Babel/cli-service toolchain — only then is it safe to drop. (See "Build & Verify".)
+> **Caveat — `core-js`:** it was a build-time dep of the old `@vue/cli-service@4` (Babel) webpack
+> build. **Webpack/cli-service is no longer the production build (Vite is, since Phase B)**, so
+> `core-js` is now unused and is a **Phase E removal candidate** along with the rest of the legacy
+> toolchain (`vue.config.js`, `babel.config.js`, `jest.config.js`, the Babel plugins, `transpileDependencies`,
+> `@vue/cli-*`, `@vue/test-utils@1`, eslint-6 stack). Do not remove piecemeal until Phase E verifies the
+> legacy packages have zero remaining references.
 
 ## Repository Layout (pnpm monorepo)
 
@@ -205,29 +209,47 @@ Ledger hardware-wallet support is being expanded from a single debug screen into
 The app was designed mobile-first; a responsive pass for **larger screens (Tablet and Desktop)**
 is planned as the next workstream. Until then, layouts target a single-column mobile viewport.
 
-## In-Flight: Vue 3 Migration (phased)
+## Vue 3 Migration (phased) — Phases A & B DONE
 
-A migration is underway (approved plan): **Vue 3 + Vite + Pinia + vue-router 4 + vue-i18n 11 + Vitest + Tailwind v4.**
-Executed in phases so the app stays buildable/green at each checkpoint. **Phase A is DONE**:
+Plan: **Vue 3 + Vite + Pinia + vue-router 4 + vue-i18n 11 + Vitest + Tailwind v4**, executed in
+verifiable phases. **A (toolchain) and B (runtime flip + Vite-as-production) are DONE and live.**
 
-- **Phase A (done) — toolchain bridge.** `vue@2.6.11 → 2.7.16` (+ `vue-template-compiler@2.7.16`),
-  added `vite@8` + `@vitejs/plugin-vue2` + `tailwindcss@4` + `@tailwindcss/vite`. New files:
-  `apps/web/vite.config.js` (relative base `./`, `@`→`src` alias, `.vue` in `resolve.extensions`,
-  `process.env` shims, `outDir: dist-vite`), `apps/web/index.html` (Vite entry, replaces
-  `public/index.html`'s webpack `<%= BASE_URL %>`), `apps/web/src/assets/tailwind.css` (Tailwind
-  entry, imported ONLY by the Vite `index.html`, never by webpack). Vite scripts: `vite:dev` /
-  `vite:build` / `vite:preview`; `dist-vite/` is gitignored. **webpack / `@vue/cli-service`
-  (`pnpm build`) is STILL the production build** — Vite is proven-but-parallel until the runtime flip.
-- **Phase B (next) — runtime flip.** Vue 3 + Pinia (rewrite the 6 Vuex modules) + vue-router 4 +
-  vue-i18n 11 + replace `vue-svgicon` (18 files use `<svgicon>`) with a small global plugin. After
-  this, Vite becomes the production build and webpack/cli-service/babel/core-js are removed.
-- **Phase C — Vitest** port of the 17 Jest suites. **Phase D — convert scoped CSS → Tailwind**
-  utilities component-by-component. **Phase E — remove legacy** (vue.config.js, babel.config.js,
-  jest.config.js, the 4 Babel plugins, `transpileDependencies`, core-js).
+- **Phase A (done) — toolchain bridge.** `vue@2.6.11 → 2.7.16` then Vite + Tailwind v4 added in
+  parallel to webpack (now superseded by Phase B).
+- **Phase B (done) — runtime flip + Vite production.** `vue@3.5.43`, `vue-router@4.6.4`
+  (`createWebHashHistory`), `vue-i18n@11.4.14` (`legacy: true`), `@bugsnag/js+plugin-vue@9`.
+  `main.js` → `createApp`; `router/index.js` → `createRouter`; `plugins/i18n.js` → `createI18n`;
+  `plugins/bugsnag.js` → v9 API. **`vue-svgicon` replaced** by `src/plugins/svgicon.js` (global
+  `<svgicon>`) + `src/compiled-icons/register.js` shim (generated `compiled-icons/*.js` re-pointed
+  at the shim; the 18 `<svgicon>` call sites are unchanged). `Button.vue` declares `emits:['click']`
+  so `@click.native` keeps working in Vue 3. `Address.vue` moved to the `modelValue`/`update:modelValue`
+  v-model contract. **`vite.config.js`**: `@vitejs/plugin-vue` + `vite-plugin-node-polyfills`
+  (`Buffer`/`process`/`global` for BITBOX + Ledger, which webpack 4 used to auto-polyfill).
+  **Vite is now the production build** (`pnpm build` → `vite build` → `apps/web/dist-vite/`); CI
+  uploads `dist-vite/` and Cloudflare Pages deploys it. Live site confirmed serving the Vue 3 build.
 
-Key mappings: Vuex → Pinia (`mapGetters`/`mapActions` → `mapState`/`mapActions` on Pinia stores),
-vue-svgicon → a small global `<svgicon>` plugin, `process.env.VUE_APP_*` → `import.meta.env.VITE_*`,
-Jest → Vitest.
+- **Phase B-half-2 (NEXT) — Vuex → Pinia.** The store is currently **Vuex 4** (`createStore`) as a
+  Vue-3-compatible bridge so the 50 store sub-files (getters/actions/mutations using the Vuex
+  `(state, getters, rootState, rootGetters)` / `({commit})` signatures) work unchanged. Convert all
+  6 modules + their sub-files to Pinia `defineStore`, preserving: the short state keys (`as`, `em`,
+  `n`, `nm`, `sv`, `a`, `is`, `m`, `f`, `l`, `miv`, `ms`, `q`, `t`), namespacing (5 namespaced
+  modules + the deliberately GLOBAL `system` module — `NOTE: We DO NOT namespace...`),
+  `vuex-persistedstate` cookie/localStorage behaviour, and the cross-namespace refs
+  (`rootGetters['profile/getFlags']` etc. in 5 files). Then rewrite the 12 components'
+  `mapGetters`/`mapActions` to idiomatic Pinia `mapState`/`mapActions`.
+- **Phase C — Vitest** port of the 17 Jest suites (jsdom canvas/lottie mocks, `@vue/test-utils` v2,
+  `@click.native` → Vue 3 equivalent). Restores `pnpm test:unit` + Codecov coverage (currently paused).
+- **Phase D — convert scoped CSS → Tailwind** utilities component-by-component.
+- **Phase E — remove legacy** (`vue.config.js`, `babel.config.js`, `jest.config.js`, the 4 Babel
+  plugins, `transpileDependencies`, `@vue/cli-*`, `@vue/test-utils@1`, eslint-6 stack, core-js).
+
+Key mappings (applied): Vuex → Pinia (`mapGetters`/`mapActions` → `mapState`/`mapActions` on Pinia stores),
+vue-svgicon → a small global `<svgicon>` plugin, `process.env.VUE_APP_*` → `import.meta.env.VITE_*`
+(vite.config currently shims `process.env` for the still-Vuex store + `App.vue`), Jest → Vitest.
+
+> **Runtime-verification method (used for Phase B):** `puppeteer-core` + system `/usr/bin/google-chrome`
+> against a locally-served `dist-vite/`, asserting `#app` mounts with zero `pageerror`s and that splash/
+> setup/settings render their `<svgicon>`s. Reusable; see commit `3914c66` / `bf408db` history.
 
 > **Env note (this dev box):** the host has **no IPv6 route**, and pnpm/npm (Node fetch/undici)
 > prefer IPv6 and hang. Workaround used for installs: run a **Node-based pnpm 11** with
