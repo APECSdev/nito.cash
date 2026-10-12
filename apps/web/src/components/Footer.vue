@@ -1,5 +1,9 @@
 <template>
-    <footer :class="{ tooltip }">
+    <footer
+        :class="tooltip
+            ? 'tooltip block w-full m-0 text-[12px] bg-box-bg rounded-t-[20px] p-5 short:p-4'
+            : 'flex w-full p-5 short:p-4'"
+    >
         <slot />
     </footer>
 </template>
@@ -13,24 +17,4 @@ export default {
 </script>
 
 <style scoped>
-footer {
-    display: flex;
-    width: 100%;
-    padding: 20px;
-}
-
-@media only screen and (max-height: 600px) {
-    footer {
-        padding: 16px;
-    }
-}
-
-footer.tooltip {
-    display: block;
-    background: var(--box-bg);
-    border-radius: 20px 20px 0 0;
-    width: 100%;
-    margin: 0;
-    font-size: 12px;
-}
 </style>

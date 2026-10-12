@@ -30,3 +30,6 @@ NOTES
 **/coverage
 workers/*/target
 workers/*/node_modules
+
+# Phase D visual-regression baseline captures (regenerate locally via scripts/visual-baseline.mjs)
+apps/web/scripts/.baseline/

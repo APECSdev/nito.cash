@@ -95,6 +95,16 @@ export default {
 </script>
 
 <style>
+/*
+ * Phase D: these global base styles are wrapped in `@layer base` so that the
+ * Tailwind utility layer (`@layer utilities`, generated from classes in the
+ * component templates) can override them. Unlayered author CSS always beats
+ * layered rules, so without this wrapper a utility like `block` would lose to
+ * the global `footer { display: flex }` below. The `@layer base` name matches
+ * Tailwind v4's own base layer, so these rules slot in alongside preflight and
+ * remain overridable by utilities. Selector bodies are unchanged (1:1 parity).
+ */
+@layer base {
 /* Fonts */
 @font-face {
     font-family: 'Poppins';
@@ -128,6 +138,18 @@ export default {
     font-weight: 400;
     box-sizing: border-box;
     outline: none;
+}
+
+/*
+ * Tailwind preflight styles `hr { border-top-width: 1px; border-style: solid }`.
+ * The universal reset above (`border: 0`) used to suppress that when this block
+ * was unlayered, but inside `@layer base` the element selector `hr` outranks
+ * `*` on specificity, so the preflight border would leak through. The app
+ * renders `<hr>` dividers as a 1px background bar (see views/Settings.vue),
+ * never a border, so reset it here to preserve that (1:1 parity).
+ */
+hr {
+    border: 0;
 }
 
 html, body {
@@ -407,4 +429,5 @@ footer.tooltip {
     font-size: 12px;
 }
 
+} /* @layer base */
 </style>

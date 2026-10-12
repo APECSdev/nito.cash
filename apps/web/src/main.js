@@ -10,6 +10,14 @@ if (typeof window !== 'undefined' && !window.Buffer) {
     window.Buffer = Buffer
 }
 
+/*
+ * Import the Tailwind stylesheet FIRST so its preflight (`@layer base`) is
+ * emitted before App.vue's global styles. Both live in `@layer base`, so source
+ * order breaks specificity ties; loading this first lets App.vue's rules (e.g.
+ * the global `h6`) override preflight, preserving the original rendering.
+ */
+import './assets/tailwind.css'
+
 /* Import (core) modules. */
 import { createApp } from 'vue'
 import { createPinia } from 'pinia'

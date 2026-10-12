@@ -1,8 +1,94 @@
 /* apps/web/src/assets/tailwind.css
  *
- * Tailwind v4 entry point. Imported once by the Vite entry (src/main.js) so the
- * utility layer is generated at build time. Component <style> blocks remain the
- * source of truth until Phase D converts them to Tailwind utilities component-
- * by-component; this sheet only provides the Tailwind layers + preflight.
+ * Tailwind v4 entry point. Imported FIRST in src/main.js (before App.vue) so
+ * its preflight lands in `@layer base` ahead of App.vue's global styles. App.vue
+ * wraps its own globals in `@layer base` too, so source order breaks specificity
+ * ties in App.vue's favour (e.g. the global `h6` keeps its font-size/weight over
+ * preflight) while the utility layer (`@layer utilities`) still overrides them.
+ *
+ * Phase D: components' scoped CSS is being converted to Tailwind utilities
+ * component-by-component. The app themes via CSS custom properties that are
+ * REDEFINED under `.app.dark` (see src/App.vue), so a naive conversion to
+ * static Tailwind colors (bg-blue-500) would break dark mode. The `@theme
+ * inline` block below maps each design token to its `var(--*)` reference, so
+ * utilities like `bg-primary` / `text-fg` / `border-input-border` resolve
+ * through the CSS variables and keep the runtime light/dark switch working.
+ *
+ * NOTE: `--color-*` tokens generate the color utilities (bg-*, text-*,
+ *       border-*, ring-*, etc.). `@theme inline` substitutes the var()
+ *       reference directly (instead of copying a resolved value), which is
+ *       required for the values to follow `.app` / `.app.dark` redefinition.
  */
 @import "tailwindcss";
+
+@theme inline {
+    /* Surfaces / chrome */
+    --color-bg: var(--bg);
+    --color-fg: var(--fg);
+    --color-fg-hover: var(--fg-hover);
+    --color-fg-link: var(--fg-link);
+    --color-box-bg: var(--box-bg);
+    --color-list-bg: var(--list-bg);
+    --color-hr: var(--hr);
+    --color-popup-bg: var(--popup-bg);
+    --color-light: var(--light);
+    --color-dark: var(--dark);
+
+    /* Brand + actions */
+    --color-primary: var(--primary);
+    --color-primary-fg: var(--primary-fg);
+    --color-primary-hover: var(--primary-hover);
+    --color-secondary: var(--secondary);
+    --color-secondary-fg: var(--secondary-fg);
+    --color-secondary-hover: var(--secondary-hover);
+    --color-secondary-disabled: var(--secondary-disabled);
+    --color-secondary-dark: var(--secondary-dark);
+    --color-trinary: var(--trinary);
+    --color-trinary-fg: var(--trinary-fg);
+    --color-trinary-dark: var(--trinary-dark);
+
+    /* Status */
+    --color-warning: var(--warning);
+    --color-warning-fg: var(--warning-fg);
+    --color-warning-hover: var(--warning-hover);
+    --color-success: var(--success);
+
+    /* Inputs */
+    --color-input-bg: var(--input-bg);
+    --color-input-border: var(--input-border);
+    --color-input-placeholder: var(--input-placeholder);
+    --color-input-carret: var(--input-carret);
+    --color-input-active: var(--input-active);
+
+    /* Dropdown */
+    --color-dropdown-active: var(--dropdown-active);
+    --color-dropdown-hover: var(--dropdown-hover);
+
+    /* Chart */
+    --color-chart-bg: var(--chart-bg);
+    --color-chart-fg: var(--chart-fg);
+    --color-chart-title: var(--chart-title);
+    --color-chart-button-fg: var(--chart-button-fg);
+    --color-chart-button-bg: var(--chart-button-bg);
+
+    /* Misc */
+    --color-spinner: var(--spinner);
+    --color-pending: var(--pending);
+    --color-pending-header: var(--pending-header);
+    --color-pending-dark: var(--pending-dark);
+
+    /* Layout sizing (referenced as spacing/dimension utilities). */
+    --spacing-max-width: var(--max-width);
+    --spacing-max-height: var(--max-height);
+    --spacing-header-height: var(--header-height);
+    --spacing-tabs-height: var(--tabs-height);
+    --spacing-iphone-height-fix: var(--iphone-height-fix);
+    --spacing-ipad-height-fix: var(--ipad-height-fix);
+}
+
+/* Custom variants for the app's repeated media-query breakpoints (Phase D).
+   `short:` matches the 10×-reused `max-height: 600px` "short screen" override;
+   `xs-mobile:` matches the 2×-reused `max-width: 520px` rule. One-off device
+   queries (iPhone X etc.) are handled per-component with arbitrary variants. */
+@custom-variant short (@media only screen and (max-height: 600px));
+@custom-variant xs-mobile (@media (max-width: 520px));
