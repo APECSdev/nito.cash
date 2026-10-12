@@ -342,6 +342,19 @@ and the `tooltip` marker class (its unit test asserts it). Popup footers (`Trans
 still inherit the global `footer{padding:20px}` base — that global rule stays until every consumer is
 converted.
 
+**Batches 1–3 (done)** — B1: `Modal.vue` (fully-conditional `hideHeader` height), `Animation.vue`,
+`Notification.vue` (`@:click` typo preserved); Spinner kept as plain CSS (its `@keyframes` + 8
+`nth-child` rules are genuinely CSS territory). B2: `Tabs.vue` (`flex` nav + `before:` underline with
+a fully-conditional `active`/width ternary). B3: `Button.vue` + `Address`/`Dropdown`/`Toggle` inputs.
+Button's base + 7 variants + the `max-height:600px` override + hovers moved to a fully-conditional
+`buttonClasses` computed (`classObject` markers kept; ONLY the `button.double + button.double` sibling
+stays as scoped CSS — a sibling relationship genuinely needs CSS). Dropdown (self-contained scoped
+styles) + Toggle (`.toggle.disabled .knob.active` override via an `active && !disabled` knob
+conditional) converted. Interactive states not exercised by the harness (Dropdown open menu, Toggle
+knob) were verified with a computed-style probe. **Still open:** App.vue's global `input, textarea`
+base rule (4 consumers: Amount, Address, Send, Spend) + `Amount.vue` + the views/popups — deferred to
+a dedicated follow-up that converts all consumers together.
+
 ## Conventions & Rules for Agents
 
 - **No guessing.** Verify every claim against the actual files; cite `path:line`. If a fact
