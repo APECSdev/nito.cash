@@ -261,7 +261,8 @@ verifiable phases. **A (toolchain) and B (runtime flip + Vite-as-production) are
   `propsData`→`props`, `isVueInstance()`→`exists()`, `{store,stubs}`→`global.{plugins,stubs}`,
   `findAll(Comp)`→`findAllComponents(Comp)`, no `.wrappers`, `jest.fn/mock`→`vi.fn/mock`, and — because
   shallowMount stubs a `Popup` parent (dropping its slot) — popup specs un-stub `Popup` via `global.stubs`.
-- **Phase D — convert scoped CSS → Tailwind** utilities component-by-component.
+- **Phase D — convert scoped CSS → Tailwind** utilities component-by-component. **IN PROGRESS**
+  (foundation + Footer done, commit `af333be`). See "Phase D — CSS → Tailwind" below.
 - **Phase E — remove legacy** (`vue.config.js`, `babel.config.js`, the 4 Babel
   plugins, `transpileDependencies`, `@vue/cli-*`, eslint-6 stack, core-js).
   NOTE: `jest.config.js` + `@vue/cli-plugin-unit-jest` were already removed in Phase C.
@@ -291,6 +292,55 @@ vue-svgicon → a small global `<svgicon>` plugin, `process.env.VUE_APP_*` → `
 > The default `~/.bun/bin/pnpm` is bun-bundled and ignores `NODE_OPTIONS`; use the nvm Node
 > (`~/.nvm/versions/node/v24.18.1/bin`) + `node ~/.local/pnpm11-dist/package/bin/pnpm.cjs`.
 > CI/Cloudflare have working IPv6/IPv4 and are unaffected.
+
+## Phase D — CSS → Tailwind (IN PROGRESS)
+
+Component-by-component conversion of scoped/global CSS to Tailwind utilities. **Verified
+pixel-perfect after every batch** with the visual harness (below); **1:1 logic parity required**
+(preserve `display` values, state/marker classes, media-query behavior — not just "looks the same").
+
+**Theming (`@theme inline`)** — `apps/web/src/assets/tailwind.css`. The app themes via **47 CSS
+custom properties** redefined under `.app.dark` (133 `var(--*)` usages). A naive conversion to
+static colors would freeze the theme. The `@theme inline` block maps each token to its `var(--*)`
+reference (`--color-primary: var(--primary)`, `--color-fg: var(--fg)`, `--color-input-border`, …),
+so utilities like `bg-primary` / `text-fg` / `border-input-border` resolve through the variables and
+follow the runtime theme switch. `inline` is required (substitutes the `var()` reference instead of
+copying a resolved value). Do NOT add `--font-sans` to `@theme` (it changes preflight's default
+font). Custom variants: `@custom-variant short (max-height:600px)` (10× reused) and `xs-mobile
+(max-width:520px)`; one-off device queries use arbitrary variants.
+
+**Cascade-layer rule (the crux)** — Tailwind v4 emits utilities in `@layer utilities`; App.vue's
+global stylesheet must NOT be unlayered or it always beats utilities. Setup that works (commit
+`af333be`):
+1. App.vue's global `<style>` is wrapped in `@layer base { … }` (utilities can now override it).
+2. `src/assets/tailwind.css` is imported **FIRST in `main.js`** (before App.vue), so preflight lands
+   earlier in `@layer base` than App.vue's globals — App.vue's own rules (global `h6`, `footer`, …)
+   then win same-specificity ties against preflight, preserving the original rendering.
+3. `hr { border: 0 }` added to App.vue: preflight's `hr{border-top}` otherwise leaks through (the `*`
+   reset loses to `hr` on specificity once both are in `base`).
+- Caveat: `text-xs` sets `font-size` AND `line-height`; use `text-[12px]` when the original only set
+  `font-size`. Arbitrary values (`p-5`=20px, `rounded-t-[20px]`) map cleanly otherwise.
+
+**Visual-regression harness** — `apps/web/scripts/visual-baseline.mjs` (dev-only; baseline PNGs are
+gitignored). Run from `apps/web`:
+```bash
+timeout 160 node_modules/.bin/vite build && node scripts/visual-baseline.mjs capture   # baseline
+# …edit a component…
+timeout 160 node_modules/.bin/vite build && node scripts/visual-baseline.mjs compare   # 0.000% required
+```
+It serves `dist-vite/`, screenshots 6 routes (setup/dashboard/send/receive/history/settings) ×
+light/dark in headless Chrome, and pixel-diffs (pixelmatch, threshold 0.1, max 0.1% drift). Made
+deterministic by: aborting every non-`127.0.0.1:5400` request (ticker/balances render as empty),
+disabling CSS animations, stubbing `requestAnimationFrame`, and navigating **directly** to each route
+(Splash's 3s `router.replace` timer is never cleared on `beforeDestroy` and would otherwise hijack
+navigation). Dark mode toggles `document.body.classList` only (matches `Settings.vue` real behavior).
+Re-capture the baseline whenever the committed CSS intentionally changes.
+
+**Footer.vue (done)** — first conversion. Root `<footer>` collides with the global `footer` rule, so
+the layer fix was a prerequisite. Preserved `display:flex` (non-tooltip) vs `display:block` (tooltip)
+and the `tooltip` marker class (its unit test asserts it). Popup footers (`Transaction.vue`, etc.)
+still inherit the global `footer{padding:20px}` base — that global rule stays until every consumer is
+converted.
 
 ## Conventions & Rules for Agents
 
