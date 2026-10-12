@@ -1,5 +1,5 @@
 <template>
-    <button :class="classObject">
+    <button :class="[buttonClasses, classObject]">
         {{ loading ? loadingLabel : label }}
     </button>
 </template>
@@ -39,73 +39,74 @@ export default {
                 small: this.small,
                 warning: this.warning,
             }
+        },
+
+        /*
+         * Phase D: the base button + variant styles (formerly scoped CSS) are
+         * emitted as Tailwind utilities here, built fully conditionally so no
+         * two same-property utilities ever compete in the cascade (one bg/color
+         * branch, one height/font-size branch, one radius branch). The marker
+         * classes in `classObject` are kept (unit tests assert them) but now
+         * carry no scoped CSS — EXCEPT `double`, whose `button.double +
+         * button.double` sibling override remains as scoped CSS (a sibling
+         * relationship that cannot be expressed per-instance in utilities).
+         */
+        buttonClasses: function () {
+            const c = ['block', 'w-full', 'font-bold']
+
+            /* Background + foreground (mutually exclusive variants). */
+            if (this.blank) {
+                /* `background: none` kept literal for exact parity. */
+                c.push('[background:none]', 'border', 'border-solid', 'border-fg', 'text-fg')
+            } else if (this.secondary) {
+                c.push('bg-secondary', 'text-secondary-fg', 'hover:bg-secondary-hover')
+            } else if (this.warning) {
+                c.push('bg-warning', 'text-warning-fg', 'hover:bg-warning-hover')
+            } else {
+                c.push('bg-primary', 'text-primary-fg', 'hover:bg-primary-hover')
+            }
+
+            /* Font-size + height (`small` always 45px/13px, else 54px/14px with
+               the max-height:600px -> 48px override via the `short` variant). */
+            if (this.small) {
+                c.push('text-[13px]', 'h-[45px]')
+            } else {
+                c.push('text-[14px]', 'h-[54px]', 'short:h-[48px]')
+            }
+
+            /* Border-radius (the double's second-button override is scoped CSS). */
+            if (this.double) {
+                c.push('rounded-[30px_0_0_30px]')
+            } else {
+                c.push('rounded-[30px]')
+            }
+
+            /* State. */
+            if (this.loading) c.push('pointer-events-none')
+            if (this.disabled) c.push('pointer-events-none', 'opacity-50')
+
+            return c
         }
     }
 }
 </script>
 
 <style scoped>
-button {
-    display: block;
-    width: 100%;
-    height: 54px;
-    background: var(--primary);
-    color: var(--primary-fg);
-    font-size: 14px;
-    font-weight: 700;
-    border-radius: 30px;
-}
-
-@media only screen and (max-height: 600px) {
-    button {
-        height: 48px;
-    }
-}
-
-button:hover {
-    background: var(--primary-hover);
-}
-
-button.secondary {
-    background: var(--secondary);
-    color: var(--secondary-fg);
-}
-button.secondary:hover {
-    background: var(--secondary-hover);
-}
-
-button.warning {
-    background: var(--warning);
-    color: var(--warning-fg);
-}
-button.warning:hover {
-    background: var(--warning-hover);
-}
-
-button.small {
-    height: 45px;
-    font-size: 13px;
-}
-
-button.double {
-    border-radius: 30px 0 0 30px;
-}
-
-button.loading {
-    pointer-events: none;
-}
-
+/*
+ * Phase D: the base button and every variant (`secondary`, `warning`, `small`,
+ * `loading`, `disabled`, `blank`, the `max-height:600px` height override and
+ * the `:hover` states) are converted to Tailwind utilities in the
+ * `buttonClasses` computed above. The `double` base radius is a utility too.
+ *
+ * ONLY the `button.double + button.double` ADJACENT-SIBLING override remains
+ * as scoped CSS: a button cannot know from its own props whether another
+ * `double` button immediately precedes it, so this relationship genuinely
+ * requires a CSS sibling selector. Being unlayered scoped CSS it correctly
+ * overrides the (layered) `rounded-[30px_0_0_30px]` utility on the SECOND of
+ * two adjacent `double` buttons — exactly the original behaviour.
+ */
 button.double + button.double {
     border-radius: 0 30px 30px 0;
     border-left: 1px solid var(--bg);
-}
-button.disabled {
-    pointer-events: none;
-    opacity: 0.5;
-}
-button.blank {
-    background: none;
-    border: 1px solid var(--fg);
-    color: var(--fg);
 }
 </style>

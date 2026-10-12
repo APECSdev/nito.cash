@@ -1,8 +1,9 @@
 <template>
-    <div class="toggle"
+    <div class="toggle block relative w-[41px] h-[23px] rounded-[23px] bg-box-bg cursor-pointer"
         @click="update"
-        :class="{ disabled }">
-        <div class="knob" :class="{ active }" />
+        :class="[{ disabled }, disabled ? 'pointer-events-none' : '']">
+        <div class="knob absolute top-[2px] h-[19px] w-[19px] rounded-[19px] bg-primary transition-all duration-100 ease-[cubic-bezier(0.4,0,0.2,1)]"
+            :class="[{ active }, (active && !disabled) ? 'left-[20px] opacity-100' : 'left-[2px] opacity-20']" />
     </div>
 </template>
 
@@ -38,35 +39,17 @@ export default {
 </script>
 
 <style scoped>
-.toggle {
-    display: block;
-    position: relative;
-    width: 41px;
-    height: 23px;
-    border-radius: 23px;
-    background: var(--box-bg);
-    cursor: pointer;
-}
-
-.toggle.disabled {
-    pointer-events: none;
-}
-
-.knob,
-.toggle.disabled .knob.active {
-    position: absolute;
-    top: 2px;
-    left: 2px;
-    height: 19px;
-    width: 19px;
-    border-radius: 19px;
-    background: var(--primary);
-    opacity: 0.2;
-    transition: all 0.1s cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-.knob.active {
-    left: 20px;
-    opacity: 1;
-}
+/*
+ * Phase D: `.toggle` / `.toggle.disabled` / `.knob` / `.knob.active` are
+ * converted to Tailwind utilities on the template above. The `toggle`, `knob`,
+ * `active` and `disabled` classes are kept as state hooks (unit tests assert
+ * `.knob` `active` and `.toggle` `disabled`), now carrying no scoped CSS.
+ *
+ * The `.toggle.disabled .knob.active` override (a DISABLED toggle renders its
+ * knob in the inactive position/colour even when `active`) is preserved by
+ * making the knob's `left`/`opacity` conditional on `active && !disabled` —
+ * the `active` marker class still tracks `active` alone (as before), while the
+ * visual position/opacity honour the disabled override, exactly matching the
+ * original specificity (.toggle.disabled .knob.active beat .knob.active).
+ */
 </style>

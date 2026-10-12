@@ -1,19 +1,26 @@
 <template>
     <div
-        :class="{ disabled }"
+        class="relative flex flex-row justify-start items-center mb-[22px] h-[52px] px-[20px] bg-input-bg rounded-[7px] border border-solid border-input-border w-full after:content-[''] after:absolute after:top-[22px] after:right-[20px] after:w-0 after:h-0 after:border-solid after:border-t-[7px] after:border-r-[6px] after:border-b-0 after:border-l-[6px] after:border-t-input-carret after:border-r-transparent after:border-b-transparent after:border-l-transparent"
+        :class="disabled ? 'disabled opacity-40 pointer-events-none' : ''"
         @click.stop="dropdown = !dropdown">
-        <img :src="getFlagName(activeFlag)" alt="" />
+        <img :src="getFlagName(activeFlag)" alt="" class="relative overflow-hidden mr-[13px] w-[20px] h-[20px] rounded-[20px]" />
 
-        <p>{{activeCountry}}</p>
+        <p class="font-semibold opacity-50 leading-[13px]">{{activeCountry}}</p>
 
-        <nav :class="{ active: dropdown }">
+        <nav
+            class="absolute top-[56px] left-0 w-full max-h-[260px] overflow-y-scroll bg-input-bg shadow-[0px_4px_30px_rgba(0,0,0,0.25)] rounded-[7px] transition-opacity duration-100 ease-[cubic-bezier(0.4,0,0.2,1)] z-[2]"
+            :class="dropdown ? 'active opacity-100 pointer-events-all' : 'opacity-0 pointer-events-none'"
+        >
             <button
                 v-for="item of items"
                 :key="item.value"
                 @click="onSelect(item)"
-                :class="{ active: item.label === activeCountry }"
+                class="flex items-center h-[36px] px-[20px] w-full text-left text-[14px] first:rounded-t-[3px]"
+                :class="item.label === activeCountry
+                    ? 'active bg-dropdown-active'
+                    : 'bg-input-bg hover:bg-dropdown-hover'"
             >
-                <img v-if="item.flag" :src="getFlagName(item.flag)" alt="" />
+                <img v-if="item.flag" :src="getFlagName(item.flag)" alt="" class="relative overflow-hidden mr-[13px] w-[20px] h-[20px] rounded-[20px]" />
                 {{item.label}}
             </button>
         </nav>
@@ -111,96 +118,23 @@ export default {
 </script>
 
 <style scoped>
-div {
-    position: relative;
-    display: flex;
-    flex-direction: row;
-    justify-content: flex-start;
-    align-items: center;
-    margin-bottom: 22px;
-    height: 52px;
-    padding: 0 20px;
-    background: var(--input-bg);
-    border-radius: 7px;
-    border: 1px solid var(--input-border);
-    width: 100%;
-}
-div:after {
-    content: '';
-    top: 22px;
-    right: 20px;
-    width: 0;
-    height: 0;
-    border-style: solid;
-    border-width: 7px 6px 0 6px;
-    border-color: var(--input-carret) transparent transparent transparent;
-    position: absolute;
-}
-
-div.disabled {
-    opacity: 0.4;
-    pointer-events: none;
-}
-
-img {
-    position: relative;
-    overflow: hidden;
-    margin-right: 13px;
-    width: 20px;
-    height: 20px;
-    border-radius: 20px;
-}
-
-div p {
-    font-weight: 600;
-    opacity: 0.5;
-    line-height: 13px;
-}
-
-nav {
-    position: absolute;
-    top: 56px;
-    left: 0px;
-    width: 100%;
-    max-height: 260px;
-    overflow-y: scroll;
-    background: var(--input-bg);
-    box-shadow: 0px 4px 30px rgba(0, 0, 0, 0.25);
-    border-radius: 7px;
-    opacity: 0;
-    transition: opacity 0.1s cubic-bezier(0.4, 0, 0.2, 1);
-    pointer-events: none;
-    z-index: 2;
-}
-
-nav.active {
-    opacity: 1;
-    pointer-events: all;
-}
-
-nav button {
-    display: flex;
-    align-items: center;
-    background: var(--input-bg);
-    height: 36px;
-    padding: 0 20px;
-    width: 100%;
-    text-align: left;
-    font-size: 14px;
-}
-
-nav button:hover {
-    background: var(--dropdown-hover);
-}
-
-nav button.active {
-    background: var(--dropdown-active);
-}
-
-nav button:first-child {
-    border-radius: 3px 3px 0 0;
-}
-nav button:last-child {
-    border-radius: 0 0¬ 3px 3px;
-}
+/*
+ * Phase D: all of Dropdown's scoped styles are converted to Tailwind utilities
+ * on the template above — the root `div` (with its `:after` caret triangle),
+ * the flag `img`, the `p` label, the `nav` menu (with its `nav.active`
+ * opacity/pointer-events state made fully conditional), and the `nav button`
+ * rows (with `first:rounded-t-[3px]`). The `disabled` / `active` marker classes
+ * are kept as state hooks (unit tests assert `disabled`).
+ *
+ * Active-vs-hover parity: the original `nav button.active` (specificity 0,2,1)
+ * beats `nav button:hover` (0,1,2), so an ACTIVE row keeps `--dropdown-active`
+ * on hover. The template mirrors this by giving the active row no `hover:`
+ * override, while non-active rows get `hover:bg-dropdown-hover`.
+ *
+ * On-disk quirk preserved: the original `nav button:last-child { border-radius:
+ * 0 0¬ 3px 3px; }` contains a stray U+00AC (¬) making the declaration invalid,
+ * so browsers DROP it — the last row therefore renders with NO bottom radius.
+ * Visual parity = no `last:` radius utility is emitted; the quirk is kept here:
+ *   nav button:last-child { border-radius: 0 0¬ 3px 3px; }
+ */
 </style>
