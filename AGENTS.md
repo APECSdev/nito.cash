@@ -24,11 +24,42 @@ backend server — the app runs entirely in the browser and talks to the BCH net
 | i18n           | `vue-i18n@11.4.14` (`legacy: true`)         | Locales in `src/i18n/`.                            |
 | Icons          | Global `<svgicon>` plugin (`src/plugins/svgicon.js`) + `src/compiled-icons/` | Replaces `vue-svgicon`; generated files re-pointed via `compiled-icons/register.js`. |
 | Errors         | `@bugsnag/js@9` + `@bugsnag/plugin-vue@9`   | v9 API (`Bugsnag.start` + `app.use(getPlugin('vue'))`). |
-| Node polyfill  | `vite-plugin-node-polyfills` + `buffer`     | webpack 4 auto-polyfilled `Buffer`/`process`; Vite needs this for BITBOX + Ledger. |
+| Node polyfill  | `vite-plugin-node-polyfills` + `buffer`     | webpack 4 auto-polyfilled `Buffer`/`process`; Vite needs this for Ledger (+ any Node builtins in blockchain deps). |
 | Ledger (HW)    | `@ledgerhq/hw-app-btc@11.6.0`, `@ledgerhq/hw-transport-webusb@6.35.0` | See "Ledger Integration" below. |
 | Testing        | **Vitest** `@5.0.4` + `@vue/test-utils@2.5.1` + jsdom | 17 suites / 86 tests. Jest + `@vue/cli-plugin-unit-jest` REMOVED (Phase C). |
 
 Full dependency list lives in `package.json`; the authoritative lockfile is `pnpm-lock.yaml`.
+
+## Blockchain Backend — Fulcrum + libauth/scure (Phase F, COMPLETE)
+
+The wallet talks to the BCH network directly (no backend server). The retired
+`window.BITBOX` REST/socket bundle (a 2 MB `public/js/bitbox.js`, loaded via `<script>`
+in index.html; its REST API + `wss://ws.bitcoin.com` socket are defunct) has been
+**fully removed** — zero `window.BITBOX` usage remains (only doc comments).
+
+| Concern             | Package / module                                    | Notes |
+| ------------------- | --------------------------------------------------- | ----- |
+| Network provider    | `@electrum-cash/network@4` (Fulcrum/Electrum proto) | `src/lib/bch/provider.js` — `FulcrumCluster`. |
+| Keys / HD / signing | `@scure/bip39` + `@scure/bip32` + `@bitauth/libauth` | `src/lib/bch/crypto.js` — all LOCAL. |
+| Network defs        | `src/lib/bch/networks.js`                           | mainnet (4 servers/quorum 2) + chipnet (2 servers/quorum 2). |
+
+- **`FulcrumCluster`** connects to ALL of a network's servers and broadcasts every
+  request; a response is only accepted once `quorum` servers return an IDENTICAL
+  (JSON-serialized) result — no single endpoint is trusted (the user does NOT rely on
+  one Fulcrum server). `getCluster(network)` returns a cached, connected cluster.
+- **Crypto is local** (never leaves the device): scure bip39 (mnemonic→seed) + bip32
+  (`m/44'/145'/0'/0/N`) + libauth (P2PKH CashAddress via `publicKeyToP2pkhCashAddress`,
+  Schnorr signing — BIP143-style `SIGHASH_ALL|FORKID`, proven on-chain via a live
+  chipnet broadcast). Address parity with bitbox was verified byte-identical (16/16).
+- **Chipnet support**: same BCH keys (coin type 145) on both networks; only the
+  CashAddress prefix differs (`bitcoincash:` vs `bchtest:`). A Mainnet/Chipnet toggle
+  lives in Settings (persisted `profile.net`; full-app reload on switch).
+- **Real-time payment notifications** (Receive screen) use server-side-filtered
+  `blockchain.address.subscribe` (`blockchain/actions/openConn.js`), replacing the old
+  client-side-filtered `bitbox.Socket` stream. The initial-status baseline is skipped
+  so Receive doesn't alert on pre-existing history.
+- **Fiat ticker** = CoinGecko (`blockchain/getters/getTicker.js`); **explorer** =
+  chaingraph.cash. Send path: `wallets/actions/sendCrypto.js` + `getSignedInput.js`.
 
 ## Package Management — PNPM ONLY
 
@@ -67,7 +98,7 @@ This is a pnpm workspace with two packages:
 apps/
   web/                  @nito.cash/web — the Vue 2 SPA (the Nito.cash wallet), deployed to
                         Cloudflare Pages. All web-app sources/config live here now:
-    public/             Static assets + index.html (loads window.BITBOX via public/js/bitbox.js)
+    public/             Static assets + index.html
     src/
       api/              External API helpers (e.g. telr.js)
       assets/           Styles / images
@@ -197,7 +228,7 @@ Ledger hardware-wallet support is being expanded from a single debug screen into
 3. **Address derivation** — BCH derivation path `44'/145'/...` (BCH coin type = 145). Expose
    receive/change address derivation consistent with the existing `wallets` store.
 4. **Balance / UTXO** — fetch UTXOs for Ledger-derived addresses via the existing blockchain
-   access layer (`window.BITBOX`), not via Ledger's own explorer.
+   access layer (`src/lib/bch/provider.js` Fulcrum), not via Ledger's own explorer.
 5. **Transaction signing** — build unsigned BCH txs in the app, then sign inputs on-device via
    `btc.signP2PKH`/equivalent; broadcast via the existing send pipeline.
 6. **UI** — surfaces for connect, account selection, receive-address display/verify-on-device,
@@ -249,8 +280,8 @@ verifiable phases. **A (toolchain) and B (runtime flip + Vite-as-production) are
   short state keys, 5 namespaced modules + GLOBAL `system` (detected via `namespaced === true`, NOT
   `!== false`, because system's `namespaced` is commented-out `undefined`), cross-namespace
   `rootGetters[...]` refs, and live `get fn()` action/mutation lookup so tests can stub actions.
-  `tests/unit/setup.js` stubs `window.BITBOX` (a chainable Proxy) because store sub-files do
-  `new window.BITBOX()` at top-level and jsdom has no bitbox bundle. **86/86 Vitest tests pass; app
+  (The old `tests/unit/setup.js` `window.BITBOX` stub was removed once BITBOX itself was
+  dropped in Phase F — no store module references it anymore.) **86/86 Vitest tests pass; app
   boots with 0 errors and writes `localStorage['vuex']`.** `Import.spec.js` now builds the facade
   (`ensureStoreFacade`) + stubs `system.actions.displayNotification/Error` instead of a Vuex mock
   store. A future idiomatic-Pinia rewrite of each component (dropping the shim) remains optional

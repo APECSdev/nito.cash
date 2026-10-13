@@ -33,10 +33,6 @@ export default defineConfig({
         /* Browser-like environment. */
         environment: 'jsdom',
 
-        /* Global setup: stub `window.BITBOX` so store modules (which do
-           `new window.BITBOX()` at top-level) can be imported in tests. */
-        setupFiles: ['./tests/unit/setup.js'],
-
         /* Jest-style globals (describe/it/expect) without imports. */
         globals: true,
 
