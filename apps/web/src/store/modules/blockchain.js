@@ -3,7 +3,6 @@
 
 /* Import modules (getters). */
 import getAccountBalance from './blockchain/getters/getAccountBalance'
-import getConn from './blockchain/getters/getConn'
 import getTicker from './blockchain/getters/getTicker'
 
 /* Import modules (actions). */
@@ -36,7 +35,6 @@ const state = {
 /* Getters. */
 const getters = {
     getAccountBalance,
-    getConn,
     getTicker,
 }
 

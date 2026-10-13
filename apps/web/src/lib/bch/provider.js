@@ -137,6 +137,68 @@ export class FulcrumCluster {
 
     /* -> minimum relay fee (BCH/kB) */
     relayFee() { return this.request(ElectrumMethods.relayFee) }
+
+    /* ---- Real-time address subscriptions (single-client, server-filtered) ---- */
+
+    /**
+     * Subscribe to status changes for a set of addresses.
+     *
+     * Subscriptions are per-connection and do NOT require quorum, so a single
+     * (the first) client is used. Fulcrum filters server-side and pushes a
+     * notification whenever a (new) transaction touches a subscribed address;
+     * `onChange(address, status)` then fires. This replaces the retired
+     * `bitbox.Socket` (which streamed ALL network transactions and filtered
+     * client-side).
+     *
+     * @param {string[]} addresses - the (wallet) addresses to watch.
+     * @param {(address: string, status: string) => void} onChange - callback.
+     */
+    async subscribeAddresses(addresses, onChange) {
+        /* (Lazily) attach a single notification dispatcher to one client. */
+        if (!this._subscriptionClient) {
+            this._subscriptionClient = this.clients[0]
+            this._subscriptions = new Map()
+            this._subscriptionClient.on('notification', (notification) => {
+                if (notification.method !== ElectrumMethods.subscribeAddress) return
+                const [address, status] = notification.params || []
+                const sub = this._subscriptions.get(address)
+                if (!sub) return
+
+                /* The FIRST notification after subscribing is the address's
+                 * CURRENT status (a baseline, not a new payment) — record it
+                 * and do NOT fire, so we don't alert on pre-existing history. */
+                if (!sub.initialized) {
+                    sub.lastStatus = status
+                    sub.initialized = true
+                    return
+                }
+
+                /* Ignore no-change (duplicate) notifications. */
+                if (status === sub.lastStatus) return
+                sub.lastStatus = status
+
+                /* A genuine (new) status change -> fire the callback. */
+                sub.callback(address, status)
+            })
+        }
+
+        /* Register each address's callback + subscribe at the server. */
+        for (const address of addresses) {
+            this._subscriptions.set(address, { callback: onChange, lastStatus: null, initialized: false })
+            await this._subscriptionClient.subscribe(ElectrumMethods.subscribeAddress, address)
+        }
+    }
+
+    /* Unsubscribe from ALL address subscriptions (best-effort). */
+    async unsubscribeAddresses() {
+        if (!this._subscriptionClient || !this._subscriptions) return
+        for (const address of this._subscriptions.keys()) {
+            await this._subscriptionClient
+                .unsubscribe(ElectrumMethods.subscribeAddress, address)
+                .catch(() => {})
+        }
+        this._subscriptions.clear()
+    }
 }
 
 /* ---- Connection management (one connected cluster per network, cached) ---- */

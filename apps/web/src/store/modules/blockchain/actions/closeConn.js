@@ -1,14 +1,23 @@
-/* Initialize blockchain (socket) callback. */
-const callback = () => {
-    console.info('Blockchain (socket) connection has been closed.') // eslint-disable-line no-console
-}
+/* Import the Fulcrum provider (address subscriptions). */
+import { getCluster } from '@/lib/bch/provider.js'
 
 /**
  * Close Connection
+ *
+ * Unsubscribe from ALL (wallet) address subscriptions — replacing the retired
+ * `bitbox.Socket` `conn.close(callback)`.
  */
-const closeConn = ({ getters }) => {
-    /* Close connection. */
-    getters.getConn(callback, 'close')
+const closeConn = async ({ rootGetters }) => {
+    /* Set (active) network. */
+    const network = rootGetters['profile/getNetwork']
+
+    /* Initialize the Fulcrum cluster. */
+    const cluster = await getCluster(network)
+
+    /* Unsubscribe from all (wallet) address subscriptions. */
+    await cluster.unsubscribeAddresses()
+
+    console.info('Blockchain (subscription) connection has been closed.') // eslint-disable-line no-console
 }
 
 /* Export module. */
