@@ -4,7 +4,8 @@
 
         <Tabs :tabs="tabs" :tab="tab" v-on:tab-change="updateTab" />
 
-        <main :class="{ empty: items.length === 0}">
+        <main class="flex-1 flex-col px-[20px] py-0 h-[calc(100vh-var(--header-height)-var(--tabs-height))] overflow-y-auto [-webkit-overflow-scrolling:touch] before:absolute before:top-[185px] before:left-[35px] before:content-[''] before:w-[2px] before:h-[calc(100vh-165px)] before:bg-list-bg"
+            :class="items.length === 0 ? 'text-center pt-[150px] text-[14px] before:hidden' : 'before:block'">
             <Transaction
                 :txHash="selectedHash"
                 :tx="selected"
@@ -236,15 +237,6 @@ export default {
 </script>
 
 <style scoped>
-main {
-    flex: 1;
-    flex-direction: column;
-    padding: 0 20px;
-    height: calc(100vh - var(--header-height) - var(--tabs-height));
-    overflow-y: auto;
-    -webkit-overflow-scrolling: touch;
-}
-
 /**
  * iOS Viewport Height Fix/Hack
  *
@@ -287,27 +279,6 @@ main {
         /* border: 5pt solid red; */
         height: calc(736px - var(--header-height) - var(--tabs-height) - var(--ipad-height-fix));
     }
-}
-
-main.empty {
-    text-align: center;
-    padding-top: 150px;
-    font-size: 14px;
-}
-
-main:before {
-    display: block;
-    position: absolute;
-    top: 185px;
-    left: 35px;
-    content: '';
-    width: 2px;
-    height: calc(100vh - 165px);
-    background: var(--list-bg);
-}
-
-main.empty:before {
-    display: none;
 }
 
 div .date {
