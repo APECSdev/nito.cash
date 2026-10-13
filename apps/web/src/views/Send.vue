@@ -15,22 +15,24 @@
 
         <Modal :label="$t('send-view.title')" :hideHeader="sendState !== 'idle'">
             <div v-if="sendState === 'sending'">
-                <div class="pay center">
+                <!-- height is calc(100% - 94px): iOS bug with vh -->
+                <div class="flex-1 flex flex-col h-[calc(100%-94px)] items-center justify-center pt-[20px] px-[20px] pb-0">
                     <Spinner />
 
-                    <p>
+                    <p class="text-[16px] leading-[24px] font-medium text-center">
                         Your payment is being processed, please wait...
                     </p>
                 </div>
             </div>
 
             <div v-else-if="sendState === 'done'">
-                <div class="pay center">
+                <!-- height is calc(100% - 94px): iOS bug with vh -->
+                <div class="flex-1 flex flex-col h-[calc(100%-94px)] items-center justify-center pt-[20px] px-[20px] pb-0">
                     <div style="height: 200px; margin-bottom: 30px;">
                         <Animation type="pay-ok" />
                     </div>
 
-                    <p>
+                    <p class="text-[16px] leading-[24px] font-medium text-center">
                         Your payment is complete
                     </p>
                 </div>
@@ -41,21 +43,21 @@
             </div>
 
             <div v-else>
-                <div class="balance">
+                <div class="leading-[55px] bg-trinary text-trinary-fg text-center text-[15px] font-semibold">
                     Current balance: {{walletBalance.rounded}} {{walletBalance.unit}}
                 </div>
 
                 <div v-if="cameraError || receiver">
-                    <div class="pay">
+                    <div class="flex-1 flex flex-col justify-between pt-[20px] px-[20px] pb-0">
                         <div />
 
-                        <div class="animation">
+                        <div class="block h-[150px] text-center mb-[15px] short:h-[100px]">
                             <Animation type="president" />
                         </div>
 
                         <Address v-model="receiver" :address="receiver" />
 
-                        <form>
+                        <form class="w-full">
                             <label>Amount</label>
                             <Amount
                                 :amount="amount"
@@ -80,13 +82,15 @@
                 </div>
 
                 <div v-else>
-                    <div class="scanner" :class="{ enabled: scanner }">
-                        <div class="video-container">
-                            <video id="video-display" autoplay playsinline />
+                    <!-- height: 450px (alternatives considered: calc(100vh - 225px) | 100%) -->
+                    <div class="flex-1 relative bg-[#000] overflow-hidden h-[450px]" :class="scanner ? 'opacity-100' : 'opacity-0'">
+                        <div class="absolute top-0 left-1/2 h-full w-auto -translate-x-1/2">
+                            <video id="video-display" autoplay playsinline class="block h-full" />
                         </div>
 
-                        <svg width="204" height="204" xmlns="http://www.w3.org/2000/svg">
+                        <svg width="204" height="204" xmlns="http://www.w3.org/2000/svg" class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2">
                             <path
+                                class="fill-secondary"
                                 d="M167 10V0h26.976c5.523 0 10 4.477 10 10v27h-10V10H167zM36.976 10H10v27H0V10C0 4.477 4.477 0 10
                                 0h26.976v10zM167 194h26.976v-27h10v27c0 5.523-4.477 10-10 10H167v-10zm-130.024 0v10H10c-5.523
                                 0-10-4.477-10-10v-27h10v27h26.976z" />
@@ -423,114 +427,4 @@ export default {
 }
 </script>
 
-<style scoped>
-.pay {
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-    justify-content: space-between;
-    padding: 20px 20px 0;
-}
-.pay.center {
-    height: calc(100% - 94px); /* iOS bug with vh */
-    align-items: center;
-    justify-content: center;
-}
-.pay.center p {
-    font-size: 16px;
-    line-height: 24px;
-    font-weight: 500;
-    text-align: center;
-}
 
-.pay.center svg path {
-    fill: var(--success);
-}
-
-.balance {
-    line-height: 55px;
-    background: var(--trinary);
-    color: var(--trinary-fg);
-    text-align: center;
-    font-size: 15px;
-    font-weight: 600;
-}
-
-.scanner {
-    flex: 1;
-    position: relative;
-    background: #000;
-    overflow: hidden;
-    opacity: 0;
-
-    height: 450px;
-    /* height: calc(100vh - 225px); */
-    /* height: 100%; */
-}
-
-.scanner.enabled {
-    opacity: 1;
-}
-
-.animation {
-    display: block;
-    height: 150px;
-    text-align: center;
-    margin-bottom: 15px;
-}
-
-@media only screen and (max-height: 600px) {
-    .animation {
-        height: 100px;
-    }
-}
-
-.video-container {
-    position: absolute;
-    top: 0px;
-    left: 50%;
-    height: 100%;
-    width: auto;
-    transform: translate(-50%, 0);
-}
-
-video {
-    display: block;
-    height: 100%;
-}
-
-.scanner svg {
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-}
-svg path {
-    fill: var(--secondary);
-}
-
-form {
-    width: 100%;
-}
-
-h4 {
-    display: flex;
-    justify-content: center;
-    margin-bottom: 10px;
-}
-h4 strong {
-    font-size: 40px;
-    line-height: 44px;
-    font-weight: 400;
-}
-h4 small {
-    font-size: 13px;
-    line-height: 13px;
-    margin: 4px 0 0 3px;
-}
-
-.receiver {
-    display: block;
-    text-align: center;
-}
-</style>
