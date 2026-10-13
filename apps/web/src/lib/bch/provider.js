@@ -210,6 +210,13 @@ const _clusters = new Map()
  * @returns {Promise<FulcrumCluster>} a connected cluster.
  */
 export async function getCluster(networkId) {
+    /* Test/dev seam: a harness (e.g. the visual-baseline screenshots) can inject
+     * a deterministic mock cluster via `globalThis.__NITO_MOCK_CLUSTER__[networkId]`
+     * so wallet views render WITHOUT live network access (which the harness blocks
+     * for determinism). Production never sets this global, so this is inert there. */
+    const mock = (typeof globalThis !== 'undefined') && globalThis.__NITO_MOCK_CLUSTER__
+    if (mock && mock[networkId]) return mock[networkId]
+
     if (_clusters.has(networkId)) return _clusters.get(networkId)
     const cluster = new FulcrumCluster(networkId)
     await cluster.connect()

@@ -52,6 +52,41 @@ const ROUTES = [
 ]
 const THEMES = ['light', 'dark']
 
+/* Wallet routes need a seeded wallet + a (mocked) blockchain to render their
+   real views — with no wallet, `getAccountsByWallet` is null and the views
+   render an empty shell. We seed these (deterministically) before navigating. */
+const SEED_ROUTES = new Set(['dashboard', 'send', 'receive'])
+
+/* Inject a deterministic wallet + mock Fulcrum cluster into the page. Runs in
+   the browser; MUST be self-contained (no external references). */
+function seedWallet() {
+    const facade = window.__nito_store_facade__
+    if (!facade) return
+
+    /* Mock Fulcrum cluster: fixed balances/utxos/history so the wallet views
+       render identically for baseline and compare (no live network). The real
+       `getCluster` returns this via the `__NITO_MOCK_CLUSTER__` seam. */
+    const mockCluster = {
+        getBalance: async () => ({ confirmed: 250000, unconfirmed: 0 }),
+        getUtxos: async () => [{ tx_hash: 'aa'.repeat(32), tx_pos: 0, height: 100, value: 250000 }],
+        getHistory: async () => [{ tx_hash: 'aa'.repeat(32), height: 100 }],
+        getTransaction: async () => '00',
+        verboseGetTransaction: async () => ({ txid: 'aa'.repeat(32), vout: [], confirmations: 5, time: 1700000000 }),
+        broadcast: async () => 'aa'.repeat(32),
+        estimateFee: async () => 0.00001,
+        relayFee: async () => 0.00001,
+        subscribeAddresses: async () => {},
+        unsubscribeAddresses: async () => {},
+    }
+    window.__NITO_MOCK_CLUSTER__ = { mainnet: mockCluster, chipnet: mockCluster }
+
+    /* Seed a FIXED master seed (32-byte entropy hex => deterministic addresses)
+       + create the wallet's accounts model (1 active BCH account). */
+    facade.commit('profile/setMasterSeed', '000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f')
+    facade.commit('profile/setMasterIV', '000102030405060708090a0b0c0d0e0f')
+    return facade.dispatch('wallets/createWallet')
+}
+
 const mime = { '.html':'text/html','.js':'text/javascript','.css':'text/css','.json':'application/json','.svg':'image/svg+xml','.png':'image/png','.jpg':'image/jpeg','.woff2':'font/woff2','.wav':'audio/wav','.ico':'image/x-icon' }
 const server = http.createServer((req, res) => {
     let p = decodeURIComponent(req.url.split('?')[0])
@@ -91,7 +126,17 @@ await page.evaluateOnNewDocument(() => {
 
 /* Navigate DIRECTLY to a route and screenshot it (never via `/` + hash swap). */
 async function shoot(routeName, hash, theme, file) {
-    await page.goto(`http://127.0.0.1:${PORT}/${hash}`, { waitUntil: 'load', timeout: 30000 })
+    if (SEED_ROUTES.has(routeName)) {
+        /* Seed routes: load a benign route (no Splash redirect timer), seed the
+           wallet + mock blockchain, then navigate IN-PAGE (hash swap) so the
+           seeded in-memory state persists and the target's created() runs with it. */
+        await page.goto(`http://127.0.0.1:${PORT}/#/history`, { waitUntil: 'load', timeout: 30000 })
+        await page.waitForFunction(() => window.__nito_store_facade__, { timeout: 10000 })
+        await page.evaluate(seedWallet)
+        await page.evaluate((h) => { window.location.hash = h }, hash)
+    } else {
+        await page.goto(`http://127.0.0.1:${PORT}/${hash}`, { waitUntil: 'load', timeout: 30000 })
+    }
     await page.evaluate((t) => {
         document.body.classList.toggle('dark', t === 'dark')
     }, theme)
