@@ -55,6 +55,10 @@ const ROUTES = [
     /* Concierge views render deterministically WITHOUT a wallet (Advanced only
        reads getDarkMode; ledgerConnect is on-demand), so no seeding needed. */
     ['concierge','#/concierge'],
+    /* Earn/Spend render only on their (non-default) tabs; TAB_CLICK switches to
+       them after navigating to #/concierge. Same route, distinct screenshots. */
+    ['concierge-earn','#/concierge'],
+    ['concierge-spend','#/concierge'],
     ['concierge-advanced', '#/concierge/spend/advanced'],
 ]
 const THEMES = ['light', 'dark']
@@ -63,6 +67,15 @@ const THEMES = ['light', 'dark']
    real views — with no wallet, `getAccountsByWallet` is null and the views
    render an empty shell. We seed these (deterministically) before navigating. */
 const SEED_ROUTES = new Set(['dashboard', 'send', 'receive'])
+
+/* Concierge renders Lobby/Earn/Spend via `v-if` on an internal `tab` data field
+   (default 'Lobby'). To pixel-gate the non-default Earn/Spend tabs we navigate to
+   #/concierge and click the matching Tabs <button> (its text is the tab name),
+   switching the tab before the screenshot. */
+const TAB_CLICK = {
+    'concierge-earn':  'Earn',
+    'concierge-spend': 'Spend',
+}
 
 /* Inject a deterministic wallet + mock Fulcrum cluster into the page. Runs in
    the browser; MUST be self-contained (no external references). */
@@ -129,6 +142,12 @@ page.on('request', (req) => {
 await page.evaluateOnNewDocument(() => {
     window.requestAnimationFrame = () => 0
     window.cancelAnimationFrame = () => {}
+    /* Freeze setInterval too. Earn.vue ticks a running interest counter every
+       100ms (the ONLY setInterval in src/), making concierge-earn nondeterministic.
+       With it frozen, interestIncrement stays at its initial 0 → deterministic.
+       setTimeout is intentionally LEFT intact (Splash/History/Settings rely on it). */
+    window.setInterval = () => 0
+    window.clearInterval = () => {}
 })
 
 /* Navigate DIRECTLY to a route and screenshot it (never via `/` + hash swap). */
@@ -147,6 +166,14 @@ async function shoot(routeName, hash, theme, file) {
     await page.evaluate((t) => {
         document.body.classList.toggle('dark', t === 'dark')
     }, theme)
+    /* Switch to a non-default Concierge tab (Earn/Spend) before settling. */
+    if (TAB_CLICK[routeName]) {
+        await page.evaluate((tabName) => {
+            const b = [...document.querySelectorAll('button')]
+                .find(x => x.textContent.trim() === tabName)
+            if (b) b.click()
+        }, TAB_CLICK[routeName])
+    }
     await new Promise(r => setTimeout(r, 1600))
     await page.addStyleTag({ content: '*, *::before, *::after { animation: none !important; transition: none !important; caret-color: transparent !important; }' }).catch(() => {})
     await new Promise(r => setTimeout(r, 100))
