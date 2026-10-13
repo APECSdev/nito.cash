@@ -1,14 +1,14 @@
 <template>
     <Modal :label="$t('receive-view.title')" :help="true">
-        <div class="qr-code">
+        <div class="flex-1 pt-[40px] px-[20px] pb-0">
             <QR :value="getAddress('BCH')" />
         </div>
 
-        <div class="abbr">
+        <div class="text-[20px] font-semibold text-trinary text-center mt-[48px]">
             {{displayAddress}}
         </div>
 
-        <div class="address">
+        <div class="text-[11px] font-semibold text-secondary text-center mt-[16px]">
             {{getAddress('BCH')}}
         </div>
 
@@ -156,32 +156,4 @@ export default {
 }
 </script>
 
-<style scoped>
-.qr-code {
-    flex: 1;
-    padding: 40px 20px 0;
-}
 
-p {
-    text-align: center;
-    margin-bottom: 20px;
-}
-
-div.abbr {
-    font-size: 20px;
-    font-weight: 600;
-    color: var(--trinary);
-
-    text-align: center;
-    margin-top: 48px;
-}
-
-div.address {
-    font-size: 11px;
-    font-weight: 600;
-    color: var(--secondary);
-
-    text-align: center;
-    margin-top: 16px;
-}
-</style>
