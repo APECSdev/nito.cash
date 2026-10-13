@@ -43,12 +43,19 @@ const THRESHOLD = 0.1   // pixelmatch sensitivity
 const MAX_DIFF_RATIO = 0.001 // 0.1% of pixels may differ
 
 const ROUTES = [
+    /* Splash is `/`; it redirects to /setup after 3000ms, but the harness
+       screenshots at ~1700ms (before the redirect), so direct navigation works. */
+    ['splash',   '#/'],
     ['setup',    '#/setup'],
     ['dashboard','#/dashboard'],
     ['send',     '#/send'],
     ['receive',  '#/receive'],
     ['history',  '#/history'],
     ['settings', '#/settings'],
+    /* Concierge views render deterministically WITHOUT a wallet (Advanced only
+       reads getDarkMode; ledgerConnect is on-demand), so no seeding needed. */
+    ['concierge','#/concierge'],
+    ['concierge-advanced', '#/concierge/spend/advanced'],
 ]
 const THEMES = ['light', 'dark']
 
