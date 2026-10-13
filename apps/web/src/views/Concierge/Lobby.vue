@@ -1,6 +1,6 @@
 <template>
-    <main>
-        <header>
+    <main class="flex flex-col justify-between flex-1 px-[20px] h-[calc(100vh-58px-65px)] overflow-y-auto [-webkit-overflow-scrolling:touch]">
+        <header class="p-[15px]">
             Welcome to the Concierge Lobby!
         </header>
 
@@ -36,17 +36,3 @@ export default {
     },
 }
 </script>
-
-<style scoped>
-main {
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-    justify-content: space-between;
-    padding: 20px 20px 0;
-}
-
-header {
-    padding: 15px;
-}
-</style>
