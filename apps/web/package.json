@@ -16,10 +16,14 @@
     "generate-icons": "vsvg -s ./svg-icons -t ./src/compiled-icons"
   },
   "dependencies": {
+    "@bitauth/libauth": "^3.0.0",
     "@bugsnag/js": "9.1.0",
     "@bugsnag/plugin-vue": "9.1.0",
+    "@electrum-cash/network": "^4.4.8",
     "@ledgerhq/hw-app-btc": "11.6.0",
     "@ledgerhq/hw-transport-webusb": "6.35.0",
+    "@scure/bip32": "^2.4.0",
+    "@scure/bip39": "^2.4.0",
     "buffer": "^6.0.3",
     "core-js": "3.6.4",
     "currency-codes": "2.1.0",
