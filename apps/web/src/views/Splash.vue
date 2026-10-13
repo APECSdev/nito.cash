@@ -1,26 +1,26 @@
 <template>
-    <main>
+    <main class="flex justify-between flex-col items-center h-full bg-primary text-primary-fg pt-[66px] px-0 pb-[55px] [@media(max-height:560px)]:pt-[30px] [@media(max-height:560px)]:pb-[30px]">
         <svgicon icon="carnival" width="128" height="128" :fill="false" :original="true"></svgicon>
 
-        <h1>
+        <h1 class="text-center text-[28px] leading-[0px] font-semibold uppercase tracking-[0.4em]">
             Nito.cash
         </h1>
 
-        <h2>
+        <h2 class="text-center text-[14px] leading-[0px] font-semibold tracking-[0.4em]">
             Hush Your Money™
         </h2>
 
-        <h3>
+        <h3 class="text-center text-[14px] leading-[24px] font-semibold tracking-[0.4em]">
             (Developer Preview)
         </h3>
 
-        <div>
+        <div class="h-[242px] [@media(max-height:560px)]:h-[160px]">
             <svgicon icon="rocketman" width="194" height="242" :fill="false" :original="true"></svgicon>
         </div>
 
-        <p>
+        <p class="text-left w-[125px]">
             Launching soon
-            <span>{{ '...'.substr(0, index) }}</span>
+            <span class="tracking-[0.1em]">{{ '...'.substr(0, index) }}</span>
         </p>
   </main>
 </template>
@@ -63,67 +63,10 @@ export default {
 </script>
 
 <style scoped>
-main {
-    display: flex;
-    justify-content: space-between;
-    flex-direction: column;
-    align-items: center;
-    height: 100%;
-    background: var(--primary);
-    color: var(--primary-fg);
-    padding: 66px 0 55px;
-}
-
-main h1 {
-    text-align: center;
-    font-size: 28px;
-    line-height: 0px;
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 0.4em;
-}
-
-main h2 {
-    text-align: center;
-    font-size: 14px;
-    line-height: 0px;
-    font-weight: 600;
-    /* font-style: italic; */
-    letter-spacing: 0.4em;
-}
-
-main h3 {
-    text-align: center;
-    font-size: 14px;
-    line-height: 24px;
-    font-weight: 600;
-    letter-spacing: 0.4em;
-}
-
-main p {
-    text-align: left;
-    width: 125px;
-}
-
-main p span {
-    letter-spacing: 0.1em;
-}
-
-main div {
-    height: 242px;
-}
-
+/* Scoped child-root rule: styles the svgicon's root <svg> (a child component's
+   root receives this scope's data attribute), so it cannot be a utility on
+   Splash's own elements. Keeps the rocketman filling its container height. */
 main div svg {
     height: 100%;
-}
-
-@media (max-height: 560px) {
-    main {
-        padding: 30px 0;
-    }
-
-    main div {
-        height: 160px;
-    }
 }
 </style>
