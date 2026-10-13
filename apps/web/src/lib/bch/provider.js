@@ -126,6 +126,9 @@ export class FulcrumCluster {
     /* -> raw transaction hex (string) */
     getTransaction(txHash) { return this.request(ElectrumMethods.getTransaction, txHash) }
 
+    /* -> verbose (parsed) transaction: { txid, vin, vout, confirmations, time, ... } */
+    verboseGetTransaction(txHash) { return this.request(ElectrumMethods.getTransaction, txHash, true) }
+
     /* -> txid (string) on acceptance; throws the server error otherwise */
     broadcast(rawTxHex) { return this.request(ElectrumMethods.broadcast, rawTxHex) }
 

@@ -1,5 +1,8 @@
-/* Initialize BITBOX. */
-const bitbox = new window.BITBOX()
+/* Import crypto helpers (local key/address cryptography). */
+import { derivePath, toCashAddress } from '@/lib/bch/crypto.js'
+
+/* Import the Fulcrum (Electrum) data provider. */
+import { getCluster } from '@/lib/bch/provider.js'
 
 /**
 * Get (Total Wallet) Balance
@@ -15,6 +18,9 @@ const getBalance = (state, getters, rootState, rootGetters) => async (_wallet, _
         return null
     }
 
+    /* Set (active) network. */
+    const network = rootGetters['profile/getNetwork']
+
     /* Initialize account addresses. */
     const addresses = []
 
@@ -28,9 +34,9 @@ const getBalance = (state, getters, rootState, rootGetters) => async (_wallet, _
         // console.log('GET BALANCE (path)', path)
 
         /* Initialize child node. */
-        const childNode = hdNode.derivePath(path)
+        const childNode = derivePath(hdNode, path)
 
-        const address = bitbox.HDNode.toCashAddress(childNode)
+        const address = toCashAddress(childNode, network)
         // console.log('GET WALLET BALANCE (receiving address)', address)
 
         /* Add to all receiving (pool). */
@@ -42,20 +48,22 @@ const getBalance = (state, getters, rootState, rootGetters) => async (_wallet, _
         /* Initialize balance. */
         let balance = 0
 
-        /* Retrieve (ALL) account(s) details. */
-        const details = await bitbox.Address.details(addresses)
-        // console.log('ALL ACCOUNTS DETAILS', JSON.stringify(details, null, 4))
+        /* Retrieve (ALL) account(s) balances (quorum-verified). */
+        const cluster = await getCluster(network)
+        const balances = await Promise.all(
+            addresses.map((address) => cluster.getBalance(address)))
+        // console.log('ALL ACCOUNTS BALANCES', JSON.stringify(balances, null, 4))
 
         /* Validate (use of) unconfirmed transactions. */
         if (rootGetters['profile/getFlags'] && rootGetters['profile/getFlags'].ut) {
-            details.forEach((address) => {
+            balances.forEach((addressBalance) => {
                 /* Both confirmed and unconfirmed. */
-                balance += (address.balanceSat + address.unconfirmedBalanceSat)
+                balance += (addressBalance.confirmed + addressBalance.unconfirmed)
             })
         } else {
-            details.forEach((address) => {
+            balances.forEach((addressBalance) => {
                 /* Confirmed ONLY. */
-                balance += address.balanceSat
+                balance += addressBalance.confirmed
             })
         }
 

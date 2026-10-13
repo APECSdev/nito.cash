@@ -21,7 +21,15 @@ export const ELECTRUM_CLIENT_NAME = 'nito.cash'
 
 /* BIP44 coin types (https://github.com/bitcoin/bips/blob/master/bip-0044.mediawiki). */
 export const COIN_TYPE_MAINNET = 145 // Bitcoin Cash
-export const COIN_TYPE_TESTNET = 1   // All testnets (incl. Chipnet)
+
+/*
+ * Chipnet intentionally REUSES the BCH coin type (145) rather than the
+ * conventional testnet coin type (1): the same seed derives the SAME keys on
+ * both networks, so your existing wallet/addresses work on Chipnet for
+ * testing — only the CashAddress prefix differs (bitcoincash: vs bchtest:).
+ * The distinct prefixes make cross-network sends invalid, so this is safe.
+ */
+export const COIN_TYPE_TESTNET = 145 // Chipnet reuses BCH keys (see note above)
 
 const networks = {
     mainnet: {

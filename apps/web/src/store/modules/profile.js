@@ -6,12 +6,14 @@ import getFlags from './profile/getters/getFlags'
 import getLocale from './profile/getters/getLocale'
 import getMasterIV from './profile/getters/getMasterIV'
 import getMasterSeed from './profile/getters/getMasterSeed'
+import getNetwork from './profile/getters/getNetwork'
 
 /* Import modules (actions). */
 import destroyProfile from './profile/actions/destroyProfile'
 import initProfile from './profile/actions/initProfile'
 import updateMasterIV from './profile/actions/updateMasterIV'
 import updateMasterSeed from './profile/actions/updateMasterSeed'
+import updateNetwork from './profile/actions/updateNetwork'
 
 /* Import modules (mutations). */
 import setEmptyProfile from './profile/mutations/setEmptyProfile'
@@ -19,6 +21,7 @@ import setFlags from './profile/mutations/setFlags'
 import setLocale from './profile/mutations/setLocale'
 import setMasterIV from './profile/mutations/setMasterIV'
 import setMasterSeed from './profile/mutations/setMasterSeed'
+import setNetwork from './profile/mutations/setNetwork'
 
 /* Initialize state. */
 const state = {
@@ -52,6 +55,14 @@ const state = {
      * from an existing wallet.
      */
     ms: null,
+
+    /**
+     * Network
+     *
+     * The active BCH network ('mainnet' | 'chipnet').
+     * (default is mainnet)
+     */
+    net: null,
 }
 
 /* Getters. */
@@ -60,6 +71,7 @@ const getters = {
     getLocale,
     getMasterIV,
     getMasterSeed,
+    getNetwork,
 }
 
 /* Actions. */
@@ -68,6 +80,7 @@ const actions = {
     initProfile,
     updateMasterIV,
     updateMasterSeed,
+    updateNetwork,
 }
 
 /* Mutations. */
@@ -77,6 +90,7 @@ const mutations = {
     setLocale,
     setMasterIV, // WARNING: This is a high risk attack vector.
     setMasterSeed, // WARNING: This is the highest risk attack vector.
+    setNetwork,
 }
 
 /* Export. */
