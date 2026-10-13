@@ -1,22 +1,22 @@
 <template>
-    <main>
+    <main class="flex-1 flex flex-col justify-between items-center pt-[60px] px-0 pb-0 h-full short:pt-[40px]">
         <!-- <svgicon icon="carnival" width="172" height="172" :fill="false" :original="true"></svgicon> -->
 
         <svgicon icon="rocketman" width="256" height="256" :fill="false" :original="true"></svgicon>
 
         <Footer tooltip>
-            <article>
+            <article class="flex items-center mb-[24px]">
                 <svgicon icon="alarm" width="54" height="54" :fill="false" :original="true"></svgicon>
 
-                <div>
+                <div class="pl-[24px]">
                     <h6>!!! Warning !!! Please read !!!</h6>
 
-                    <p>
-                        Nito.cash is a low-security wallet built for the <strong>CONVENIENCE</strong> and <strong>EDUCATION</strong> of newcomers to the Wonderful World of Crypto.
+                    <p class="text-[12px] leading-[18px] mt-[10px]">
+                        Nito.cash is a low-security wallet built for the <strong class="font-semibold">CONVENIENCE</strong> and <strong class="font-semibold">EDUCATION</strong> of newcomers to the Wonderful World of Crypto.
                     </p>
 
-                    <p>
-                        We highly recommend that you <strong>ONLY</strong> send &amp; receive small amounts of crypto(currency).
+                    <p class="text-[12px] leading-[18px] mt-[10px]">
+                        We highly recommend that you <strong class="font-semibold">ONLY</strong> send &amp; receive small amounts of crypto(currency).
                     </p>
                 </div>
             </article>
@@ -156,39 +156,4 @@ export default {
 }
 </script>
 
-<style scoped>
-main {
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-    justify-content: space-between;
-    align-items: center;
-    padding: 60px 0 0;
-    height: 100%;
-}
 
-@media only screen and (max-height: 600px) {
-    main {
-        padding-top: 40px;
-    }
-}
-
-article {
-    display: flex;
-    align-items: center;
-    margin-bottom: 24px;
-}
-article div {
-    padding-left: 24px;
-}
-
-p {
-    font-size: 12px;
-    line-height: 18px;
-    margin-top: 10px;
-}
-
-p strong {
-    font-weight: 600;
-}
-</style>
