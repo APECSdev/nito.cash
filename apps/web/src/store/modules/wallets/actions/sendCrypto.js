@@ -1,313 +1,287 @@
-/* Initialize BITBOX. */
-const bitbox = new window.BITBOX()
+/* Import crypto helpers (local tx build + Schnorr sign). */
+import {
+    buildTransaction,
+    encodeTransactionToHex,
+    estimateByteCount,
+} from '@/lib/bch/crypto.js'
+
+/* Import the Fulcrum provider (broadcast + UTXO lookups). */
+import { getCluster } from '@/lib/bch/provider.js'
 
 /**
  * Send Crypto
- *
- * Main process for managing crypto transfers (out of wallet).
  */
-const sendCrypto = async ({ dispatch, getters }, _params) => {
+const sendCrypto = async ({ dispatch, getters, rootGetters }, _params) => {
+    // console.log('SENDING CRYPTO', _params)
+
     /* Set dust amount. */
-    const dustAmount = getters.getDustAmount
+    const dustAmount = 546
 
-    /* Set receiver. */
+    /* Set receiver address. */
     const receiver = _params.receiver
+    // console.log('RECEIVER (address)', receiver)
 
-    /* Set amount. */
-    // NOTE: We allow for decimal (fractional) amounts.
+    /* Set send amount. */
     const amount = parseFloat(_params.amount)
+    // console.log('AMOUNT (raw)', amount)
 
     /* Set unit. */
     const unit = _params.unit
+    // console.log('UNIT', unit)
 
-    /* Initialize change flag. */
+    /* Initialize has (a) change (output). */
     let hasChange = false
 
-    console.log('SENDING CRYPTO', receiver, amount, unit)
-
-    /* Validate amount (sending to receiver). */
+    /* Validate (send) amount. */
     if (!amount) {
-        return dispatch('displayError',
-            'Cannot send payment without amount', { root: true })
+        /* Set error message. */
+        const error = new Error('Enter an amount to send.')
+
+        /* Warn user. */
+        dispatch('displayError', error, { root: true })
+
+        /* Stop (send) execution. */
+        return
     }
 
-    try {
-        /* Initialize HD node. */
-        const hdNode = getters.getHDNode
+    /* Initialize HD node. */
+    const hdNode = getters.getHDNode
 
-        /* Set accounts. */
-        const accounts = getters.getAddresses('BCH')
-        console.log('ALL ACTIVE ACCOUNTS', accounts)
+    /* Initialize accounts. */
+    // NOTE: The original called `getAddresses(state, getters)('BCH')` with an
+    //       (undefined) `state`; we resolve the getter through the (local)
+    //       getters proxy, which binds state correctly.
+    const accounts = getters.getAddresses('BCH')
+    // console.log('ACCOUNTS', accounts)
 
-        /* Set addresses. */
-        const addresses = accounts.map(account => account.address)
-        console.log('ALL ACTIVE ACCOUNT ADDRESES', addresses)
+    /* Initialize available inputs. */
+    const availableInputs = []
 
-        /* Retrieve unspent transaction outputs. */
-        const unspents = await bitbox.Address.utxo(addresses)
-        console.log('UNSPENTS', unspents)
+    /* Initialize account (pool) indexes. */
+    const accountIndexes = []
 
-        /* Initialize available inputs. */
-        const availableInputs = []
+    /* Initialize the Fulcrum cluster (for the active network). */
+    const cluster = await getCluster(rootGetters['profile/getNetwork'])
 
-        /* Initialize account indexes. */
-        const accountIndexes = []
+    /* Retrieve (account) unspent outputs (UTXOs) — one query per address. */
+    for (const account of accounts) {
+        // FIXME: Add support for multiple unspents for one account address.
+        const utxos = await cluster.getUtxos(account.address)
 
-        /* Add ALL (available) unspents. */
-        unspents.forEach(unspent => {
-            /* Validate UXTO(s). */
-            // FIXME: Add support for multiple unspents per account address.
-            if (unspent.utxos.length > 0) {
-                /* Set address. */
-                const address = unspent.cashAddress
+        /* Validate unspents. */
+        if (utxos && utxos.length > 0) {
+            /* Set (account) address. */
+            const address = account.address
 
-                /* Initialize path. */
-                let path = null
+            /* Set derivation path. */
+            const path = `${getters.getDerivationPath('BCH')}/${account.index}`
 
-                /* Find unspent index. */
-                accounts.forEach(account => {
-                    if (account.address === address) {
-                        path = `${getters.getDerivationPath('BCH')}/${account.index}`
-                        console.log(`FOUND PATH FOR ${address} - ${path}`)
+            /* Add account index. */
+            accountIndexes.push(account.index)
 
-                        /* Add account index. */
-                        accountIndexes.push(account.index)
-                    }
-                })
-
-                /* Add input to available pool. */
-                availableInputs.push({
-                    address,
-                    path,
-                    // FIXME: What about NON-ZERO index (eg. dividend payments)??
-                    ...unspent.utxos[0]
-                })
-            }
-        })
-
-        console.log('AVAILABLE INPUTS', availableInputs)
-
-        /* Validate available inputs. */
-        if (availableInputs.length == 0) {
-            /* Display error. */
-            dispatch('displayError',
-                `You have no money to send`, { root: true })
-
-            return
+            /* Add available input. */
+            availableInputs.push({
+                address,
+                path,
+                txid: utxos[0].tx_hash,
+                vout: utxos[0].tx_pos,
+                satoshis: utxos[0].value,
+            })
         }
+    }
 
-        /* Initialize transaction builder. */
-        const transactionBuilder = new bitbox.TransactionBuilder('mainnet')
+    /* Validate available inputs. */
+    if (availableInputs.length === 0) {
+        /* Set error message. */
+        const error = new Error('You have NO money!')
+        // console.error(error) // eslint-disable-line no-console
 
-        /* Initialize send amount. */
-        let sendAmount = 0
+        /* Warn user. */
+        dispatch('displayError', error, { root: true })
 
-        switch(unit.toUpperCase()) {
-        case 'SATOSHIS':
-            sendAmount += amount
-            break
-        case 'BITS':
-            sendAmount += (amount * 100)
-            break
-        case 'MBCH':
-            sendAmount += (amount * 100000)
-            break
-        case 'BCH':
-            sendAmount += (amount * 100000000)
-            break
-        default:
-            sendAmount += amount
-        }
-        console.log('SEND AMOUNT', sendAmount)
+        /* Stop (send) execution. */
+        return
+    }
 
-        /* Initialize (minimum) byte count. */
-        // NOTE: Based on a single input, single output with change.
-        let byteCount = 226
+    /* Initialize send amount. */
+    let sendAmount = null
 
-        /* Initialize (initial) transaction amount. */
-        let txAmount = sendAmount + byteCount
-        console.log('(INITIAL) TRANSACTION AMOUNT (incl bytes)', txAmount)
+    /* Set send amount (in satoshis). */
+    switch(unit) {
+    case 'SATOSHIS':
+        sendAmount = amount
+        break
+    case 'BITS':
+        sendAmount = amount * Math.pow(10, 2)
+        break
+    case 'MBCH':
+        sendAmount = amount * Math.pow(10, 5)
+        break
+    case 'BCH':
+        sendAmount = amount * Math.pow(10, 8)
+        break
+    }
 
-        /* Initialize inputs (count). */
-        let inputsCount = 0
+    /* Initialize byte count. */
+    // FIXME: Calculate the CORRECT byte count.
+    let byteCount = 226 // TEMP: This is the size of a "standard" transaction
 
-        /* Initialize utxo (value) total. */
-        let inputsTotal = 0
+    /* Set transaction (send) amount. */
+    // FIXME: What happens if a change output is required??
+    let txAmount = sendAmount + byteCount
+    // console.log('TX AMOUNT', txAmount)
 
-        /* Loop through ALL uxtos. */
-        availableInputs.forEach(input => {
-            console.log('INPUT', input)
+    /* Initialize inputs count. */
+    let inputsCount = 0
 
-            /* Validate input flag. */
-            if (inputsTotal < txAmount) {
-                /* Add input with txid and index of vout. */
-                transactionBuilder.addInput(input.txid, input.vout)
+    /* Initialize total (value) of inputs. */
+    let inputsTotal = 0
 
-                console.log('ADDED UTXO', input.txid, input.vout, input.satoshis)
+    /* Initialize the inputs actually added to the transaction. */
+    // (The original signed ALL available inputs — including any not added to
+    //  the transaction; here we track — and later sign — only those added.)
+    const addedInputs = []
 
-                /* Add input value to total. */
-                inputsTotal += input.satoshis
-
-                /* Increment inputs (count). */
-                inputsCount++
-            }
-        })
-
-        console.log('INPUTS TOTAL', inputsCount, inputsTotal)
-
-        /* Validate total (value) of inputs. */
+    /* Process (available) inputs. */
+    availableInputs.forEach(input => {
         if (inputsTotal < txAmount) {
-            /* Display error. */
-            dispatch('displayError',
-                `Your balance is too low.`, { root: true })
+            /* Add input. */
+            addedInputs.push(input)
 
-            return
+            /* Add satoshis to total. */
+            inputsTotal += input.satoshis
+
+            /* Increment inputs count. */
+            inputsCount++
         }
+    })
 
-        /* Validate send amount. */
-        // TODO: Validate BCH dust amount.
-        if (sendAmount < dustAmount) {
-            /* Display error. */
-            dispatch('displayError',
-                `Amount is too low. Min: ${dustAmount} sats`, { root: true })
+    /* Validate tx amount. */
+    if (inputsTotal < txAmount) {
+        /* Set error message. */
+        const error = new Error('Insufficient balance: ' +
+            'your account balance is too low to cover the network fees. ' +
+            'Please reduce the send amount.')
+        // console.error(error) // eslint-disable-line no-console
 
-            /* Set flag. */
-            // FIXME: How can we display this on the UI?
-            // this.sendState = 'idle'
+        /* Warn user. */
+        dispatch('displayError', error, { root: true })
 
-            return
+        /* Stop (send) execution. */
+        return
+    }
+
+    /* Validate send amount. */
+    if (sendAmount < dustAmount) {
+        /* Set error message. */
+        const error = new Error('Send amount is too small. ' +
+            'Please send at least ' + dustAmount + ' satoshis.')
+        // console.error(error) // eslint-disable-line no-console
+
+        /* Warn user. */
+        dispatch('displayError', error, { root: true })
+
+        /* Stop (send) execution. */
+        return
+    }
+
+    /* Build the transaction outputs. */
+    const outputs = []
+
+    /* Add output (receiver). */
+    outputs.push({ address: receiver, satoshis: sendAmount })
+
+    /* Complete outputs (to change address). */
+    if (sendAmount < inputsTotal) {
+        /* Calculate change amount. */
+        const changeAmount = inputsTotal - txAmount
+
+        /* Validate change amount. */
+        if (changeAmount >= dustAmount) {
+            /* Set change flag. */
+            hasChange = true
+
+            /* Set change address. */
+            // NOTE: The original called `getters.getChangeAddress` with NO
+            //       wallet argument, which (via getAccountsByWallet(undefined))
+            //       always returned `null` — breaking change outputs. We pass
+            //       'BCH' to resolve a valid (network-prefixed) change address.
+            const changeAddress = getters.getChangeAddress('BCH')
+            // console.log('SEND (change address)', changeAddress)
+
+            /* Add output (change). */
+            outputs.push({ address: changeAddress, satoshis: changeAmount })
         }
+    }
 
-        /* Add output w/ address and amount to send. */
-        transactionBuilder.addOutput(receiver, sendAmount)
+    /* Calculate byte count. */
+    if (hasChange) {
+        byteCount = estimateByteCount(inputsCount, 2)
+    } else {
+        byteCount = estimateByteCount(inputsCount, 1)
+    }
+    // console.log('BYTE COUNT', byteCount)
 
-        /* Complete outputs (to change address). */
-        if (sendAmount < inputsTotal) {
-            /* Calculate change amount. */
-            const changeAmount = inputsTotal - txAmount
-            console.log('CHANGE AMOUNT', changeAmount)
+    /* Set transaction amount. */
+    // FIXME: We MUST re-validate (re-calculate) against this value.
+    txAmount = sendAmount + byteCount
+    // console.log('TX AMOUNT', txAmount)
 
-            /* Validate change amount. */
-            // TODO: Should we adjust the number of outputs??
-            if (changeAmount >= dustAmount) {
-                /* Set change flag. */
-                hasChange = true
+    /* Build the (unsigned) transaction bundle. */
+    const bundle = buildTransaction(addedInputs, outputs)
 
-                /* Reserve change address. */
-                const changeAddress = getters.getChangeAddress
-                console.info( // eslint-disable-line no-console
-                    'Adding tx change (address / amount)',
-                    changeAddress,
-                    changeAmount
-                )
+    /* Sign input(s). */
+    // NOTE: `getSignedInput` is now async (WASM Schnorr); sign sequentially.
+    for (let index = 0; index < addedInputs.length; index++) {
+        await getters.getSignedInput(bundle, hdNode, index, addedInputs[index])
+    }
 
-                /* Add change output w/ change address. */
-                transactionBuilder.addOutput(changeAddress, changeAmount)
-            }
-        }
+    /* Encode the (signed) transaction to raw hex. */
+    const rawTx = encodeTransactionToHex(bundle.transaction)
+    // console.log('RAW (signed tx)', rawTx)
 
-        /* Validate use of change. */
-        // FIXME: Add address detection for P2SH.
+    /* Broadcast the (signed) transaction. */
+    cluster.broadcast(rawTx).then((result) => {
+        console.log('TX RESULT', result) // eslint-disable-line no-console
+
+        /* Update accounts (pool). */
+        // NOTE: It's CRITICAL that we dispatch the account pool update
+        //       BEFORE calling nextAccount().
         if (hasChange) {
-            byteCount = bitbox.BitcoinCash
-                .getByteCount({ P2PKH: inputsCount }, { P2PKH: 2 })
-        } else {
-            byteCount = bitbox.BitcoinCash
-                .getByteCount({ P2PKH: inputsCount }, { P2PKH: 1 })
+            /* Next account. */
+            // FIXME: Handle ALL wallet types: BAI, BCH, DAI, NITO
+            dispatch('nextAccount', 'BCH')
         }
-        console.log('(FINAL) BYTE COUNT', byteCount)
 
-        /* Add byte count to send amount. */
-        // NOTE: It's the original amount - 1 sat/byte for tx size
-        // FIXME: Recommendation is to use 1.1 sat/byte
-        txAmount = sendAmount + byteCount
-        console.log('(FINAL) TRANSACTION AMOUNT (incl bytes)', txAmount)
-
-        // *********************************************************************
-        // *********************************************************************
-        // FIXME: We MUST re-validate for a sufficient transaction amount.
-        // *********************************************************************
-        // *********************************************************************
-
-        /* Set locktime (for immediate propagation). */
-        transactionBuilder.setLockTime(0)
-
-        /* Sign input(s). */
-        // FIXME: Why are we using a "getter" here for a "reference" update??
-        availableInputs.forEach((input, index) => {
-            getters.getSignedInput(transactionBuilder, hdNode, index, input)
+        /* Update accounts (pool). */
+        dispatch('updateAccounts', {
+            action: 'disable',
+            indexes: accountIndexes,
+            wallet: 'BCH',
         })
 
-        /* Build transaction. */
-        const tx = transactionBuilder.build()
-        console.log('TRANSACTION BUILD', tx)
+        /* Notify user. */
+        dispatch('displayNotification', 'Sent successfully!', { root: true })
+    }, (_error) => {
+        console.log('TX ERROR', _error) // eslint-disable-line no-console
 
-        /* Set tx output to raw hex. */
-        const rawTx = tx.toHex()
-        console.info('(Final) Raw transaction', rawTx) // eslint-disable-line no-console
+        /* Validate (insufficient fee) error. */
+        if (_error.message.indexOf('insufficient priority') !== -1) {
+            /* Set error message. */
+            const error = new Error('Transaction rejected due to low network fees. ' +
+                'Please reduce the send amount.')
+            // console.error(error) // eslint-disable-line no-console
 
-        /* Set state. */
-        // this.sendState = 'sending'
-
-        /* Broadcast transaction to network. */
-        bitbox.RawTransactions.sendRawTransaction(rawTx)
-            .then(
-                (result) => {
-                    console.log('TX RESULT', result)
-
-                    /* Validate change. */
-                    if (hasChange) {
-                        /* Increment receiving wallet (index). */
-                        dispatch('nextAccount', 'BCH')
-                    }
-
-                    /* Increment receiving wallet (index). */
-                    // FIXME: Verify that a change account was used.
-                    dispatch('updateAccounts', {
-                        action: 'disable',
-                        indexes: accountIndexes,
-                        wallet: 'BCH',
-                    })
-
-                    /* Display notification. */
-                    dispatch('displayNotification',
-                        'Sent successfully!', { root: true })
-
-                    /* Set flag. */
-                    // this.sendState = 'idle'
-                },
-                (err) => {
-                    console.error('TX SEND ERROR:', err)
-
-                    /* Validate error. */
-                    if (err && err.error && err.error.includes('insufficient priority')) {
-                        return dispatch('displayError',
-                            `Blockchain fee is too low (${(inputsTotal - txAmount)} sats)`,
-                            { root: true })
-                    }
-
-                    /* Display error. */
-                    dispatch('displayError',
-                        err.message ? err.message.split(';')[0] : err, { root: true })
-
-                    /* Set flag. */
-                    // this.sendState = 'idle'
-                }
-            )
-    } catch (err) {
-        console.error(err) // eslint-disable-line no-console
-
-        /* Display error. */
-        dispatch('displayError',
-            err.message ? err.message.split(';')[0] : err, { root: true })
-
-        /* Set flag. */
-        // FIXME: Add this to the `system` module.
-        // this.sendState = 'idle'
-
-        /* Bugsnag alert. */
-        throw new Error(err)
-    }
+            /* Warn user. */
+            dispatch('displayError', error, { root: true })
+        } else {
+            /* Warn user. */
+            dispatch('displayError', _error, { root: true })
+        }
+    }).catch((_error) => {
+        /* Warn user. */
+        dispatch('displayError', _error, { root: true })
+    })
 }
 
 /* Export module. */

@@ -16,7 +16,7 @@ import { derivePath, toCashAddress } from '@/lib/bch/crypto.js'
  *
  * TODO: Add support for ALL wallet types: BAI, BCH, DAI, NITO
  */
-const getChangeAddress = (state, getters) => (_wallet) => {
+const getChangeAddress = (state, getters, rootState, rootGetters) => (_wallet) => {
     /* Validate state (of accounts). */
     if (!state || !state.a) {
         return null
@@ -64,8 +64,8 @@ const getChangeAddress = (state, getters) => (_wallet) => {
     const childNode = derivePath(hdNode, path)
     // console.log('CHILD NODE', childNode)
 
-    /* Initialize address. */
-    const address = toCashAddress(childNode)
+    /* Initialize address (prefixed for the ACTIVE network — mainnet/chipnet). */
+    const address = toCashAddress(childNode, rootGetters['profile/getNetwork'])
     // console.log('WALLET ADDRESS', address)
 
     /* Return address. */

@@ -21,7 +21,19 @@
 import { HDKey } from '@scure/bip32'
 import { entropyToMnemonic, mnemonicToSeedSync } from '@scure/bip39'
 import { wordlist } from '@scure/bip39/wordlists/english.js'
-import { publicKeyToP2pkhCashAddress } from '@bitauth/libauth'
+import {
+    publicKeyToP2pkhCashAddress,
+    cashAddressToLockingBytecode,
+    encodeDataPush,
+    encodeTransactionBCH,
+    generateSigningSerializationBCH,
+    hash256,
+    hexToBin,
+    binToHex,
+    instantiateSecp256k1,
+    instantiateSha256,
+    SigningSerializationTypeBCH,
+} from '@bitauth/libauth'
 import { getNetwork, DEFAULT_NETWORK } from './networks.js'
 
 /* ---- byte <-> hex helpers ---- */
@@ -88,4 +100,142 @@ export function toCashAddress(hdNode, networkId = DEFAULT_NETWORK) {
 /* Child HD node -> 32-byte private key (used for transaction signing in F4). */
 export function toPrivateKeyBytes(hdNode) {
     return hdNode.privateKey
+}
+
+/* Child HD node -> 33-byte (compressed) public key. */
+export function toPublicKeyBytes(hdNode) {
+    return hdNode.publicKey
+}
+
+/*
+ * ---- Transaction building + P2PKH (Schnorr) signing ----
+ *
+ * Replaces `bitbox.TransactionBuilder` + `bitbox.HDNode.toKeyPair` + the
+ * `_transactionBuilder.sign(..., SIGHASH_ALL, amount, SCHNORR)` call.
+ *
+ * The signing algorithm follows libauth's own BCH compiler exactly:
+ *   serialization = generateSigningSerializationBCH(ctx, {coveredBytecode,
+ *       signingSerializationType}, sha256)
+ *   digest        = hash256(serialization)
+ *   signature     = schnorrSign(privateKey, digest)  ++  signingSerializationType
+ *   unlocking     = push(signature) ++ push(publicKey)
+ * where `signingSerializationType = 0x41` (SIGHASH_ALL | SIGHASH_FORKID).
+ */
+
+/* Lazily-instantiated (async, WASM) crypto primitives. */
+let _secp256k1 = null
+let _sha256 = null
+
+/* Instantiate (once) the WASM secp256k1 + sha256 primitives. */
+export async function initSigning() {
+    if (!_secp256k1) {
+        _secp256k1 = await instantiateSecp256k1()
+    }
+    if (!_sha256) {
+        _sha256 = await instantiateSha256()
+    }
+}
+
+/* CashAddress -> raw P2PKH locking bytecode (Uint8Array). */
+export function addressToLockingBytecode(address) {
+    return cashAddressToLockingBytecode(address).bytecode
+}
+
+/**
+ * Build an (unsigned) P2PKH transaction bundle.
+ * @param {Array} inputs  - [{ txid, vout, satoshis, address }]
+ * @param {Array} outputs - [{ address, satoshis }]
+ * @returns {{transaction, sourceOutputs, coveredBytecodes}}
+ *   `transaction` is a libauth TransactionCommon (unlockingBytecode empty);
+ *   `sourceOutputs` / `coveredBytecodes` are aligned with `inputs` (used when
+ *   signing each input).
+ */
+export function buildTransaction(inputs, outputs) {
+    /* P2PKH locking bytecode of each input's (source) address. */
+    const coveredBytecodes = inputs.map((input) => addressToLockingBytecode(input.address))
+
+    /* The (source) outputs being spent, aligned with `inputs`. */
+    const sourceOutputs = inputs.map((input, index) => ({
+        lockingBytecode: coveredBytecodes[index],
+        valueSatoshis: BigInt(input.satoshis),
+    }))
+
+    /* The (unsigned) transaction. */
+    const transaction = {
+        version: 1,
+        inputs: inputs.map((input) => ({
+            outpointIndex: input.vout,
+            outpointTransactionHash: hexToBin(input.txid),
+            sequenceNumber: 0xffffffff,
+            unlockingBytecode: new Uint8Array(0),
+        })),
+        outputs: outputs.map((output) => ({
+            lockingBytecode: addressToLockingBytecode(output.address),
+            valueSatoshis: BigInt(output.satoshis),
+        })),
+        locktime: 0,
+    }
+
+    return { transaction, sourceOutputs, coveredBytecodes }
+}
+
+/**
+ * Sign a single P2PKH input (in place) with BCH Schnorr + SIGHASH_ALL.
+ * @param {object} bundle - the result of buildTransaction().
+ * @param {number} inputIndex - which input to sign.
+ * @param {Uint8Array} privateKey - 32-byte private key.
+ * @param {Uint8Array} publicKey - 33-byte (compressed) public key.
+ */
+export async function signP2pkhInput(bundle, inputIndex, privateKey, publicKey) {
+    await initSigning()
+
+    /* SIGHASH_ALL | SIGHASH_FORKID (0x41), as a single-byte array. */
+    const signingSerializationType = Uint8Array.of(SigningSerializationTypeBCH.allOutputs)
+
+    /* The signing context (transaction + the source outputs being spent). */
+    const context = {
+        inputIndex,
+        sourceOutputs: bundle.sourceOutputs,
+        transaction: bundle.transaction,
+    }
+
+    /* BIP143-style (BCH) signing serialization -> sighash digest. */
+    const serialization = generateSigningSerializationBCH(
+        context,
+        {
+            coveredBytecode: bundle.coveredBytecodes[inputIndex],
+            signingSerializationType,
+        },
+        _sha256
+    )
+    const digest = hash256(serialization, _sha256)
+
+    /* Schnorr-sign the digest. */
+    const signature = _secp256k1.signMessageHashSchnorr(privateKey, digest)
+    if (typeof signature === 'string') {
+        throw new Error(`Schnorr signing failed: ${signature}`)
+    }
+
+    /* The bitcoin-encoded signature (sig + sighash type byte). */
+    const bitcoinEncodedSignature = Uint8Array.from([...signature, ...signingSerializationType])
+
+    /* The P2PKH unlocking bytecode: push(signature) push(publicKey). */
+    bundle.transaction.inputs[inputIndex].unlockingBytecode = Uint8Array.from([
+        ...encodeDataPush(bitcoinEncodedSignature),
+        ...encodeDataPush(publicKey),
+    ])
+}
+
+/* Encode a (signed) transaction to its raw hex representation. */
+export function encodeTransactionToHex(transaction) {
+    return binToHex(encodeTransactionBCH(transaction))
+}
+
+/**
+ * Estimate the byte count of a P2PKH transaction.
+ * Matches `bitbox.BitcoinCash.getByteCount({ P2PKH: in }, { P2PKH: out })`:
+ * 10 (overhead) + 148 per P2PKH input + 34 per P2PKH output.
+ */
+export function estimateByteCount(inputsCount, outputsCount) {
+    return 10 + (inputsCount * 148) + (outputsCount * 34)
 }

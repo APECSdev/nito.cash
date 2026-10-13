@@ -1,10 +1,15 @@
-/* Initialize BITBOX. */
-const bitbox = new window.BITBOX()
+/* Import crypto helpers (local key derivation + P2PKH Schnorr signing). */
+import {
+    derivePath,
+    toPrivateKeyBytes,
+    toPublicKeyBytes,
+    signP2pkhInput,
+} from '@/lib/bch/crypto.js'
 
 /**
  * Get Signed Input
  */
-const getSignedInput = () => (_transactionBuilder, _hdNode, _index, _input) => {
+const getSignedInput = () => async (_transactionBundle, _hdNode, _index, _input) => {
     // console.log('GET SIGNED INPUT', _index, _input)
 
     /* Set _input. */
@@ -14,29 +19,24 @@ const getSignedInput = () => (_transactionBuilder, _hdNode, _index, _input) => {
     // console.log('PATH (of signed input)', _input.path)
 
     /* Initialize child node. */
-    const childNode = _hdNode.derivePath(_input.path)
+    const childNode = derivePath(_hdNode, _input.path)
 
-    /* Set keypair. */
-    const keyPair = bitbox.HDNode.toKeyPair(childNode)
+    /* Set (signing) keys. */
+    const privateKey = toPrivateKeyBytes(childNode)
+    const publicKey = toPublicKeyBytes(childNode)
 
     /* Set (signing) amount. */
-    const amount = parseInt(_input.satoshis)
+    // const amount = parseInt(_input.satoshis)
     // console.log('SIGNING AMOUNT', amount)
 
     /* Initialize redeemscript. */
     // TODO: Find out WHY the hell we need this here??
-    let redeemScript
+    // (Not required for P2PKH — retained from the original BITBOX call.)
 
     /* Sign the transaction input(s). */
     // FIXME: Allow for multipe inputs.
-    _transactionBuilder.sign(
-        _index,
-        keyPair,
-        redeemScript,
-        _transactionBuilder.hashTypes.SIGHASH_ALL,
-        amount,
-        _transactionBuilder.signatureAlgorithms.SCHNORR
-    )
+    // (BCH Schnorr + SIGHASH_ALL | SIGHASH_FORKID.)
+    await signP2pkhInput(_transactionBundle, _index, privateKey, publicKey)
 }
 
 /* Export module. */

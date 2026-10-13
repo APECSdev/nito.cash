@@ -1,10 +1,10 @@
-/* Initialize BITBOX. */
-const bitbox = new window.BITBOX()
+/* Import crypto helpers (local key/address cryptography). */
+import { derivePath, toCashAddress } from '@/lib/bch/crypto.js'
 
 /**
  * Update Inputs
  */
-const updateInputs = ({ commit, getters }, _params) => {
+const updateInputs = ({ commit, getters, rootGetters }, _params) => {
     console.info('Updating inputs...', _params)
 
     /* Set wallet. */
@@ -37,11 +37,11 @@ const updateInputs = ({ commit, getters }, _params) => {
             /* Initialize HD node. */
             const hdNode = getters.getHDNode
 
-            /* Initialize child node. */
-            const childNode = hdNode.derivePath(path)
+            /* Initialize child node (scure/bip32 `.derive`). */
+            const childNode = derivePath(hdNode, path)
 
-            /* Set (active) address. */
-            const activeAddress = bitbox.HDNode.toCashAddress(childNode)
+            /* Set (active) address (prefixed for the ACTIVE network). */
+            const activeAddress = toCashAddress(childNode, rootGetters['profile/getNetwork'])
             console.log('ACTIVE ACCOUNT (address)', activeAddress)
 
             /* Validate (matching) input address. */
