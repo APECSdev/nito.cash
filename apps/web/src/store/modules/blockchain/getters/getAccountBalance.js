@@ -1,5 +1,5 @@
-/* Initialize BITBOX. */
-const bitbox = new window.BITBOX()
+/* Import the Fulcrum (Electrum) data provider. */
+import { getCluster } from '@/lib/bch/provider.js'
 
 /**
 * Get Account Balance
@@ -7,13 +7,19 @@ const bitbox = new window.BITBOX()
 * NOTE: This function will accept ANY account address to retrieve the
 *       current balance (in satoshis).
 */
-const getAccountBalance = (state, getters, rootState) => async (_account) => {
-    console.log('GET ACCOUNT BALANCE', _account)
+const getAccountBalance = (state, getters, rootState, rootGetters) => async (_account) => {
+    console.log('GET ACCOUNT BALANCE', _account) // eslint-disable-line no-console
 
     try {
-        /* Retrieve account details. */
-        const details = await bitbox.Address.details(_account)
-        console.log('ACCOUNT DETAILS', JSON.stringify(details, null, 4))
+        /* Set (active) network. */
+        const network = rootGetters['profile/getNetwork']
+
+        /* Connect to the Fulcrum cluster. */
+        const cluster = await getCluster(network)
+
+        /* Retrieve account balance (quorum-verified). */
+        const details = await cluster.getBalance(_account)
+        console.log('ACCOUNT DETAILS', JSON.stringify(details, null, 4)) // eslint-disable-line no-console
 
         /* Initialize balance. */
         let balance = 0
@@ -21,10 +27,10 @@ const getAccountBalance = (state, getters, rootState) => async (_account) => {
         /* Set balance (in satoshis). */
         if (rootState.profile.useUnconfirmed) {
             /* Both confirmed and unconfirmed. */
-            balance = (details.balanceSat + details.unconfirmedBalanceSat)
+            balance = (details.confirmed + details.unconfirmed)
         } else {
             /* Confirmed ONLY. */
-            balance = details.balanceSat
+            balance = details.confirmed
         }
 
         /* Return (satoshi) balance. */
