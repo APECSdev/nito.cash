@@ -1,5 +1,5 @@
 <template>
-    <main>
+    <main class="h-full flex flex-col justify-between overflow-y-auto [-webkit-overflow-scrolling:touch]">
         <Backup
             v-if="backupReminder"
             :showBackup="showBackup"
@@ -12,33 +12,33 @@
         />
 
         <div>
-            <header>
-                <button @click="loadSettings">
+            <header class="text-right pt-[18px] px-[17px] pb-[16px]">
+                <button @click="loadSettings" class="cursor-pointer bg-transparent">
                     <svgicon icon="cog" width="24" height="24" :fill="false" :original="true"></svgicon>
                 </button>
             </header>
 
-            <div class="balance">
-                <h1>
+            <div class="block text-center mb-[40px]">
+                <h1 class="relative inline-block mt-0 mx-auto mb-[10px] text-[48px] leading-[40px] font-medium font-['Poppins',sans-serif]">
                     {{walletBalance.value}}
-                    <small>{{walletBalance.unit}}</small>
+                    <small class="leading-[21px] font-medium text-[16px] absolute top-[2px] left-[calc(100%+3px)]">{{walletBalance.unit}}</small>
                 </h1>
 
-                <h2>{{walletBalance.fiat}}</h2>
+                <h2 class="leading-[21px] font-medium text-[20px] short:mb-[16px]">{{walletBalance.fiat}}</h2>
 
-                <div class="divider" />
+                <div class="w-full max-w-[186px] mx-auto h-[3px] mt-[10px] mb-[10px] bg-[rgba(255,255,255,0.7)]" />
 
-                <h4>
+                <h4 class="text-[14px] mb-[10px]">
                     <small>Cash Wallet</small>
                     {{walletBalance.fiat}}
                 </h4>
 
-                <h4>
+                <h4 class="text-[14px] mb-[10px]">
                     <small>Nito Wallet</small>
                     $0.00
                 </h4>
 
-                <h4>
+                <h4 class="text-[14px] mb-[10px]">
                     <small>Savings Wallet</small>
                     $0.00
                 </h4>
@@ -162,87 +162,3 @@ export default {
     },
 }
 </script>
-
-<style scoped>
-main {
-    height: 100%;
-    display: flex;
-    flex-direction: column;
-    justify-content: space-between;
-    overflow-y: auto;
-    -webkit-overflow-scrolling: touch;
-}
-
-header {
-    text-align: right;
-    padding: 18px 17px 16px;
-}
-header button {
-    cursor: pointer;
-    background: none;
-}
-
-.balance {
-    display: block;
-    text-align: center;
-    margin-bottom: 40px;
-}
-.balance h1 {
-    position: relative;
-    display: inline-block;
-    margin: 0 auto 10px;
-    font-size: 48px;
-    line-height: 40px;
-    font-weight: 500;
-    font-family: 'Poppins', sans-serif;
-}
-
-.balance h1 small,
-.balance h2 {
-    line-height: 21px;
-    font-weight: 500;
-}
-
-.balance h1 small {
-    font-size: 16px;
-    position: absolute;
-    top: 2px;
-    left: calc(100% + 3px);
-}
-
-.balance h2 {
-    font-size: 20px;
-    /* margin-bottom: 10px; */
-}
-
-.balance .divider {
-    width: 100%;
-    height: 3px;
-    margin-top: 10px;
-    margin-bottom: 10px;
-    background-color: rgba(255, 255, 255, 0.7);
-}
-
-.balance h4 {
-    font-size: 14px;
-    margin-bottom: 10px;
-}
-
-@media only screen and (max-height: 600px) {
-    .balance h2 {
-        margin-bottom: 16px;
-    }
-}
-
-.balance div {
-    max-width: 186px;
-    margin: 0 auto;
-}
-
-h3 {
-    color: var(--chart-title);
-    font-size: 14px;
-    font-weight: 600;
-    text-align: center;
-}
-</style>
