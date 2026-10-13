@@ -1,5 +1,5 @@
-/* Initialize BITBOX. */
-const bitbox = new window.BITBOX()
+/* Import crypto helpers (local key/address cryptography). */
+import { hdNodeFromEntropy } from '@/lib/bch/crypto.js'
 
 /**
  * Get HD Node
@@ -27,28 +27,29 @@ const getHDNode = (state, getters, rootState, rootGetters) => {
      *   07. French
      *   08. Italian
      *   09. Czech
+     *
+     * NOTE: only the English wordlist is wired up (as before); the locale
+     *       switch below is retained for future multi-language support.
      */
     let language = null
 
     /* Handle language selection. */
     switch(locale) {
     case 'en-US':
-        language = bitbox.Mnemonic.wordLists()['english']
+        language = 'english'
         break
     default:
-        language = bitbox.Mnemonic.wordLists()['english']
+        language = 'english'
     }
 
-    /* Initialize mnemonic. */
-    const mnemonic = bitbox.Mnemonic.fromEntropy(masterSeed, language)
-    // console.log('MNEMONIC', mnemonic)
-
-    /* Initialize seed buffer. */
-    const seedBuffer = bitbox.Mnemonic.toSeed(mnemonic)
-    // console.log('SEED BUFFER', seedBuffer)
-
-    /* Initialize HD node. */
-    const hdNode = bitbox.HDNode.fromSeed(seedBuffer)
+    /**
+     * Initialize HD node.
+     *
+     * Derives mnemonic -> BIP-39 seed -> BIP-32 master node (English wordlist),
+     * byte-for-byte identical to the previous bitbox implementation.
+     */
+    // console.log('MNEMONIC WORDLIST (language)', language)
+    const hdNode = hdNodeFromEntropy(masterSeed)
     // console.log('HD NODE', hdNode)
 
     /* Return HD node. */

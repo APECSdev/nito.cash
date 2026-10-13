@@ -1,5 +1,5 @@
-/* Initialize BITBOX. */
-const bitbox = new window.BITBOX()
+/* Import crypto helpers (local key/address cryptography). */
+import { derivePath, toCashAddress } from '@/lib/bch/crypto.js'
 
 /**
  * Get (Account) Addresses
@@ -28,9 +28,9 @@ const getAddresses = (state, getters) => (_wallet) => {
         // console.log('GET ADDRESSES (path)', path)
 
         /* Initialize child node. */
-        const childNode = hdNode.derivePath(path)
+        const childNode = derivePath(hdNode, path)
 
-        const address = bitbox.HDNode.toCashAddress(childNode)
+        const address = toCashAddress(childNode)
         // console.log('GET ADDRESSES (address)', address)
 
         /* Add to all receiving (pool). */

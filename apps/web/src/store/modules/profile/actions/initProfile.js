@@ -1,5 +1,5 @@
-/* Initialize BITBOX. */
-const bitbox = new window.BITBOX()
+/* Import crypto helpers (local key/address cryptography). */
+import { randomHex } from '@/lib/bch/crypto.js'
 
 /**
  * Initialize Wallet
@@ -24,7 +24,7 @@ const initProfile = async ({ state, commit }) => {
      * We MUST properly evaluate ANY and ALL weaknesses with
      * using randomBytes via a ("mobile") web browser.
      */
-    const masterSeed = bitbox.Crypto.randomBytes(32).toString('hex')
+    const masterSeed = randomHex(32)
 
     /* Set new master (private) key. */
     commit('setMasterSeed', masterSeed)
@@ -35,7 +35,7 @@ const initProfile = async ({ state, commit }) => {
      * Used for AES encryption/decryption.
      * Algorithm is `aes-256-cbc`.
      */
-    const iv = bitbox.Crypto.randomBytes(16).toString('hex')
+    const iv = randomHex(16)
 
     /* Set new master initialization vector. */
     commit('setMasterIV', iv)

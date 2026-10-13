@@ -1,8 +1,8 @@
 /* Import modules. */
 const msgpack = require('msgpack-lite')
 
-/* Initialize BITBOX. */
-const bitbox = new window.BITBOX()
+/* Import crypto helpers (local key/address cryptography). */
+import { derivePath, toCashAddress } from '@/lib/bch/crypto.js'
 
 /**
  * Get Change Address
@@ -61,11 +61,11 @@ const getChangeAddress = (state, getters) => (_wallet) => {
     const hdNode = getters.getHDNode
 
     /* Initialize child node. */
-    const childNode = hdNode.derivePath(path)
+    const childNode = derivePath(hdNode, path)
     // console.log('CHILD NODE', childNode)
 
     /* Initialize address. */
-    const address = bitbox.HDNode.toCashAddress(childNode)
+    const address = toCashAddress(childNode)
     // console.log('WALLET ADDRESS', address)
 
     /* Return address. */
