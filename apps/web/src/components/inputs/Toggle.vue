@@ -32,6 +32,11 @@ export default {
 
             /* Toggle position. */
             this.selectedPos = !this.selectedPos
+
+            /* Notify any (listening) parent of the (new) position. */
+            // NOTE: Backward-compatible — existing usages (eg. Dark mode,
+            //       Notifications) attach no listener and are unaffected.
+            this.$emit('toggle', this.selectedPos)
         }
     },
 

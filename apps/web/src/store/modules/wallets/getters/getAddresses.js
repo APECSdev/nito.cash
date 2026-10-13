@@ -6,7 +6,7 @@ import { derivePath, toCashAddress } from '@/lib/bch/crypto.js'
  *
  * Returns (addresses for) ALL (in-use) receiving accounts.
  */
-const getAddresses = (state, getters) => (_wallet) => {
+const getAddresses = (state, getters, rootState, rootGetters) => (_wallet) => {
     /* Validate accounts. */
     if (!getters.getAccountsByWallet(_wallet)) {
         return null
@@ -30,7 +30,8 @@ const getAddresses = (state, getters) => (_wallet) => {
         /* Initialize child node. */
         const childNode = derivePath(hdNode, path)
 
-        const address = toCashAddress(childNode)
+        /* Set (receiving) address (prefixed for the ACTIVE network). */
+        const address = toCashAddress(childNode, rootGetters['profile/getNetwork'])
         // console.log('GET ADDRESSES (address)', address)
 
         /* Add to all receiving (pool). */

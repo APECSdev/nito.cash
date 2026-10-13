@@ -9,7 +9,7 @@ import { derivePath, toCashAddress } from '@/lib/bch/crypto.js'
  *
  * TODO: Add support for ALL wallet types: BAI, BCH, DAI, NITO
  */
-const getAddress = (state, getters) => (_wallet) => {
+const getAddress = (state, getters, rootState, rootGetters) => (_wallet) => {
     /* Validate accounts. */
     if (!getters.getAccountsByWallet(_wallet)) {
         return null
@@ -31,8 +31,8 @@ const getAddress = (state, getters) => (_wallet) => {
     /* Initialize child node. */
     const childNode = derivePath(hdNode, path)
 
-    /* Set (receiving) address. */
-    const address = toCashAddress(childNode)
+    /* Set (receiving) address (prefixed for the ACTIVE network). */
+    const address = toCashAddress(childNode, rootGetters['profile/getNetwork'])
     // console.log('GET ADDRESS (receiving address)', address)
 
     /* Return address. */

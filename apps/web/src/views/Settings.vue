@@ -54,6 +54,17 @@
                     <p v-else>Show new and confirmed payment notifications</p>
 
                     <hr />
+
+                    <label class="inline">
+                        <span>Chipnet (testnet)</span>
+                        <span>
+                            <Toggle :on="isChipnet" @toggle="toggleNetwork" />
+                        </span>
+                    </label>
+
+                    <p>Experimental test network for development — claim free coins from the Chipnet faucet. Your wallet reloads when you switch.</p>
+
+                    <hr />
                 </section>
 
                 <div v-if="tab === 'Wallet'">
@@ -144,6 +155,15 @@ export default {
             'getDarkMode',
         ]),
 
+        ...mapGetters('profile', [
+            'getNetwork',
+        ]),
+
+        /* Whether the active network is Chipnet (testnet). */
+        isChipnet() {
+            return this.getNetwork === 'chipnet'
+        },
+
         darkMode() {
             console.log('HOW DO WE HANDLE DARK MODE??')
 
@@ -189,6 +209,7 @@ export default {
         ...mapActions('profile', [
             'destroyProfile',
             'initProfile',
+            'updateNetwork',
         ]),
 
         ...mapActions('wallets', [
@@ -226,6 +247,28 @@ export default {
         changeCurrency(_currency) {
             console.log('CHANGE CURRENCY', _currency)
             // fiatCurrency.set(_currency)
+        },
+
+        /**
+         * Toggle Network (Mainnet <-> Chipnet)
+         *
+         * Persist the newly-selected network, then reload the app so that ALL
+         * wallet views re-derive their (network-prefixed) addresses, balances
+         * and history against the active network.
+         */
+        toggleNetwork(_isChipnet) {
+            /* Set the (new) network id. */
+            const network = _isChipnet ? 'chipnet' : 'mainnet'
+
+            /* Persist the (new) network. */
+            this.updateNetwork(network)
+
+            /* Notify the user. */
+            this.displayNotification(
+                `Switched to ${network === 'chipnet' ? 'Chipnet (testnet)' : 'Mainnet'} — reloading…`)
+
+            /* Reload the app (to apply the network across all wallet views). */
+            setTimeout(() => window.location.reload(), 800)
         },
 
         /**
