@@ -67,32 +67,3 @@ export default {
     }
 }
 </script>
-
-<style scoped>
-main {
-    flex: 1;
-    flex-direction: column;
-    padding: 0 20px;
-    height: calc(100vh - 58px - 65px);
-    overflow-y: auto;
-    -webkit-overflow-scrolling: touch;
-
-    --section-title-fontsize: 1.3em;
-    --section-title-color: rgba(90, 90, 90, 0.4);
-}
-
-main.empty {
-    text-align: center;
-    padding-top: 150px;
-    font-size: 14px;
-}
-
-hr {
-    display: block;
-    width: calc(100% + 40px);
-    height: 1px;
-    margin: 5px 0 5px -20px;
-    background: var(--hr);
-}
-
-</style>
