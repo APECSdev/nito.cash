@@ -1,59 +1,59 @@
 <template>
-    <main>
-        <header>
+    <main class="flex flex-col justify-between flex-1 px-[20px] h-[calc(100vh-58px-65px)] overflow-y-auto [-webkit-overflow-scrolling:touch] [--section-title-fontsize:1.3em] [--section-title-color:rgba(90,90,90,0.4)]">
+        <header class="p-[15px]">
             Welcome to the EARN Center!
         </header>
 
         <div>
-            <p>
+            <p class="my-[15px]">
                 Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.
             </p>
         </div>
 
-        <div><hr /></div>
+        <div><hr class="block w-[calc(100%+40px)] h-[1px] mt-[5px] mb-[5px] ml-[-20px] bg-hr" /></div>
 
         <div>
-            <div class="interestRate">
+            <div class="my-[15px] [font-size:var(--section-title-fontsize)] [color:var(--section-title-color)]">
                 Current DeFi interest rate
             </div>
-            <div class="interestRateAmount">
+            <div class="my-[15px] text-[2.0em]">
                 4.73%
             </div>
         </div>
 
-        <div><hr /></div>
+        <div><hr class="block w-[calc(100%+40px)] h-[1px] mt-[5px] mb-[5px] ml-[-20px] bg-hr" /></div>
 
         <div>
-            <div class="balance">
+            <div class="my-[15px] [font-size:var(--section-title-fontsize)] [color:var(--section-title-color)]">
                 Nito community savings balance
             </div>
-            <div class="balanceAmount">
+            <div class="my-[15px] text-[3.0em]">
                 $914.20
             </div>
 
-            <div class="earnings">
+            <div class="mt-[30px] mb-[15px] [font-size:var(--section-title-fontsize)] [color:var(--section-title-color)]">
                 All-time Nito community earnings
             </div>
-            <div class="earningsAmount">
-                ${{interestCore}}<span class="earningsInterest">{{interestRunning}}</span>
+            <div class="my-[15px] text-[2.0em]">
+                ${{interestCore}}<span class="text-[rgba(30,30,255,0.6)]">{{interestRunning}}</span>
             </div>
         </div>
 
-        <div><hr /></div>
+        <div><hr class="block w-[calc(100%+40px)] h-[1px] mt-[5px] mb-[5px] ml-[-20px] bg-hr" /></div>
 
         <div>
-            <div class="balance">
+            <div class="my-[15px] [font-size:var(--section-title-fontsize)] [color:var(--section-title-color)]">
                 Your savings balance
             </div>
-            <div class="balanceAmount">
+            <div class="my-[15px] text-[3.0em]">
                 $0.00
             </div>
 
-            <div class="earnings">
+            <div class="mt-[30px] mb-[15px] [font-size:var(--section-title-fontsize)] [color:var(--section-title-color)]">
                 Your all-time total earnings
             </div>
-            <div class="earningsAmount">
-                $0.00<span class="earningsInterest">00000000</span>
+            <div class="my-[15px] text-[2.0em]">
+                $0.00<span class="text-[rgba(30,30,255,0.6)]">00000000</span>
             </div>
 
             <footer>
@@ -62,10 +62,10 @@
             </footer>
         </div>
 
-        <div><hr /></div>
+        <div><hr class="block w-[calc(100%+40px)] h-[1px] mt-[5px] mb-[5px] ml-[-20px] bg-hr" /></div>
 
         <div>
-            <p>
+            <p class="my-[15px]">
                 Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.
             </p>
         </div>
@@ -141,62 +141,3 @@ export default {
     },
 }
 </script>
-
-<style scoped>
-main {
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-    justify-content: space-between;
-    padding: 20px 20px 0;
-}
-
-hr {
-    display: block;
-    width: calc(100% + 40px);
-    height: 1px;
-    margin: 5px 0 5px -20px;
-    background: var(--hr);
-}
-
-header {
-    padding: 15px;
-}
-
-div p {
-    margin: 15px 0;
-}
-
-div.balance {
-    margin: 15px 0;
-    font-size: var(--section-title-fontsize);
-    color: var(--section-title-color);
-}
-div.balanceAmount {
-    margin: 15px 0;
-    font-size: 3.0em;
-}
-
-div.earnings {
-    margin: 30px 0 15px;
-    font-size: var(--section-title-fontsize);
-    color: var(--section-title-color);
-}
-div.earningsAmount {
-    margin: 15px 0;
-    font-size: 2.0em;
-}
-span.earningsInterest {
-    color: rgba(30, 30, 255, 0.6);
-}
-
-div.interestRate {
-    margin: 15px 0;
-    font-size: var(--section-title-fontsize);
-    color: var(--section-title-color);
-}
-div.interestRateAmount {
-    margin: 15px 0;
-    font-size: 2.0em;
-}
-</style>
