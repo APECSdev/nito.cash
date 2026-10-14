@@ -148,6 +148,17 @@ await page.evaluateOnNewDocument(() => {
        setTimeout is intentionally LEFT intact (Splash/History/Settings rely on it). */
     window.setInterval = () => 0
     window.clearInterval = () => {}
+    /* Freeze setTimeout ONLY on the Splash route (hash '' or '#/'). Splash's
+       created() schedules a 3000ms redirect to /setup; when the page loads
+       slowly, the post-load settle can exceed 3000ms and the capture catches
+       /setup instead (a transient ~37% splash drift). Freezing setTimeout on
+       Splash makes it deterministic. All OTHER routes keep setTimeout (their
+       setTimeouts are one-time/user-action handlers that do not fire on load). */
+    const h = window.location.hash
+    if (h === '' || h === '#/') {
+        window.setTimeout = () => 0
+        window.clearTimeout = () => {}
+    }
 })
 
 /* Navigate DIRECTLY to a route and screenshot it (never via `/` + hash swap). */
