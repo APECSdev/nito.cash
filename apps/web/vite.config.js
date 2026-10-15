@@ -1,9 +1,9 @@
 /* apps/web/vite.config.js
  *
- * Vite build config (Phase A of the Vue 3 migration). Runs the CURRENT Vue 2.7
- * app through Vite + Tailwind v4 in parallel with the legacy webpack build, so
- * the toolchain is proven before the Vue 3 runtime flip (Phase B). Webpack /
- * @vue/cli-service (vue.config.js) remains the production build until then.
+ * Vite build config. Vite is the PRODUCTION build (since Phase B of the Vue 3
+ * migration); the legacy webpack toolchain (@vue/cli-service, vue.config.js,
+ * babel.config.js, the Babel transform plugins, core-js, .browserslistrc) was
+ * removed in Phase E.
  */
 import { fileURLToPath, URL } from 'node:url'
 
