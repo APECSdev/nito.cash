@@ -86,6 +86,70 @@
     --spacing-ipad-height-fix: var(--ipad-height-fix);
 }
 
+/*
+ * Phase D (batch 5): the global ELEMENT rules relocated from App.vue's
+ * `@layer base` (footer/h6/label/label span/svg/button + footer.tooltip).
+ * Selector bodies are byte-for-byte identical (1:1 parity). They live here in
+ * `@layer base` AFTER the @theme block, which — because tailwind.css is
+ * imported first in main.js — places them after preflight but before App.vue's
+ * remaining base rules, reproducing the original specificity outcome for
+ * ties. The two `footer` media-query overrides (`max-height: 600px`) are kept
+ * inline with their base rules, exactly as in App.vue.
+ */
+@layer base {
+
+button {
+    font-family: 'Poppins', sans-serif;
+    cursor: pointer;
+    color: var(--fg);
+}
+
+h6 {
+    color: var(--warning);
+    font-size: 14px;
+    text-transform: uppercase;
+    font-weight: 600;
+    margin-bottom: 9px;
+}
+
+label {
+    display: block;
+    font-weight: 600;
+    margin-bottom: 7px;
+}
+
+label span {
+    font-weight: 600;
+}
+
+svg {
+    overflow: visible;
+}
+
+/* Footer */
+footer {
+    display: flex;
+    width: 100%;
+    padding: 20px;
+}
+
+@media only screen and (max-height: 600px) {
+    footer {
+        padding: 16px;
+    }
+}
+
+footer.tooltip {
+    display: block;
+    background: var(--box-bg);
+    border-radius: 20px 20px 0 0;
+    width: 100%;
+    margin: 0;
+    font-size: 12px;
+}
+
+}
+
 /* Custom variants for the app's repeated media-query breakpoints (Phase D).
    `short:` matches the 10×-reused `max-height: 600px` "short screen" override;
    `xs-mobile:` matches the 2×-reused `max-width: 520px` rule. One-off device

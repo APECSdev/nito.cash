@@ -270,12 +270,6 @@ body.dark {
     --dropdown-hover: #5c6f98;
 }
 
-button {
-    font-family: 'Poppins', sans-serif;
-    cursor: pointer;
-    color: var(--fg);
-}
-
 /*
  * Phase D (batch 4a): the global `input, textarea` rule (base + `::-ms-clear`
  * + `:focus` + bare-global `::placeholder` + the two `max-height: 600px`
@@ -285,29 +279,13 @@ button {
  * Declarations are byte-for-byte identical; scoping `::placeholder` to
  * `.input-base::placeholder` is equivalent because only those four inputs
  * carry a placeholder.
+ *
+ * Phase D (batch 5): the global ELEMENT rules (button/h6/label/label span/
+ * svg/footer/footer.tooltip) are RELOCATED to `@layer base` in
+ * src/assets/tailwind.css (imported first in main.js, so they sit after
+ * preflight but before the rules below, reproducing the original specificity
+ * outcome for ties). Declarations are byte-for-byte identical (1:1 parity).
  */
-
-h6 {
-    color: var(--warning);
-    font-size: 14px;
-    text-transform: uppercase;
-    font-weight: 600;
-    margin-bottom: 9px;
-}
-
-label {
-    display: block;
-    font-weight: 600;
-    margin-bottom: 7px;
-}
-
-label span {
-    font-weight: 600;
-}
-
-svg {
-    overflow: visible;
-}
 
 .app {
     width: 100vw;
@@ -371,28 +349,6 @@ svg {
     body {
         display: block;
     }
-}
-
-/* Footer */
-footer {
-    display: flex;
-    width: 100%;
-    padding: 20px;
-}
-
-@media only screen and (max-height: 600px) {
-    footer {
-        padding: 16px;
-    }
-}
-
-footer.tooltip {
-    display: block;
-    background: var(--box-bg);
-    border-radius: 20px 20px 0 0;
-    width: 100%;
-    margin: 0;
-    font-size: 12px;
 }
 
 } /* @layer base */
