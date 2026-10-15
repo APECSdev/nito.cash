@@ -127,7 +127,11 @@ export default {
         ledgerConnect() {
             const getBtcAddress = async () => {
                 const transport = await LedgerTransport.create()
-                const btc = new LedgerBtc(transport)
+                /* @ledgerhq/hw-app-btc v11 constructor takes a NAMED object
+                   `{ transport, scrambleKey?, currency? }` (the v5 positional
+                   `new Btc(transport)` destructures `transport` out of the
+                   Transport instance -> undefined -> throws). */
+                const btc = new LedgerBtc({ transport })
 
                 const result = await btc.getWalletPublicKey(`44'/145'/0'/0/0`)
                 // const result = await btc.getWalletPublicKey(`44'/145'/0'/0/1`)
