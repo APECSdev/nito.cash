@@ -82,12 +82,6 @@ importers:
       vue-router:
         specifier: 4.6.4
         version: 4.6.4(vue@3.5.43)
-      vuex:
-        specifier: ^4.1.0
-        version: 4.1.0(vue@3.5.43)
-      vuex-persistedstate:
-        specifier: ^4.1.0
-        version: 4.1.0(vuex@4.1.0(vue@3.5.43))
     devDependencies:
       '@babel/plugin-transform-class-properties':
         specifier: ^8.0.1
@@ -3083,10 +3077,6 @@ packages:
     resolution: {integrity: sha512-95k0GDqvBjZavkuvzx/YqVLv/6YYa17fz6ILMSf7neqQITCPbnfEnQvEgMPNjH4kgobe7+WIL0yJEHku+H3qtQ==}
     engines: {node: '>=0.10.0'}
 
-  deepmerge@4.3.1:
-    resolution: {integrity: sha512-3sUqbMEc77XqpdNO7FRyRog+eW3ph+GYCbj+rK+uYyRMuwsVy0rMiVtPn+QJlKFvWP/1PYpapqYn0Me2knFn+A==}
-    engines: {node: '>=0.10.0'}
-
   default-gateway@4.2.0:
     resolution: {integrity: sha512-h6sMrVB1VMWVrW13mSc6ia/DwYYw5MN6+exNu1OaJeFac5aSAvwM7lZ0NVfTABuSkQelr4h5oebg3KB1XPdjgA==}
     engines: {node: '>=6'}
@@ -5979,10 +5969,6 @@ packages:
     resolution: {integrity: sha512-PcByqNyT/38F2kDNi006HAMRJaULuBzq/FOsw3qdZvX/GA9W/jamDaRskgHjubHiftXK5sIFxLNkvrXUwcof6Q==}
     engines: {node: '>= 0.4'}
 
-  shvl@2.0.3:
-    resolution: {integrity: sha512-V7C6S9Hlol6SzOJPnQ7qzOVEWUQImt3BNmmzh40wObhla3XOYMe4gGiYzLrJd5TFa+cI2f9LKIRJTTKZSTbWgw==}
-    deprecated: older versions vulnerable to prototype pollution
-
   side-channel-list@1.0.1:
     resolution: {integrity: sha512-mjn/0bi/oUURjc5Xl7IaWi/OJJJumuoJFQJfDDyO46+hBWsfaVM65TBHq2eoZBhzl9EchxOijpkbRC8SVBQU0w==}
     engines: {node: '>= 0.4'}
@@ -6804,17 +6790,6 @@ packages:
     peerDependenciesMeta:
       typescript:
         optional: true
-
-  vuex-persistedstate@4.1.0:
-    resolution: {integrity: sha512-3SkEj4NqwM69ikJdFVw6gObeB0NHyspRYMYkR/EbhR0hbvAKyR5gksVhtAfY1UYuWUOCCA0QNGwv9pOwdj+XUQ==}
-    deprecated: Package no longer supported. Contact Support at https://www.npmjs.com/support for more info.
-    peerDependencies:
-      vuex: ^3.0 || ^4.0.0-rc
-
-  vuex@4.1.0:
-    resolution: {integrity: sha512-hmV6UerDrPcgbSy9ORAtNXDr9M4wlNP4pEFKye4ujJF8oqgFFuxDCdOLS3eNoRTtq5O3hoBDh9Doj1bQMYHRbQ==}
-    peerDependencies:
-      vue: ^3.2.0
 
   w3c-xmlserializer@6.0.0:
     resolution: {integrity: sha512-4Nsy8K5Tr6SPDH9jhKJOHf7ChDrc1zufZTVSF7x72hwuEXBqxqk9G6cK+K2NRUtB3iELRJqjXb4JPDMBjMTl2Q==}
@@ -10379,8 +10354,6 @@ snapshots:
 
   deepmerge@1.5.2: {}
 
-  deepmerge@4.3.1: {}
-
   default-gateway@4.2.0:
     dependencies:
       execa: 1.0.0
@@ -13640,8 +13613,6 @@ snapshots:
 
   shell-quote@1.12.0: {}
 
-  shvl@2.0.3: {}
-
   side-channel-list@1.0.1:
     dependencies:
       es-errors: 1.3.0
@@ -14561,17 +14532,6 @@ snapshots:
       '@vue/runtime-dom': 3.5.43
       '@vue/server-renderer': 3.5.43
       '@vue/shared': 3.5.43
-
-  vuex-persistedstate@4.1.0(vuex@4.1.0(vue@3.5.43)):
-    dependencies:
-      deepmerge: 4.3.1
-      shvl: 2.0.3
-      vuex: 4.1.0(vue@3.5.43)
-
-  vuex@4.1.0(vue@3.5.43):
-    dependencies:
-      '@vue/devtools-api': 6.6.4
-      vue: 3.5.43
 
   w3c-xmlserializer@6.0.0:
     dependencies:

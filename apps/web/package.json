@@ -39,9 +39,7 @@
     "uuid": "7.0.3",
     "vue": "3.5.43",
     "vue-i18n": "11.4.14",
-    "vue-router": "4.6.4",
-    "vuex": "^4.1.0",
-    "vuex-persistedstate": "^4.1.0"
+    "vue-router": "4.6.4"
   },
   "devDependencies": {
     "@babel/plugin-transform-class-properties": "^8.0.1",
