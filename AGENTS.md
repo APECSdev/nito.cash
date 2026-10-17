@@ -92,11 +92,11 @@ referenced in comments and were safe to drop). Already removed: `chartist`, `ipf
 
 ## Repository Layout (pnpm monorepo)
 
-This is a pnpm workspace with two packages:
+This is a pnpm workspace with three packages:
 
 ```
 apps/
-  web/                  @nito.cash/web — the Vue 2 SPA (the Nito.cash wallet), deployed to
+  web/                  @nito.cash/web — the Vue 3 SPA (the Nito.cash wallet), deployed to
                         Cloudflare Pages. All web-app sources/config live here now:
     public/             Static assets + index.html
     src/
@@ -116,7 +116,12 @@ apps/
     svg-icons/          Source SVGs for generate-icons
     tests/unit/         Vitest unit tests (17 suites / 86 tests)
     vitest.config.js    Vitest config (jsdom, `@` alias, v8 coverage -> coverage/lcov.info)
-    package.json  vue.config.js  babel.config.js  .eslintrc.js   (jest.config.js removed)
+    package.json  vite.config.js  vitest.config.js  eslint.config.js
+  docs/                 @nito.cash/docs — the documentation site (VitePress), deployed to
+                        Cloudflare Pages as `docs.nito.cash`. Sources live here:
+    .vitepress/         VitePress config (config.mjs) + theme
+    *.md                Doc pages (Markdown)
+    package.json        docs build/dev scripts (vitepress)
 workers/
   prover/               @nito.cash/prover — Halo 2 / Orchard ZK prover, a Cloudflare Worker
                         (Rust→WASM). Vendored from the Sansbank `wasm-prover` project (history
@@ -154,8 +159,8 @@ explicit instruction.
 (matching Cloudflare's build env). It has two jobs:
 
 1. **`build-test`** — `pnpm install --frozen-lockfile` → `pnpm build` (apps/web) →
-   `pnpm test:unit` (Jest) → upload coverage to **Codecov** (`apps/web/coverage/lcov.info`,
-   via `codecov/codecov-action@v5`, secret `CODECOV_TOKEN`) → save `apps/web/dist` as an
+   `pnpm test:unit` (Vitest) → upload coverage to **Codecov** (`apps/web/coverage/lcov.info`,
+   via `codecov/codecov-action@v4`, secret `CODECOV_TOKEN`) → save `apps/web/dist-vite` as an
    artifact (`web-dist`).
 2. **`deploy`** — runs **only** `needs: build-test` succeeds **and** on `push` to `master`
    (PRs never deploy). Downloads `web-dist` and pushes it to Cloudflare Pages **`nitocash`**
@@ -170,6 +175,11 @@ build config). Production domains `nito.cash` / `www.nito.cash`; deploy previews
 
 The **prover Worker** (`workers/prover`) is deployed separately/manually via the `apecsdev` VM
 (`pnpm run prover:deploy` = `bash scripts/deploy-prover.sh`), not by this CI workflow.
+
+The **docs site** (`apps/docs`, VitePress) is deployed to Cloudflare Pages **`docs.nito.cash`**
+(project `nito-docs`) the same Direct-Upload way — `pnpm --filter @nito.cash/docs run build` →
+`wrangler pages deploy apps/docs/.vitepress/dist --project-name=nito-docs`. It is wired into the
+CI `deploy` job alongside the web wallet (or deployable manually from the apecsdev VM).
 
 ### Routes (apps/web/src/router/index.js)
 
@@ -241,6 +251,47 @@ Ledger hardware-wallet support is being expanded from a single debug screen into
 
 The app was designed mobile-first; a responsive pass for **larger screens (Tablet and Desktop)**
 is planned as the next workstream. Until then, layouts target a single-column mobile viewport.
+
+## Product Roadmap (post-hackathon)
+
+Items on the **immediate roadmap** (informed by a feature-parity review of the Selene wallet and
+the BCH Blaze 2026 submission):
+
+- **Stablecoin mode** — hold incoming BCH as a USD stablecoin (PUSD, and later MUSD) and pay out
+  as plain BCH. Builds directly on the shielded-pool work below.
+- **WizardConnect** — an HD-wallet-aware BCH dApp-connect standard (the wallet answers dApp
+  connection / signing requests). Closely related: **Cauldron in-wallet token swaps** and
+  **multi-fiat pricing** (144 currencies).
+- **"Coming Soon" stablecoin** — exactly ONE additional stablecoin is signalled as Coming Soon.
+  **MUSD** (Moria Protocol, a BCH CashTokens stablecoin) is the recommended pick for technical
+  coherence (same chain / same CashTokens standard as PUSD); fUSD (Zano) is the "exploring"
+  cross-chain alternative. **Decision pending.**
+
+### Nito Cash — Private Payments (BCH Blaze 2026 submission)
+
+The flagship new feature: the **first shielded pool for PayonUSD (PUSD) on BCH Chipnet** —
+sender, receiver, and amount are all masked. Design decisions locked:
+
+- **Shielded-to-shielded** transfers; variable-amount notes; **covenant-carried state**
+  (`{merkleRoot, nullifierSet}` in a CashToken NFT commitment). **Chipnet ONLY** for the hackathon.
+- **Circuit** — a BN254 Groth16 circuit (Circom) with exactly **2 public inputs**
+  `[merkleRoot, actionHash]`; all other logical values (nullifiers, new commitments, public
+  value, asset category) are private witnesses packed into `actionHash = Poseidon(7)(…)` and
+  constrained in-circuit. 26,189 constraints. ("Option 2" — keeps the battle-tested 2-scalar
+  on-chain verifier unchanged instead of rewriting it for 8 public inputs.)
+- **On-chain verifier** — the `densless-msm` Groth16 verifier from `zk-verifier-bench`, wired to
+  OUR verifying key. **Proven on the BCH 2026 VM: PASS (5/5 valid proofs accepted, 9/9 mutated
+  public inputs rejected, cross-stage binding BOUND), 35,626 B in ONE standard transaction,
+  relayable under default mempool policy.**
+- **Trusted setup** — Phase 1 (Powers of Tau) reuses an existing attested BN254 ceremony; Phase 2
+  (circuit-specific) is our own. A disclosed local **1-of-1** contribution is acceptable for the
+  chipnet PoC; a full MPC ceremony is **mandatory before mainnet**.
+- **Remaining build** — the BCH **covenant** (CashScript) that holds the PUSD CashTokens + pool
+  state and requires the verifier transaction as a spend condition; Fulcrum + Chaingraph
+  note-detection infra (on the `bch-infra` VPS); then the nito.cash wiring (shield/transfer/
+  unshield UI + client-side WASM proving + local encrypted note store).
+- **Heavy compute** (circuit compile, Groth16 setup, proving, benchmarks) runs ONLY on the
+  dedicated `bch-infra` VPS — never on the dev host.
 
 ## Vue 3 Migration (phased) — Phases A & B DONE
 

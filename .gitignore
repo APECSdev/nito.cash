@@ -31,5 +31,9 @@ NOTES
 workers/*/target
 workers/*/node_modules
 
+# VitePress docs build output + cache
+apps/docs/.vitepress/dist
+apps/docs/.vitepress/cache
+
 # Phase D visual-regression baseline captures (regenerate locally via scripts/visual-baseline.mjs)
 apps/web/scripts/.baseline/

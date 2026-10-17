@@ -1,0 +1,15 @@
+{
+  "name": "@nito.cash/docs",
+  "version": "20.4.18",
+  "private": true,
+  "description": "Nito.cash documentation site (VitePress), deployed to docs.nito.cash.",
+  "type": "module",
+  "scripts": {
+    "dev": "vitepress dev",
+    "build": "vitepress build",
+    "preview": "vitepress preview"
+  },
+  "devDependencies": {
+    "vitepress": "^1.6.3"
+  }
+}

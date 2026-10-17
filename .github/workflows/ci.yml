@@ -56,6 +56,9 @@ jobs:
           files: apps/web/coverage/lcov.info
           fail_ci_if_error: true
 
+      - name: Build docs site
+        run: pnpm --filter @nito.cash/docs run build
+
       - name: Upload build artifact (dist)
         uses: actions/upload-artifact@v4
         with:
@@ -63,6 +66,14 @@ jobs:
           # The Vite production build emits to dist-vite/ (see apps/web/vite.config.js).
           path: apps/web/dist-vite
           # Only needed by the immediately-following deploy job in this run.
+          retention-days: 1
+
+      - name: Upload docs artifact (docs-dist)
+        uses: actions/upload-artifact@v4
+        with:
+          name: docs-dist
+          # VitePress build output (see apps/docs/.vitepress/config.mjs).
+          path: apps/docs/.vitepress/dist
           retention-days: 1
 
   deploy:
@@ -84,3 +95,16 @@ jobs:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: 38907316ed118886fa8035039f92056d
           command: pages deploy dist --project-name=nitocash
+
+      - name: Download docs artifact (docs-dist)
+        uses: actions/download-artifact@v4
+        with:
+          name: docs-dist
+          path: docs-dist
+
+      - name: Deploy docs to Cloudflare Pages (nito-docs)
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: 38907316ed118886fa8035039f92056d
+          command: pages deploy docs-dist --project-name=nito-docs
