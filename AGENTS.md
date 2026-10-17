@@ -281,8 +281,12 @@ sender, receiver, and amount are all masked. Design decisions locked:
   on-chain verifier unchanged instead of rewriting it for 8 public inputs.)
 - **On-chain verifier** — the `densless-msm` Groth16 verifier from `zk-verifier-bench`, wired to
   OUR verifying key. **Proven on the BCH 2026 VM: PASS (5/5 valid proofs accepted, 9/9 mutated
-  public inputs rejected, cross-stage binding BOUND), 35,626 B in ONE standard transaction,
-  relayable under default mempool policy.**
+  public inputs rejected, cross-stage binding BOUND, all 26 maintainer red-team attack runs
+  rejected), 35,626 B in ONE standard transaction, relayable under default mempool policy.**
+  (Regenerating the red-team for our key required a one-line generality fix to the bench's
+  `redteam.mjs`: it assumed the genesis selector is always `OP_0`, but our proofs use selector
+  `OP_2`; the fix preserves the raw encoded push bytes. A fixture-dependent generator assumption,
+  not a verifier weakness — the verifier accepts any selector.)
 - **Trusted setup** — Phase 1 (Powers of Tau) reuses an existing attested BN254 ceremony; Phase 2
   (circuit-specific) is our own. A disclosed local **1-of-1** contribution is acceptable for the
   chipnet PoC; a full MPC ceremony is **mandatory before mainnet**.
