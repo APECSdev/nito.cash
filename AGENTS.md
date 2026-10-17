@@ -177,8 +177,8 @@ The **prover Worker** (`workers/prover`) is deployed separately/manually via the
 (`pnpm run prover:deploy` = `bash scripts/deploy-prover.sh`), not by this CI workflow.
 
 The **docs site** (`apps/docs`, VitePress) is deployed to Cloudflare Pages **`docs.nito.cash`**
-(project `nito-docs`) the same Direct-Upload way — `pnpm --filter @nito.cash/docs run build` →
-`wrangler pages deploy apps/docs/.vitepress/dist --project-name=nito-docs`. It is wired into the
+(project `nito-cash-docs`) the same Direct-Upload way — `pnpm --filter @nito.cash/docs run build` →
+`wrangler pages deploy apps/docs/.vitepress/dist --project-name=nito-cash-docs`. It is wired into the
 CI `deploy` job alongside the web wallet (or deployable manually from the apecsdev VM).
 
 ### Routes (apps/web/src/router/index.js)

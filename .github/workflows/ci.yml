@@ -102,9 +102,9 @@ jobs:
           name: docs-dist
           path: docs-dist
 
-      - name: Deploy docs to Cloudflare Pages (nito-docs)
+      - name: Deploy docs to Cloudflare Pages (nito-cash-docs)
         uses: cloudflare/wrangler-action@v3
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: 38907316ed118886fa8035039f92056d
-          command: pages deploy docs-dist --project-name=nito-docs
+          command: pages deploy docs-dist --project-name=nito-cash-docs
