@@ -42,16 +42,21 @@ unshield UI, client-side WASM proving, local encrypted note store).
 
 Informed by a feature-parity review of the Selene wallet:
 
-- **Stablecoin mode** — hold incoming BCH as a USD stablecoin (PUSD, later MUSD) and pay out as
+- **Stablecoin mode** — hold incoming BCH as a USD stablecoin (PUSD, later fUSD) and pay out as
   plain BCH.
 - **WizardConnect** — an HD-wallet-aware BCH dApp-connect standard. Closely related: **Cauldron
   in-wallet token swaps** and **multi-fiat pricing** (144 currencies).
 - **"Coming Soon" stablecoin** — exactly one additional stablecoin signalled as Coming Soon.
-  **MUSD** (Moria Protocol, a BCH CashTokens stablecoin) is the recommended pick for technical
-  coherence with PUSD; fUSD (Zano) is the "exploring" cross-chain alternative. *(Decision pending.)*
+  **DECIDED: fUSD** ([Zano](https://zano.org) — a Confidential Asset with protocol-level privacy:
+  hidden sender, receiver, amounts, and asset type). The multi-coin strategy intentionally spans
+  **different networks**, so fUSD not being a BCH CashToken is the point of the signal, not a
+  blocker. (MUSD was considered and ruled out by the operator.)
 - **Community trusted-setup ceremony** — the chipnet PoC uses a single-party (1-of-1) setup. For
   mainnet, coordinate a public **phase-2 MPC ceremony** with the Bitcoin Cash community (the
   phase-1 powers-of-tau can be imported from an existing public ceremony). A contribution page at
   **`nito.cash/ceremony`** (contribute-randomness flow, transcript attestation, 1-of-N honest
-  explainer) is planned, modeled on the Tornado Cash trusted-setup ceremony. *(Phase-1 source
-  selection pending.)*
+  explainer) is planned, modeled on the Tornado Cash trusted-setup ceremony. **Phase-1 source
+  DECIDED:** the [Perpetual Powers of Tau](https://pse.dev/projects/powers-of-tau) ceremony (PSE,
+  ongoing since 2019, 86 participants) — specifically `ppot_0080_18.ptau` (2^18, prepared from
+  contribution #0080 plus a public Ethereum-beacon randomness beacon), which transitively includes
+  the operator's own contribution **#0023** (attested March 2020).
