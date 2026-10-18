@@ -8,6 +8,17 @@ The **Powers of Tau** ceremony is **circuit-agnostic** (it depends only on the c
 the maximum circuit size). We **reuse an existing, publicly attested BN254 Powers of Tau
 ceremony** — there is no need to redo it.
 
+Concretely, we use the **[Perpetual Powers of Tau](https://pse.dev/projects/powers-of-tau)**
+ceremony (Privacy & Scaling Explorations, ongoing since 2019, 86 participants, security rooted in
+the Zcash Powers of Tau): the file **`ppot_0080_18.ptau`** (2^18 = 262,144 points, covering our
+183,469 constraints; 302,083,218 bytes), prepared from contribution **#0080** plus a public
+Ethereum-beacon randomness beacon (slot 7,325,000, 31 iterations). Because contributions are
+sequential, it transitively includes every earlier contribution — among them **#0023, the
+nito.cash operator's own** (attested March 6–8, 2020; see `0023_shomari_response` in the
+[ceremony repo](https://github.com/privacy-ethereum/perpetualpowersoftau)). The file's structure
+was verified byte-by-byte (magic, BN254 prime, power 18, ceremony power 28) and it is consumed
+correctly by snarkjs.
+
 ## Phase 2 — circuit-specific (our own)
 
 The **Phase 2** ceremony is **specific to our circuit** and **must be our own**. This is where the
@@ -31,5 +42,5 @@ drain the pool.
 
 | Stage | Phase 1 (Powers of Tau) | Phase 2 (circuit-specific) |
 | ----- | ----------------------- | -------------------------- |
-| Chipnet PoC | Reuse existing attested ceremony | **1-of-1 local** (disclosed) |
-| Mainnet | Reuse existing attested ceremony | **Full MPC** (mandatory) |
+| Chipnet PoC | Perpetual Powers of Tau `ppot_0080_18.ptau` | **1-of-1 local** (disclosed) |
+| Mainnet | Perpetual Powers of Tau `ppot_0080_18.ptau` | **Full MPC** (mandatory) |
