@@ -29,7 +29,7 @@ the proof and the resulting state transition.
    in a single standard transaction. See [On-chain Verifier](/private-payments/verifier).
 3. **The covenant** — a CashScript contract that holds the pool's PUSD CashTokens and its state
    (`{merkleRoot, nullifierSet}`) and only allows a spend that is accompanied by a valid proof.
-   *(In active development.)*
+   See [The Covenant](/private-payments/covenant).
 
 ## Privacy properties
 
@@ -43,7 +43,9 @@ the proof and the resulting state transition.
 
 - ✅ Circuit compiles (26,189 constraints) and proves/verifies with snarkjs.
 - ✅ On-chain verifier **passes on the BCH 2026 VM** with our verifying key.
-- ⬜ Covenant (CashScript) — in design.
+- ✅ Covenant (CashScript) **built and passing on the BCH 2026 VM** — 117 bytes, all three
+  spend paths accepted within op-cost budget.
+- ⬜ actionHash binding (tie the enforced transition to the proof).
 - ⬜ Note-detection infra (Fulcrum + Chaingraph).
 - ⬜ Wallet wiring (shield / transfer / unshield UI + client-side proving).
 

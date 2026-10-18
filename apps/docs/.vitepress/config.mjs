@@ -41,6 +41,7 @@ export default defineConfig({
           { text: 'Overview', link: '/private-payments/overview' },
           { text: 'The Circuit', link: '/private-payments/circuit' },
           { text: 'On-chain Verifier', link: '/private-payments/verifier' },
+          { text: 'The Covenant', link: '/private-payments/covenant' },
           { text: 'Trusted Setup', link: '/private-payments/trusted-setup' },
           { text: 'Roadmap', link: '/private-payments/roadmap' },
         ],
