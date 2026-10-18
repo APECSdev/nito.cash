@@ -4,12 +4,12 @@
 
 | Stage | Status |
 | ----- | ------ |
-| Circom circuit (2 public inputs) | ✅ compiles — 26,189 constraints |
-| Trusted setup (PoC 1-of-1) | ✅ done |
-| snarkjs prove / verify | ✅ ~2.8 s prove, ~28 ms verify |
-| On-chain verifier (our key) | ✅ **PASS on the BCH 2026 VM** — one standard tx |
-| BCH covenant (CashScript) | ✅ **built + PASS on the BCH 2026 VM** — 117 B, 3/3 paths |
-| actionHash binding | ⬜ **in design** (see below) |
+| Circom circuit (2 public inputs, SHA256 actionHash) | ✅ compiles — 183,469 constraints |
+| Trusted setup (PoC 1-of-1, 2^18 phase-2) | ✅ done |
+| snarkjs prove / verify | ✅ done |
+| On-chain verifier (our key) | ✅ **PASS on the BCH 2026 VM** — one standard tx, 26 red-team rejected |
+| BCH covenant (CashScript) | ✅ **built + PASS on the BCH 2026 VM** — 222 B, 3/3 paths |
+| actionHash binding | ✅ **done** — 253-bit SHA256, covenant-enforced (see below) |
 | Note-detection infra (Fulcrum + Chaingraph) | ⬜ |
 | Wallet wiring (UI + client proving + note store) | ⬜ |
 
@@ -22,15 +22,21 @@ allows a spend accompanied by a valid verifier transaction. It is a **separate 6
 same transaction as the 5 verifier inputs, and it **passes on the standard BCH 2026 VM** on all
 three spend paths. See [The Covenant](/private-payments/covenant).
 
-### Next: the actionHash binding
+### Done: the actionHash binding
 
-The covenant binds the proven `merkleRoot` (`n0`) and enforces the state transition by
-introspection. The remaining coupling step ties the enforced `(nf0, nf1, cm0, cm1, publicValue,
-assetCategory)` to the proof's `actionHash` (`n1`). On-chain Poseidon is infeasible and the
-verifier's MSM is fixed at 2 public inputs, so the sound resolution is to make `actionHash` a
-SHA256 the covenant can recompute — a circuit change that re-runs the pipeline. Then: stand up
-**Fulcrum + Chaingraph** for note detection, and wire the wallet (shield / transfer / unshield UI,
-client-side WASM proving, local encrypted note store).
+The covenant now binds the enforced `(nf0, nf1, cm0, cm1, publicValue, assetCategory,
+newMerkleRoot)` to the proof's `actionHash` (`n1`). Because on-chain Poseidon is infeasible and
+the verifier's MSM is fixed at 2 public inputs, `actionHash` is a **SHA256 the covenant
+recomputes** with native `OP_SHA256`, truncated to **253 bits** so it is always a valid BN254
+field element (see [The Circuit](/private-payments/circuit) for why 253 and not 254). This
+required a full pipeline re-run — circuit recompile, new 2^18 phase-2 trusted setup, new
+verifying key, verifier re-benchmark (PASS), covenant recompile — all complete and passing 3/3
+spend paths on the standard BCH 2026 VM.
+
+### Next: infrastructure and wallet
+
+Stand up **Fulcrum + Chaingraph** for note detection, and wire the wallet (shield / transfer /
+unshield UI, client-side WASM proving, local encrypted note store).
 
 ## Product roadmap (post-hackathon)
 
@@ -43,3 +49,9 @@ Informed by a feature-parity review of the Selene wallet:
 - **"Coming Soon" stablecoin** — exactly one additional stablecoin signalled as Coming Soon.
   **MUSD** (Moria Protocol, a BCH CashTokens stablecoin) is the recommended pick for technical
   coherence with PUSD; fUSD (Zano) is the "exploring" cross-chain alternative. *(Decision pending.)*
+- **Community trusted-setup ceremony** — the chipnet PoC uses a single-party (1-of-1) setup. For
+  mainnet, coordinate a public **phase-2 MPC ceremony** with the Bitcoin Cash community (the
+  phase-1 powers-of-tau can be imported from an existing public ceremony). A contribution page at
+  **`nito.cash/ceremony`** (contribute-randomness flow, transcript attestation, 1-of-N honest
+  explainer) is planned, modeled on the Tornado Cash trusted-setup ceremony. *(Phase-1 source
+  selection pending.)*

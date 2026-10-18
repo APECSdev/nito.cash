@@ -21,14 +21,14 @@ The verifier, wired to our verifying key and fed real proofs from our circuit, *
 BCH 2026 VM:
 
 ```
-bch-groth16-intratx-pairfold5-densless-msm  BN254  PASS (5/5✗)  5 steps  35,626 B  24.55M op  @10KB:1  BCH compatible: yes
+bch-groth16-intratx-pairfold5-densless-msm  BN254  PASS (5/5✗)  5 steps  35,627 B  24.40M op  @10KB:1  BCH compatible: yes
 ```
 
 | Property | Result |
 | -------- | ------ |
 | Correctness | **PASS** — 5/5 valid proofs accepted |
-| Total size | **35,626 B** — fits in **one standard transaction** |
-| Op-cost | 24.55M (within the loosened 2026 VM limits) |
+| Total size | **35,627 B** — fits in **one standard transaction** |
+| Op-cost | 24.40M (within the loosened 2026 VM limits) |
 | Standardness | **standard** — relayable under default mempool policy |
 | Proof generality | runtime-general — one fixed locking verifies 4/4 distinct proofs |
 | Cross-stage binding | **BOUND** — every stage pinned to one proof |

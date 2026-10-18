@@ -18,13 +18,15 @@ CashToken asset.
 function spend(
     bytes32 nf0,            // spent nullifier 0
     bytes32 nf1,            // spent nullifier 1
+    bytes32 cm0,            // new note commitment 0
+    bytes32 cm1,            // new note commitment 1
     bytes32 newMerkleRoot,  // note-tree root after appending the two new commitments
     int publicValueAbs,     // |public PUSD moved| this transition
     int isUnshield          // 0 = value flows IN (shield/transfer); 1 = OUT (unshield)
 )
 ```
 
-**Compiled size: 117 bytes** (redeem script 150 B, unlocking 101–103 B depending on the path).
+**Compiled size: 222 bytes** (redeem script 222 B, unlocking 167–169 B depending on the path).
 
 ## What the covenant enforces
 
@@ -43,6 +45,11 @@ On every spend, by **introspection** (reading the transaction it lives in):
    `newBalance ≥ 0`. On an unshield, a public PUSD payout output of `publicValueAbs` must exist.
 4. **Asset binding** — the token category on the input and on output 0 equals the pinned
    `assetCategory`.
+5. **actionHash binding** — the covenant recomputes
+   `SHA256(nf0 | nf1 | cm0 | cm1 | publicValueAbs | isUnshield | assetCategory | newMerkleRoot)`
+   (each field a 32-byte big-endian encoding, digest truncated to 253 bits) and requires it to
+   equal the proof's public input `n1`, read from the verifier's genesis witness. This ties the
+   exact transition the covenant applies to the transition the proof attests to.
 
 ## State layout
 
@@ -66,12 +73,12 @@ graded on. All three paths pass, within the per-input op-cost budget `(41 + unlo
 
 | Path | accepted | op-cost / budget | unlocking |
 | ---- | -------- | ---------------- | --------- |
-| shield / transfer (`isUnshield=0, publicValueAbs=0`) | ✅ | 34,772 / 113,600 | 101 B |
-| shield (`isUnshield=0, publicValueAbs=250` deposit) | ✅ | 34,778 / 115,200 | 103 B |
-| unshield (`isUnshield=1, publicValueAbs=400` payout) | ✅ | 34,863 / 115,200 | 103 B |
+| transfer (`isUnshield=0, publicValueAbs=0`) | ✅ | 65,885 / 166,400 | 167 B |
+| shield (`isUnshield=0, publicValueAbs=250` deposit) | ✅ | 65,893 / 168,000 | 169 B |
+| unshield (`isUnshield=1, publicValueAbs=400` payout) | ✅ | 65,981 / 168,000 | 169 B |
 
-The covenant is tiny and cheap (~35k op-cost) because it uses only native opcodes — introspection
-and SHA256 — and no on-chain field arithmetic.
+The covenant is cheap (~66k op-cost, ~2.5× under budget) because it uses only native opcodes —
+introspection and SHA256 — and no on-chain field arithmetic.
 
 ## Integration facts (for the wallet builder)
 
@@ -97,25 +104,41 @@ documented here so the integration can be reproduced without re-deriving them.
   - the unshield payout output (fungible-only) compares against the bare `assetCategory`,
   - the `assetCategory` constructor argument is supplied in **reversed (on-chain) byte order**.
 
-## The actionHash binding (in progress)
+## The actionHash binding (complete)
 
-The covenant currently binds the **proven `merkleRoot`** (`n0`) and enforces the **state
-transition** by introspection. The remaining coupling step is the **`actionHash` (`n1`) binding** —
-tying the exact `(nf0, nf1, cm0, cm1, publicValue, assetCategory)` the covenant enforces to the
-proof, so a proof cannot attest to one transition while the covenant applies another.
+The covenant binds the **proven `merkleRoot`** (`n0`), enforces the **state transition** by
+introspection, and — the final coupling step — enforces the **`actionHash` (`n1`) binding**,
+tying the exact `(nf0, nf1, cm0, cm1, publicValue, assetCategory, newMerkleRoot)` the covenant
+enforces to the proof, so a proof cannot attest to one transition while the covenant applies
+another.
 
-The constraint space (each verified, not assumed):
+The constraint space that shaped the design (each verified, not assumed):
 
-- The circuit computes `actionHash = Poseidon(7)(nf0, nf1, cm0, cm1, publicValueAbs,
-  publicValueSign, assetCategory)` and exposes it as public input `n1`.
 - **On-chain Poseidon is infeasible** — Poseidon(7) needs thousands of BN254 field muls; the
-  covenant's per-input op-cost headroom is ~79k, orders of magnitude too small.
+  covenant's per-input op-cost headroom is orders of magnitude too small.
 - **The verifier's MSM is fixed at exactly 2 public inputs** (`vk_x = IC0 + n0·IC1 + n1·IC2`), so a
   third public input cannot be added without rebuilding the entire MSM chain.
-- **`actionHash` uses the full ~253 bits** (it is a Poseidon field element), so there are no spare
-  bits to smuggle an on-chain-recomputable tag into `n1`.
+- **The weak trust-split is unsound** — if the covenant took `nf0/nf1/publicValue` as free witness
+  args unbound to the proof, an attacker could drain the pool or double-spend. The covenant must
+  bind the values it enforces to the proof.
 
-The sound resolution is to make `actionHash` a **SHA256 the covenant can recompute** over the
-values it enforces (plus `cm0`/`cm1` supplied as new covenant args), keeping the MSM at 2 public
-inputs. This is a circuit change and re-runs the pipeline (circuit → trusted setup → verifying key
-→ verifier → re-benchmark). See the [Roadmap](/private-payments/roadmap).
+The resolution (**Option F**) makes `actionHash` a **SHA256 the covenant can recompute** over the
+values it enforces (with `cm0`/`cm1` supplied as covenant args), keeping the MSM at 2 public
+inputs. The circuit computes the same SHA256 in-circuit and exposes the result as `n1`. This
+required a full pipeline re-run (circuit → trusted setup → verifying key → verifier →
+re-benchmark), all completed and passing.
+
+### The 253-bit truncation (a subtle correctness point)
+
+The digest is truncated to **253 bits** (top 3 bits of the big-endian hash cleared), not 254. The
+BN254 scalar-field prime is `p ≈ 2^253.6`, which is *less than* `2^254`. A 254-bit truncation can
+therefore exceed `p`, and the circuit — which packs the bits into a field signal that auto-reduces
+mod `p` — would disagree with a covenant or client that masks without reducing. Truncating to 253
+bits guarantees the result is always `< p`, so circuit, client, and covenant agree exactly with no
+modular reduction anywhere. The covenant clears the top 3 bits with `& 0x1f` on the first
+big-endian byte, then reverses to the little-endian VM-number form for comparison with `n1`.
+
+A second encoding subtlety: the `assetCategory` constructor argument is stored in on-chain
+(reversed) byte order to match `tokenCategory` introspection, so the covenant applies
+`assetCategory.reverse()` in the SHA256 preimage to recover the natural big-endian integer the
+circuit hashed. See the [Roadmap](/private-payments/roadmap) for what remains.
