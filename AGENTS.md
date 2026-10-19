@@ -293,7 +293,12 @@ sender, receiver, and amount are all masked. Design decisions locked:
 - **Remaining build** — the BCH **covenant** (CashScript) that holds the PUSD CashTokens + pool
   state and requires the verifier transaction as a spend condition; Fulcrum + Chaingraph
   note-detection infra (on the `bch-infra` VPS); then the nito.cash wiring (shield/transfer/
-  unshield UI + client-side WASM proving + local encrypted note store).
+  unshield UI + client-side WASM proving). The **local encrypted note store is DONE**
+  (`apps/web/src/lib/pool/seal.js`: AES-256-GCM via WebCrypto, key = sha256 of domain-separated
+  wallet entropy; `pool.notes` is a runtime-only mirror excluded from persistence via
+  `omit: ['pool.notes']` in the root store's persistedstate config; only the ciphertext
+  `pool.sealed` and public `pool.leaves` persist; `pool/unlockPool` runs fire-and-forget at
+  boot in `main.js`).
 - **Heavy compute** (circuit compile, Groth16 setup, proving, benchmarks) runs ONLY on the
   dedicated `bch-infra` VPS — never on the dev host.
 

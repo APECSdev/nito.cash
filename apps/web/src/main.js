@@ -55,7 +55,13 @@ app.use(pinia)
 /* Instantiate the `main` store EAGERLY and build the `$store` facade BEFORE
    any component's created() runs. `ensureStoreFacade` is idempotent and does
    not rely on Pinia plugin timing. */
-ensureStoreFacade(useStore())
+const storeFacade = ensureStoreFacade(useStore())
+
+/* Unseal the shielded-pool note store (decrypt the persisted ciphertext into
+   the runtime-only `pool.notes` mirror). Fire-and-forget: no seed yet or a
+   corrupt blob leaves the pool locked without blocking app boot. */
+storeFacade.dispatch('pool/unlockPool')
+    .catch((err) => console.warn('[pool] failed to unseal notes', err))
 
 app.use(StoreFacade) /* exposes `this.$store` to the Options API */
 app.use(router)

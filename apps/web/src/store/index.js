@@ -137,6 +137,10 @@ export const useStore = defineStore('main', {
     persist: {
         key: 'vuex',
         storage: buildStorage(),
+        /* Decrypted pool notes are runtime-only (rehydrated from the sealed
+           ciphertext by the pool/unlockPool action); persist only the
+           ciphertext (`pool.sealed`) and the public `pool.leaves`. */
+        omit: ['pool.notes'],
     },
 })
 
