@@ -15,6 +15,9 @@ allowBuilds:
   esbuild: true
   sharp: true
   workerd: true
+  # blake-hash (transitive via circomlibjs) is pure JS; its build script is
+  # not needed for the browser bundle — explicitly skip it.
+  blake-hash: false
 
 minimumReleaseAgeExclude:
   - '@vitest/coverage-v8@5.0.4'

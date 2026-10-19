@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <meta name="description" content="Nito.cash Private Payments — trusted setup and community ceremony information.">
+    <title>Nito.cash — Trusted Setup Ceremony</title>
+    <style>
+        body { max-width: 720px; margin: 40px auto; padding: 0 20px; color: #1c1e21; font: 16px/1.6 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
+        h1 { font-size: 28px; margin-bottom: 4px; }
+        h2 { font-size: 19px; margin-top: 32px; }
+        table { border-collapse: collapse; margin-top: 8px; }
+        th, td { border: 1px solid #ccd0d5; padding: 6px 12px; text-align: left; }
+        .sub { color: #606770; margin-top: 0; }
+        code { background: #f0f2f5; padding: 1px 5px; border-radius: 4px; }
+        footer { margin-top: 48px; padding-top: 16px; border-top: 1px solid #ccd0d5; color: #606770; font-size: 14px; }
+    </style>
+</head>
+<body>
+
+<h1>Nito.cash — Trusted Setup Ceremony</h1>
+<p class="sub">Private Payments (PUSD shielded pool on Bitcoin Cash Chipnet)</p>
+
+<p>
+The Nito.cash shielded pool uses <strong>Groth16</strong> (over the BN254 curve), which requires a
+<strong>trusted setup</strong>. The setup has two phases. This page records exactly what was run,
+what is reused, and what is still to come. It is plain, wallet-free text on purpose: the ceremony
+record must be readable without opening the wallet.
+</p>
+
+<h2>Phase 1 — Powers of Tau (reused, public)</h2>
+<p>
+The Powers of Tau ceremony is <strong>circuit-agnostic</strong> (it depends only on the curve and
+the maximum circuit size), so we <strong>reuse an existing, publicly attested ceremony</strong>:
+the <a href="https://pse.dev/projects/powers-of-tau">Perpetual Powers of Tau</a>
+(Privacy &amp; Scaling Explorations, ongoing since 2019, 86 participants, security rooted in the
+Zcash Powers of Tau).
+</p>
+<p>
+Concretely we use the file <code>ppot_0080_18.ptau</code> (2^18 = 262,144 points, covering our
+183,469 constraints; 302,083,218 bytes), prepared from contribution <strong>#0080</strong> plus a
+public Ethereum-beacon randomness beacon (slot 7,325,000, 31 iterations). Because contributions
+are sequential, it transitively includes every earlier contribution — among them
+<strong>#0023, the nito.cash operator's own</strong> (attested March 6–8, 2020; see
+<code>0023_shomari_response</code> in the
+<a href="https://github.com/privacy-ethereum/perpetualpowersoftau">ceremony repo</a>). The file's
+structure was verified byte-by-byte (magic, BN254 prime, power 18, ceremony power 28) and it is
+consumed correctly by snarkjs.
+</p>
+
+<h2>Phase 2 — circuit-specific (our own)</h2>
+<p>
+The Phase 2 ceremony is <strong>specific to our circuit</strong> and <strong>must be our
+own</strong>. This is where the toxic-waste assumption lives: as long as <strong>at least
+one</strong> contributor is honest and destroys their randomness, the setup is secure.
+</p>
+<p>
+<strong>Chipnet PoC — disclosed 1-of-1.</strong> For the Chipnet proof-of-concept we ran a
+<strong>single local 1-of-1 contribution</strong> (one contributor, on the build VPS). This is
+acceptable for a valueless chipnet demo and is fully disclosed — it is <em>not</em> a decentralized
+ceremony and must not be treated as one.
+</p>
+<p>
+<strong>Mainnet — full MPC mandatory.</strong> Before any mainnet deployment holding real value, a
+<strong>multi-party computation (MPC) ceremony</strong> with multiple independent,
+publicly-attesting contributors is <strong>mandatory</strong>. A 1-of-1 setup is never acceptable
+for real funds, because a single compromised contributor could forge proofs and drain the pool.
+The community ceremony will be announced here.
+</p>
+
+<h2>Summary</h2>
+<table>
+    <tr><th>Stage</th><th>Phase 1 (Powers of Tau)</th><th>Phase 2 (circuit-specific)</th></tr>
+    <tr><td>Chipnet PoC</td><td>Perpetual Powers of Tau <code>ppot_0080_18.ptau</code></td><td><strong>1-of-1 local</strong> (disclosed)</td></tr>
+    <tr><td>Mainnet</td><td>Perpetual Powers of Tau <code>ppot_0080_18.ptau</code></td><td><strong>Full MPC</strong> (mandatory)</td></tr>
+</table>
+
+<footer>
+    Sources: <a href="https://docs.nito.cash/private-payments/trusted-setup">docs.nito.cash — Trusted Setup</a>
+    · <a href="https://github.com/APECSdev/pusd-pool">github.com/APECSdev/pusd-pool</a>
+    · <a href="https://nito.cash">nito.cash</a>
+</footer>
+
+</body>
+</html>

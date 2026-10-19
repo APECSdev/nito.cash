@@ -11,6 +11,8 @@ import Dashboard from '@/views/Dashboard'
 
 import History from '@/views/History'
 
+import Private from '@/views/Private'
+
 import Receive from '@/views/Receive'
 
 import Send from '@/views/Send'
@@ -35,6 +37,9 @@ const routes = [{
 }, {
     path: '/history',
     component: History
+}, {
+    path: '/private',
+    component: Private
 }, {
     path: '/receive',
     component: Receive

@@ -30,6 +30,7 @@ import Cookies from 'js-cookie'
 /* Import (local) module definitions. */
 import blockchain from './modules/blockchain'
 import concierge from './modules/concierge'
+import pool from './modules/pool'
 import profile from './modules/profile'
 import system from './modules/system'
 import utils from './modules/utils'
@@ -39,6 +40,7 @@ import wallets from './modules/wallets'
 const MODULES = {
     blockchain,
     concierge,
+    pool,
     profile,
     system,
     utils,

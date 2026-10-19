@@ -9,6 +9,9 @@
     "history-view": {
         "title": "History"
     },
+    "private-view": {
+        "title": "Private Payments"
+    },
     "receive-view": {
         "title": "Receive a Payment"
     },
