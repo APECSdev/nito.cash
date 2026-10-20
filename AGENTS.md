@@ -299,6 +299,16 @@ sender, receiver, and amount are all masked. Design decisions locked:
   `omit: ['pool.notes']` in the root store's persistedstate config; only the ciphertext
   `pool.sealed` and public `pool.leaves` persist; `pool/unlockPool` runs fire-and-forget at
   boot in `main.js`).
+  The **chipnet stand-in CashToken is MINTED** (PUSD is mainnet-only): category
+  `479aeebabc682ddb90a3671bffd2a0bd918737de13f19a92231ed36a8580cc11`, 100M fungible
+  units + minting NFT, genesis tx `4257dbfb68540cc9afcf569da8e651790c82d3951bdff88f5232a372760ba977`
+  (block 328616) via the chipnet.bch.ninja faucet; mint key (test-only, no value) in
+  `/Workspace/apecsdev/.secrets/pusd-pool-chipnet-mint.json`; full details in pusd-pool
+  `README.md`. Two Fulcrum protocol caveats discovered (critical for the wallet wiring):
+  (1) `blockchain.address.listunspent`/`get_balance` HIDE token-bearing UTXOs unless the
+  second param `include_tokens` (or `tokens_only`) is passed; (2) spending a token-bearing
+  UTXO requires the source output's token prefix to be covered by the sighash (libauth:
+  set `sourceOutputs[i].token`), else the input fails NULLFAIL at broadcast.
 - **Heavy compute** (circuit compile, Groth16 setup, proving, benchmarks) runs ONLY on the
   dedicated `bch-infra` VPS — never on the dev host.
 
