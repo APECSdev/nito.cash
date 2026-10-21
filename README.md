@@ -40,7 +40,7 @@ private transfer, and withdraw:
 > Chipnet proof-of-concept with a disclosed 1-of-1 trusted setup — a full MPC
 > ceremony is mandatory before mainnet. The complete technical design (circuit,
 > covenant, verifier patching, and per-transaction worked examples) lives in the
-> companion repo **[APECSdev/pusd-pool](https://github.com/APECSdev/pusd-pool)**.
+> companion repo **[APECSdev/pusd-shielded-pool](https://github.com/APECSdev/pusd-shielded-pool)**.
 
 ## Getting started
 
@@ -160,6 +160,6 @@ This is a pnpm **monorepo** with three packages:
 | `@nito.cash/docs`   | `apps/docs/`     | VitePress documentation site, deployed to Cloudflare Pages as `docs.nito.cash`. |
 | `@nito.cash/prover` | `workers/prover/`| A Halo 2 / Orchard ZK prover (Rust → WASM), deployed as a Cloudflare Worker at `prover.nito.cash`. |
 
-**Related repo:** **[APECSdev/pusd-pool](https://github.com/APECSdev/pusd-pool)** — the
+**Related repo:** **[APECSdev/pusd-shielded-pool](https://github.com/APECSdev/pusd-shielded-pool)** — the
 shielded-pool circuit, covenant, and on-chipnet build records behind Nito Cash
 Private Payments.

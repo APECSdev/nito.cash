@@ -1,7 +1,7 @@
 // src/lib/pool/notes.js
 //
 // Wallet-side note cryptography for the PUSD shielded pool (Chipnet PoC).
-// Mirrors `circuits/note.circom` in the pusd-pool repo EXACTLY:
+// Mirrors `circuits/note.circom` in the pusd-shielded-pool repo EXACTLY:
 //   commitment = Poseidon(value, ownerPub, rho, r)
 //   nullifier  = Poseidon(nk, rho)
 // All arithmetic is in the BN254 scalar field. circomlibjs `buildPoseidon`
@@ -107,7 +107,7 @@ export async function deriveOwnerPub(spendKey) {
  *   then the top 3 bits of the BE digest are cleared (253-bit truncation, so
  *   the result is ALWAYS < the BN254 scalar-field prime — no modular reduction).
  * Returns the field element (BigInt); the covenant compares against its LE
- * VM-number byte form (covenant side, see pusd-pool COVENANT-DESIGN.md §7).
+ * VM-number byte form (covenant side, see pusd-shielded-pool COVENANT-DESIGN.md §7).
  */
 export function actionHash({
     nf0, nf1, cm0, cm1,
