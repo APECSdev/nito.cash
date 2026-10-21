@@ -13,8 +13,10 @@
  * Chipnet is the BCH testnet. Faucet for testing: https://chipnet.bch.ninja
  */
 
-/* Initialize the Electrum protocol version we negotiate with servers. */
-export const ELECTRUM_PROTOCOL_VERSION = '1.4'
+/* Initialize the Electrum protocol version we negotiate with servers.
+   1.5 is required for the CashTokens `include_tokens` UTXO filter (verified
+   live: every configured mainnet + chipnet server accepts it). */
+export const ELECTRUM_PROTOCOL_VERSION = '1.5'
 
 /* Application name announced to servers during version negotiation. */
 export const ELECTRUM_CLIENT_NAME = 'nito.cash'
@@ -52,6 +54,9 @@ const networks = {
         ],
         /* Minimum agreeing servers required to accept a response. */
         quorum: 2,
+        /* CashToken categories tracked by the wallet (by symbol). Mainnet PUSD
+           (PayonUSD) is mainnet-only but not yet wired; add its category here. */
+        tokens: {},
     },
 
     chipnet: {
@@ -69,6 +74,12 @@ const networks = {
             { host: 'chipnet.bch.ninja', port: 50004 },
         ],
         quorum: 2,
+        /* CashToken categories tracked by the wallet (by symbol). The chipnet
+           PUSD is a stand-in for mainnet PUSD; its category is the token's
+           genesis outpoint txid (see pusd-shielded-pool/CHIPNET.md). */
+        tokens: {
+            PUSD: '479aeebabc682ddb90a3671bffd2a0bd918737de13f19a92231ed36a8580cc11',
+        },
     },
 }
 
@@ -83,6 +94,12 @@ export const DEFAULT_NETWORK = 'mainnet'
  */
 export function getNetwork(id) {
     return networks[id] || networks[DEFAULT_NETWORK]
+}
+
+/* Get a tracked CashToken's category for a network (undefined if untracked). */
+export function getTokenCategory(networkId, symbol) {
+    const net = getNetwork(networkId)
+    return (net.tokens && net.tokens[symbol]) || undefined
 }
 
 export default networks

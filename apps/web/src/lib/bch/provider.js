@@ -120,6 +120,11 @@ export class FulcrumCluster {
     /* -> [ { tx_hash, tx_pos, height, value } ] */
     getUtxos(address) { return this.request(ElectrumMethods.getUtxos, address) }
 
+    /* -> [ { tx_hash, tx_pos, height, value, token_data? } ] INCLUDING token-bearing
+       UTXOs. Uses the Electrum 1.5 `include_tokens` filter: by default Fulcrum
+       HIDES token-bearing UTXOs from listunspent/get_balance. */
+    getUtxosWithTokens(address) { return this.request(ElectrumMethods.getUtxos, address, 'include_tokens') }
+
     /* -> [ { tx_hash, height, fee? } ] */
     getHistory(address) { return this.request(ElectrumMethods.getHistory, address) }
 

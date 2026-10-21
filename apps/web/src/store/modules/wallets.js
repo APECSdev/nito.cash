@@ -10,6 +10,7 @@ import getDustAmount from './wallets/getters/getDustAmount'
 import getHDNode from './wallets/getters/getHDNode'
 import getHistory from './wallets/getters/getHistory'
 import getSignedInput from './wallets/getters/getSignedInput'
+import getTokenBalance from './wallets/getters/getTokenBalance'
 
 /* Import modules (actions). */
 import activateAccounts from './wallets/actions/activateAccounts'
@@ -76,6 +77,7 @@ const getters = {
     getHDNode,
     getHistory,
     getSignedInput,
+    getTokenBalance,
 }
 
 /* Actions. */

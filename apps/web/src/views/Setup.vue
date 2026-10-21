@@ -70,10 +70,10 @@ export default {
             /* Create new wallet. */
             this.createWallet()
 
-            /* Continue to Dashboard. */
+            /* Continue to the default wallet. */
             setTimeout(() => {
-                /* Redirect to dashboard. */
-                this.$router.replace('dashboard')
+                /* Redirect to the default wallet (Nito Cash). */
+                this.$router.replace('/wallets/nito-cash')
             }, 1000)
         },
 
@@ -146,8 +146,8 @@ export default {
 
         /* Validate wallet accounts. */
         if (this.getAccountsByWallet('BCH')) {
-            /* Redirect to dashboard. */
-            return this.$router.replace('dashboard')
+            /* Redirect to the default wallet (Nito Cash). */
+            return this.$router.replace('/wallets/nito-cash')
         }
     },
     mounted: function () {

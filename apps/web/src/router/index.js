@@ -11,13 +11,13 @@ import Dashboard from '@/views/Dashboard'
 
 import History from '@/views/History'
 
-import Private from '@/views/Private'
-
 import Receive from '@/views/Receive'
 
 import Send from '@/views/Send'
 
 import Settings from '@/views/Settings'
+
+import Wallet from '@/views/Wallet'
 
 /**
  * Initialize Routes
@@ -38,8 +38,15 @@ const routes = [{
     path: '/history',
     component: History
 }, {
+    /* The old placeholder shielded view is superseded by the 4-wallet screen;
+       redirect any stale link to the Nito Cash wallet. */
     path: '/private',
-    component: Private
+    redirect: '/wallets/nito-cash'
+}, {
+    /* The 4-wallet model; `/wallets` (no param) lands on the default
+       wallet (Nito Cash). */
+    path: '/wallets/:walletId?',
+    component: Wallet
 }, {
     path: '/receive',
     component: Receive
