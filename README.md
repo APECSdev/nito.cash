@@ -7,7 +7,7 @@
 [![ci](https://github.com/APECSdev/nito.cash/actions/workflows/ci.yml/badge.svg)](https://github.com/APECSdev/nito.cash/actions/workflows/ci.yml)
 [![codecov](https://codecov.io/gh/APECSdev/nito.cash/graph/badge.svg)](https://codecov.io/gh/APECSdev/nito.cash)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
-![Vue](https://img.shields.io/badge/Vue-2.6-4FC08D?logo=vue.js&logoColor=white)
+![Vue](https://img.shields.io/badge/Vue-3.5-4FC08D?logo=vue.js&logoColor=white)
 ![pnpm](https://img.shields.io/badge/pnpm-workspace-F69220?logo=pnpm&logoColor=white)
 ![BCH](https://img.shields.io/badge/Bitcoin%20Cash-BCH-0AC18E)
 
@@ -15,6 +15,32 @@
 
 A privacy-focused Bitcoin Cash (BCH) wallet and ZK proving stack, built for
 **[BCH Blaze 2026](https://dorahacks.io/hackathon/bchblaze2026)**.
+
+## Nito Cash — Private Payments (flagship feature)
+
+The headline build for BCH Blaze 2026 is the **first shielded pool for PayonUSD
+(PUSD) on BCH Chipnet** — sender, receiver, and amount are all masked. A BN254
+Groth16 zero-knowledge proof (split across 5 transaction inputs so it fits the BCH
+VM's cost limits) proves each note transition is valid, while a CashToken-aware
+**covenant** independently enforces the exact same transition on-chain: the covenant
+recomputes the proof's `actionHash` public input from the values it applies and
+requires a match, welding the ZK proof to the precise note transition. Pool state
+`{merkleRoot, nullifierSetHash}` rides in a mutable CashToken NFT, so value moves
+**shielded → shielded** with no public link between deposits and withdrawals.
+
+The full pool lifecycle is **live and confirmed on chipnet** — deploy, shield,
+private transfer, and withdraw:
+
+| Step | Tx | Confirmed | What it does |
+| ---- | -- | --------- | ------------ |
+| **SHIELD** | TX-S1 | [block 328733](https://chipnet.chaingraph.cash/tx/d3a442f3d3145cba3d1d6fd626164e077fa92b02720b882e3e98b40e70f4188c) | 1,000,000 public PUSD → shielded (hidden 700k + 300k notes created) |
+| **TRANSFER** | TX-T1 | [block 328740](https://chipnet.chaingraph.cash/tx/3a8b9287ea97c050b0110522afa84daf0de90984ef3266db4062768d19adf8a5) | pure shielded → shielded: no public value moves, no link in or out |
+| **UNSHIELD** | TX-U1 | [block 328744](https://chipnet.chaingraph.cash/tx/c8d4c6e67859602a700b36ed33c6d90f0bf0ecb43c2e58b87041f845d4cc214a) | 250,000 PUSD back out publicly; 750,000 stays shielded |
+
+> Chipnet proof-of-concept with a disclosed 1-of-1 trusted setup — a full MPC
+> ceremony is mandatory before mainnet. The complete technical design (circuit,
+> covenant, verifier patching, and per-transaction worked examples) lives in the
+> companion repo **[APECSdev/pusd-pool](https://github.com/APECSdev/pusd-pool)**.
 
 ## Getting started
 
@@ -24,7 +50,7 @@ Requires **Node 24** and **pnpm** (`corepack enable && corepack prepare pnpm@lat
 pnpm install          # install the whole workspace (frozen lockfile)
 
 pnpm dev              # run the wallet dev server (apps/web)
-pnpm build            # production build of the wallet -> apps/web/dist
+pnpm build            # production build of the wallet -> apps/web/dist-vite
 pnpm test:unit        # unit tests (apps/web)
 pnpm lint             # eslint (apps/web)
 
@@ -33,8 +59,8 @@ pnpm prover:deploy    # deploy the ZK prover via the apecsdev VM -> prover.nito.
 
 The prover's WebAssembly artifact (`workers/prover/src/orchard.wasm`) is committed, so
 deploying it does **not** require a Rust toolchain. See `AGENTS.md` for full contributor
-guidance (PNPM rules, Ledger integration plan, monorepo layout, and the in-flight Vue 3
-migration).
+guidance (PNPM rules, Ledger integration plan, monorepo layout, and the phased Vue 3 /
+Tailwind modernization).
 
 ---
 
@@ -126,9 +152,14 @@ __Cheers to that!__
 
 ## Repository structure
 
-This is a pnpm **monorepo** with two packages:
+This is a pnpm **monorepo** with three packages:
 
 | Package             | Path             | What it is                                                          |
 | ------------------- | ---------------- | ------------------------------------------------------------------- |
 | `@nito.cash/web`    | `apps/web/`      | The Nito.cash wallet — a client-side Vue SPA, deployed to Cloudflare Pages. |
+| `@nito.cash/docs`   | `apps/docs/`     | VitePress documentation site, deployed to Cloudflare Pages as `docs.nito.cash`. |
 | `@nito.cash/prover` | `workers/prover/`| A Halo 2 / Orchard ZK prover (Rust → WASM), deployed as a Cloudflare Worker at `prover.nito.cash`. |
+
+**Related repo:** **[APECSdev/pusd-pool](https://github.com/APECSdev/pusd-pool)** — the
+shielded-pool circuit, covenant, and on-chipnet build records behind Nito Cash
+Private Payments.
