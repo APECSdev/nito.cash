@@ -114,6 +114,15 @@
                     {{bchBalance}} <small class="text-[16px] font-semibold">BCH</small>
                 </div>
 
+                <!-- SOL balance (derived from the same seed; send lands next) -->
+                <div v-if="solAddress" class="text-[24px] font-semibold text-trinary text-center mt-[10px]">
+                    {{solBalance === null ? '\u2014' : solBalance}} <small class="text-[14px] font-semibold">SOL</small>
+                </div>
+
+                <div v-if="solAddress" class="text-[10px] font-medium text-secondary text-center mt-[6px] break-all px-[8px]">
+                    {{solAddress}}
+                </div>
+
                 <!-- Asset list -->
                 <div v-for="asset of wallet.assets" :key="asset.symbol"
                     class="mt-[14px] flex items-center justify-between text-[12px] font-semibold">
@@ -154,6 +163,9 @@ import { WALLETS, getWallet } from '@/lib/wallets'
 /* Import the network CashToken registry. */
 import { getTokenCategory } from '@/lib/bch/networks'
 
+/* Import Solana account derivation + balance. */
+import { solanaAccountFromEntropy, fetchSolBalance } from '@/lib/solana'
+
 export default {
     components: {
         Button,
@@ -166,6 +178,8 @@ export default {
             activeAction: null,
             bchBalance: 0,
             pusdBalanceRaw: null,
+            solAddress: '',
+            solBalance: null,
         }
     },
     computed: {
@@ -182,6 +196,7 @@ export default {
         ]),
 
         ...mapGetters('profile', [
+            'getMasterSeed',
             'getNetwork',
         ]),
 
@@ -260,6 +275,14 @@ export default {
         const category = getTokenCategory(this.getNetwork, 'PUSD')
         if (category) {
             this.pusdBalanceRaw = await this.getTokenBalance('BCH', category)
+        }
+
+        /* Derive the Solana account (same seed) and fetch its balance
+           (for Naked Vault). Only once a wallet exists (master seed set). */
+        if (this.getMasterSeed) {
+            const solAccount = solanaAccountFromEntropy(this.getMasterSeed)
+            this.solAddress = solAccount.address
+            this.solBalance = await fetchSolBalance(solAccount.address)
         }
     },
 }

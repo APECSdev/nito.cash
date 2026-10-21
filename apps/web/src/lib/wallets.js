@@ -72,7 +72,7 @@ export const WALLETS = [
         tagline: 'Transparent holdings — base coins & cash-tokens',
         assets: [
             { symbol: 'BCH', label: 'Bitcoin Cash', status: 'active' },
-            { symbol: 'SOL', label: 'Solana', status: 'coming-soon' },
+            { symbol: 'SOL', label: 'Solana', status: 'active' },
             { symbol: 'CashTokens', label: 'CashTokens', status: 'coming-soon' },
         ],
     },
