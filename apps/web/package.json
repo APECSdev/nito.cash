@@ -39,6 +39,7 @@
     "pinia-plugin-persistedstate": "4.7.1",
     "qr-scanner": "1.1.1",
     "qrcode": "1.4.4",
+    "snarkjs": "^0.7.6",
     "uuid": "7.0.3",
     "vue": "3.5.43",
     "vue-i18n": "11.4.14",
