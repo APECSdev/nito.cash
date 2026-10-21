@@ -1,0 +1,48 @@
+<!doctype html>
+<html>
+<head><meta charset="utf-8"><title>pool prover browser test</title></head>
+<body>
+<script type="module">
+    // Browser end-to-end test of the REAL client-side prover:
+    // build the bench "transfer" witness via the wallet's own prover.js, then run
+    // snarkjs groth16 fullProve in THIS browser against the served proving assets.
+    import { buildPoolWitness, generateProof, verifyProof, VERIFYING_KEY } from '/src/lib/pool/prover.js'
+    import { noteCommitment } from '/src/lib/pool/notes.js'
+
+    const out = (ok, extra) => { window.__proveResult = { ok, ...extra } }
+    window.__proveResult = { ok: null, stage: 'starting' }
+
+    try {
+        const assetCategory = 0x2469acc5afa4b10cb5b5c04afb89c3a3ffd61c5da9c01e26d00951cae2a02544n
+        const ownerPub = 111n
+        const inNotes = [
+            { note: { value: 60n, ownerPub, rho: 1001n, r: 5001n }, nk: 222n, index: 0 },
+            { note: { value: 40n, ownerPub, rho: 1002n, r: 5002n }, nk: 333n, index: 1 },
+        ]
+        const outNotes = [
+            { value: 70n, ownerPub: 444n, rho: 2001n, r: 6001n },
+            { value: 30n, ownerPub: 555n, rho: 2002n, r: 6002n },
+        ]
+        const leaves = [
+            await noteCommitment(60n, ownerPub, 1001n, 5001n),
+            await noteCommitment(40n, ownerPub, 1002n, 5002n),
+        ]
+        window.__proveResult = { ok: null, stage: 'witness' }
+        const witness = await buildPoolWitness({ inNotes, outNotes, leaves, publicValueAbs: 0n, publicValueSign: 0n, assetCategory })
+
+        window.__proveResult = { ok: null, stage: 'proving', merkleRoot: witness.merkleRoot, actionHash: witness.actionHash }
+        const t0 = performance.now()
+        const { proof, publicSignals } = await generateProof(witness)
+        const proveMs = Math.round(performance.now() - t0)
+
+        window.__proveResult = { ok: null, stage: 'verifying', proveMs, merkleRoot: witness.merkleRoot, actionHash: witness.actionHash, publicSignals }
+        const vkey = await (await fetch(VERIFYING_KEY)).json()
+        const valid = await verifyProof(vkey, proof, publicSignals)
+
+        out(valid, { stage: 'done', proveMs, merkleRoot: witness.merkleRoot, actionHash: witness.actionHash, publicSignals })
+    } catch (e) {
+        out(false, { stage: 'error', error: String(e && (e.message || e)) })
+    }
+</script>
+</body>
+</html>

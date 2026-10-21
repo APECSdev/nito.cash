@@ -31,6 +31,14 @@ NOTES
 workers/*/target
 workers/*/node_modules
 
+# PUSD pool Groth16 proving assets — LARGE binaries (zkey ~98 MB, wasm ~3.4 MB),
+# gitignored like the pool repo's own build/*.zkey. The LIVE PPOT-derived assets are
+# fetched from the bch-infra build box (`pusd-pool/build/`) and placed here locally
+# for browser proving; distribute via a GitHub Release, NOT git. The small
+# verification_key.json IS committed (it is the live on-chain key).
+apps/web/public/proving/pool_final.zkey
+apps/web/public/proving/pool.wasm
+
 # VitePress docs build output + cache
 apps/docs/.vitepress/dist
 apps/docs/.vitepress/cache
