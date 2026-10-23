@@ -33,9 +33,9 @@ private transfer, and withdraw:
 
 | Step | Tx | Confirmed | What it does | On-chain shape |
 | ---- | -- | --------- | ------------ | -------------- |
-| **SHIELD** | TX-S1 | [block 328733](https://chipnet.chaingraph.cash/tx/d3a442f3d3145cba3d1d6fd626164e077fa92b02720b882e3e98b40e70f4188c) | 1,000,000 public PUSD → shielded (hidden 700k + 300k notes created) | 8 in / 8 out · 36,999 B |
-| **TRANSFER** | TX-T1 | [block 328740](https://chipnet.chaingraph.cash/tx/3a8b9287ea97c050b0110522afa84daf0de90984ef3266db4062768d19adf8a5) | pure shielded → shielded: no public value moves, no link in or out | 8 in / 8 out · 36,996 B |
-| **UNSHIELD** | TX-U1 | [block 328744](https://chipnet.chaingraph.cash/tx/c8d4c6e67859602a700b36ed33c6d90f0bf0ecb43c2e58b87041f845d4cc214a) | 250,000 PUSD back out publicly; 750,000 stays shielded | 8 in / 9 out · 37,071 B |
+| **SHIELD** | TX-S2 | [block 329193](https://chipnet.chaingraph.cash/tx/22360d7a6cc7aec206f7e9821efca644f66fe4e6cc6785b828b80ec76e3229d1) | 1,000,000 public PUSD → shielded (hidden 700k + 300k notes created) | 8 in / 8 out · 36,999 B |
+| **TRANSFER** | TX-T2 | [block 329193](https://chipnet.chaingraph.cash/tx/6745f445ef414cfaa544004cf3e3ea3a8681ba0d1218d523c462fc7ffd6732b7) | pure shielded → shielded: no public value moves, no link in or out | 7 in / 7 out · 36,782 B |
+| **UNSHIELD** | TX-U2 | [block 329194](https://chipnet.chaingraph.cash/tx/9867f73a7bd29e8b664545cfd80cf5706dcaa252df1959a2d00c810a4da0d0cc) | 250,000 PUSD back out publicly; 750,000 stays shielded | 7 in / 8 out · 36,857 B |
 
 > Chipnet proof-of-concept with a disclosed 1-of-1 trusted setup — a full MPC
 > ceremony is mandatory before mainnet. The complete technical design (circuit,
@@ -48,10 +48,12 @@ cryptographic machinery, structurally identical for every transaction. That is t
 irreducible cost of trustless verification, not overhead. The covenant pins only six
 inputs (`in[0..4]` verifier + the pool covenant at `in[5]`, with the genesis stage fixed
 at `in[3]`) and its own re-creation output `out[0]`; the remaining sats/token inputs are
-**fee funding** the covenant never reads. So the reference transactions are already at
-their practical minimum: the only removable bytes are the funding pass-through and its
-change (~0.6%), which does not touch the dominant verifier cost. An UNSHIELD carries one
-extra output (the public payout), hence 9 outputs. See
+**fee funding** the covenant never reads. So the reference transactions carry **only
+structurally-meaningful I/O**: the TRANSFER and UNSHIELD omit the fungible-token
+pass-through entirely (the covenant never validated that net-zero self-transfer, so it
+was removed), leaving the six pinned inputs plus one sats funding input. A SHIELD keeps
+one extra input (the token deposit being shielded), and an UNSHIELD keeps one extra
+output (the public payout). See
 [Reading a Pool Transaction](https://docs.nito.cash/private-payments/on-chain-anatomy).
 
 ## Getting started

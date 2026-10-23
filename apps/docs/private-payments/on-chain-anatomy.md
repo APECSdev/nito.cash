@@ -8,51 +8,61 @@ The short version: **sender, receiver, and amount are hidden.** What an explorer
 pool's public *plumbing* — the pool's total balance and the fee/change outputs — which is public
 by design. The actual transfer is a handful of opaque hashes.
 
-## The 8 inputs / 8–9 outputs
+## Inputs & outputs (by operation)
 
-Every pool transaction spends the same **8 inputs**, in three groups, and produces **8
-outputs** — except an UNSHIELD, which adds a ninth (the public payout).
+Every pool transaction spends the same **6 pinned inputs** — `in[0..4]`, the 5 verifier
+stages, plus `in[5]`, the pool covenant — and re-creates the pool covenant (`out[0]`) and
+the 5 verifier scripts. Everything else is **funding** the covenant never reads, and it is
+that funding that makes the exact input/output count differ by operation:
 
 ```
-INPUTS                                  OUTPUTS (shield / transfer)
-in[0..4] 5 verifier P2SH32 inputs      out[0]   pool covenant (perpetuated, new state)
-         (proof-specific unlocking,     out[1,2,3] 3× executor script (same P2SH32)
-         ~6–9 KB each)                  out[4]   genesis script
-in[5]   pool covenant (~520 B)          out[5]   terminal script
-in[6]   PUSD fungible-token input      out[6]   fungible-token change (P2PKH)
-in[7]   BCH sats input (fee funding)   out[7]   sats change (P2PKH)
-
-UNSHIELD inserts the public payout as out[1] and shifts the rest down by one:
-   out[0] covenant · out[1] payout (P2PKH) · out[2..6] 5 verifier · out[7] token change
-   · out[8] sats change
+INPUTS (pinned, all txs)               OUTPUTS
+in[0..4] 5 verifier P2SH32 inputs     out[0]   pool covenant (perpetuated, new state)
+         (proof-specific unlocking,    + the 5 verifier re-creations (fixed P2SH32):
+         ~6–9 KB each)                   shield/transfer → out[1,2,3] 3× executor,
+in[5]   pool covenant (~520 B)                     out[4] terminal, out[5] genesis
+                                       unshield       → out[2,3,4] 3× executor,
++ funding (per operation):                         out[5] terminal, out[6] genesis
+  SHIELD   in[6]  PUSD deposit being
+           shielded · in[7] sats       + the operation-specific funding / payout:
+  TRANSFER in[6]  sats                  SHIELD   out[6] token change · out[7] sats change
+  UNSHIELD in[6]  sats                  TRANSFER out[6] sats change
+                                       UNSHIELD out[1] public payout (P2PKH) inserted,
+                                                shifting the rest down · out[7] sats change
 ```
 
-- **Group 1 — the ZK verifier (in[0–4] → out[1–5]).** The Groth16 verifier *executing on-chain*.
-  It spends the previous pool transaction's 5 verifier UTXOs and re-creates them with the same
+So the counts are **SHIELD 8 in / 8 out**, **TRANSFER 7 in / 7 out**, **UNSHIELD 7 in / 8
+out**. A TRANSFER is the bare minimum: the 6 pinned inputs + one sats input, and the 6
+pinned outputs + one sats change.
+
+- **Group 1 — the ZK verifier (in[0–4]).** The Groth16 verifier *executing on-chain*. It
+  spends the previous pool transaction's 5 verifier UTXOs and re-creates them with the same
   locking scripts. Pure machinery — no user data. It must be public: it *is* the trustless
   verification.
 - **Group 2 — the pool covenant (in[5] → out[0]).** The state transition. `out[0]` carries the
   pool's mutable NFT whose commitment is the new `{merkleRoot, nullifierSetHash}` state — just
   hashes.
-- **Group 3 — the public funding (in[6,7] → out[6,7]).** The wallet's *public* tokens and sats,
-  which pay the fee. Not part of the private action.
+- **Group 3 — the funding.** The wallet's *public* sats pay the fee (and, for a SHIELD, a
+  token input supplies the PUSD being deposited). Not part of the private action. A TRANSFER or
+  UNSHIELD carries **no fungible-token pass-through** — the covenant never validated that
+  net-zero self-transfer, so it has been removed as structurally meaningless.
 
 The covenant only ever reads `in[0..5]`: itself (`in[5]`, via `this.activeInputIndex`) and the
 verifier **genesis** stage (`in[3]`, for the proven `n0`/`n1`). It requires `out[0]` (its own
-re-creation) and — only when unshielding — `out[1]` (the payout). It **never references
-`in[6]`/`in[7]`** — those exist purely to fund the fee (and, for a SHIELD, to supply the tokens
+re-creation) and — only when unshielding — `out[1]` (the payout). It **never references the
+funding inputs** — those exist purely to fund the fee (and, for a SHIELD, to supply the tokens
 being deposited), and could be replaced by any other funding source without the covenant
 caring.
 
-The verifier UTXOs are **self-perpetuating**: consumed as `in[0..4]`, re-created as `out[1..5]`
-with the same (fixed, verifying-key-derived) locking scripts. Each transaction advances the chain
-one step, so the pool and verifier outpoints move forward together.
+The verifier UTXOs are **self-perpetuating**: consumed as `in[0..4]`, re-created with the same
+(fixed, verifying-key-derived) locking scripts. Each transaction advances the chain one step,
+so the pool and verifier outpoints move forward together.
 
 ## The transfer payload = 6 opaque hashes + zero public value
 
 The *entire* private action of a TRANSFER lives in the covenant input's (in[5]) unlocking
 bytecode. From the live TRANSFER
-([`3a8b9287…`](https://chipnet.chaingraph.cash/tx/3a8b9287ea97c050b0110522afa84daf0de90984ef3266db4062768d19adf8a5)):
+([`6745f445…`](https://chipnet.chaingraph.cash/tx/6745f445ef414cfaa544004cf3e3ea3a8681ba0d1218d523c462fc7ffd6732b7)):
 
 ```
 isUnshield      = 0          ← a transfer, not an unshield
@@ -76,13 +86,14 @@ Two reasons, and neither is the transfer:
    value *within* the pool, so this total is **unchanged** by the transfer — it was 1M after the
    shield and is still 1M after. This number is necessarily public: it is the token amount sitting
    on the pool's UTXO.
-2. **`out[6]` shows a large public balance** (e.g. `99,000,000` units) — the wallet's *separate,
-   public* holdings (the un-shielded remainder). It passes straight through (`in[6]` → `out[6]`,
-   unchanged) purely to carry sats for the fee. The transfer never touches it.
+2. **At the public boundary, the crossing value is visible** — but a TRANSFER crosses no
+   boundary. The reference TRANSFER therefore shows **no public token movement at all**: its only
+   visible amount is the unchanged pool total. (A SHIELD still shows the deposit entering, plus
+   the wallet's leftover token change; an UNSHIELD shows the payout at `out[1]`.)
 
 The ~1,000-sat outputs are just dust carrying the tokens/NFTs. Explorers like Chaingraph decode
 CashTokens and render those fungible-token amounts — which is why they look like "the transfer."
-They are the *pool total* and the *public change*, not the transfer.
+On a TRANSFER the single visible amount is the *pool total*, not the transfer.
 
 ## Visibility by operation
 
@@ -129,30 +140,34 @@ The stage names:
 
 ## The minimal structure (and why it barely matters)
 
-What is the *absolute minimum* a pool transaction can be? Reading the covenant's requirements:
+The reference transactions **are** the practical minimum. Reading the covenant's requirements:
 
 - **Inputs.** Six are pinned by the covenant/verifier at fixed positions: `in[0..4]` (the 5
   verifier stages — genesis must sit at `in[3]`) and `in[5]` (the pool covenant). Everything
   else is fee funding. A TRANSFER or UNSHIELD therefore needs **7 inputs** (the 6 + one sats
   input); a SHIELD needs **8** (the 6 + the token deposit being shielded + one sats input).
+  (Earlier reference transactions *also* carried a net-zero fungible-token pass-through that the
+  covenant never read; that structurally-meaningless I/O has been removed from the TRANSFER and
+  UNSHIELD reference transactions.)
 - **Outputs.** `out[0]` (covenant re-creation) plus the 5 verifier re-creations are required
   = **6 outputs**. An UNSHIELD adds the public payout = **7**. Change outputs (token/sats) are
-  optional — droppable when the funding is exact.
+  optional — droppable when the funding is exact; the reference transactions keep one sats
+  change output for practical fee funding.
 
-So a TRANSFER could be trimmed from 8 in / 8 out to **7 in / 6 out**. But the saving is only
-~250 bytes out of ~37,000 — **~0.6%** — because the transaction is dominated by the verifier:
+But trimming the funding I/O barely changes the size, because the transaction is dominated by
+the verifier:
 
-| Component | Bytes (TX-T1) | Share |
+| Component | Bytes (TX-T2) | Share |
 | --------- | ------------- | ----- |
-| 5 verifier inputs (unlocking bytecode) | ~35,453 | **~96%** |
-| pool covenant input | ~518 | ~1.4% |
-| funding inputs (token + sats) | ~200 | ~0.5% |
-| 8 outputs + overhead | ~825 | ~2.2% |
+| 5 verifier inputs (unlocking bytecode) | 35,453 | **~96%** |
+| pool covenant input | ~561 | ~1.5% |
+| sats funding input | ~141 | ~0.4% |
+| 7 outputs + overhead | ~627 | ~1.7% |
 
 The verifier is *fixed* overhead — the price of verifying a Groth16 proof trustlessly on-chain.
-It does not shrink with fewer funding inputs or smaller transfers. Minimizing the input/output
-count is therefore a matter of **clarity**, not meaningful size or fee reduction: the reference
-transactions are already at their practical minimum.
+It does not shrink with fewer funding inputs or smaller transfers. Removing the fungible-token
+pass-through is therefore about **structural clarity** — carrying only meaningful I/O — not a
+meaningful size or fee reduction.
 
 ## The pool's token supply
 
