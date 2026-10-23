@@ -33,9 +33,9 @@ private transfer, and withdraw:
 
 | Step | Tx | Confirmed | What it does | On-chain shape |
 | ---- | -- | --------- | ------------ | -------------- |
-| **SHIELD** | TX-S2 | [block 329193](https://chipnet.chaingraph.cash/tx/22360d7a6cc7aec206f7e9821efca644f66fe4e6cc6785b828b80ec76e3229d1) | 1,000,000 public PUSD → shielded (hidden 700k + 300k notes created) | 8 in / 8 out · 36,999 B |
-| **TRANSFER** | TX-T2 | [block 329193](https://chipnet.chaingraph.cash/tx/6745f445ef414cfaa544004cf3e3ea3a8681ba0d1218d523c462fc7ffd6732b7) | pure shielded → shielded: no public value moves, no link in or out | 7 in / 7 out · 36,782 B |
-| **UNSHIELD** | TX-U2 | [block 329194](https://chipnet.chaingraph.cash/tx/9867f73a7bd29e8b664545cfd80cf5706dcaa252df1959a2d00c810a4da0d0cc) | 250,000 PUSD back out publicly; 750,000 stays shielded | 7 in / 8 out · 36,857 B |
+| **SHIELD** | TX-S2 | [block 329193](https://chipnet.imaginary.cash/tx/22360d7a6cc7aec206f7e9821efca644f66fe4e6cc6785b828b80ec76e3229d1) | 1,000,000 public PUSD → shielded (hidden 700k + 300k notes created) | 8 in / 8 out · 36,999 B |
+| **TRANSFER** | TX-T2 | [block 329193](https://chipnet.imaginary.cash/tx/6745f445ef414cfaa544004cf3e3ea3a8681ba0d1218d523c462fc7ffd6732b7) | pure shielded → shielded: no public value moves, no link in or out | 7 in / 7 out · 36,782 B |
+| **UNSHIELD** | TX-U2 | [block 329194](https://chipnet.imaginary.cash/tx/9867f73a7bd29e8b664545cfd80cf5706dcaa252df1959a2d00c810a4da0d0cc) | 250,000 PUSD back out publicly; 750,000 stays shielded | 7 in / 8 out · 36,857 B |
 
 > Chipnet proof-of-concept with a disclosed 1-of-1 trusted setup — a full MPC
 > ceremony is mandatory before mainnet. The complete technical design (circuit,

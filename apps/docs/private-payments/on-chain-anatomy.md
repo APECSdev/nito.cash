@@ -62,7 +62,7 @@ so the pool and verifier outpoints move forward together.
 
 The *entire* private action of a TRANSFER lives in the covenant input's (in[5]) unlocking
 bytecode. From the live TRANSFER
-([`6745f445…`](https://chipnet.chaingraph.cash/tx/6745f445ef414cfaa544004cf3e3ea3a8681ba0d1218d523c462fc7ffd6732b7)):
+([`6745f445…`](https://chipnet.imaginary.cash/tx/6745f445ef414cfaa544004cf3e3ea3a8681ba0d1218d523c462fc7ffd6732b7)):
 
 ```
 isUnshield      = 0          ← a transfer, not an unshield
@@ -91,8 +91,8 @@ Two reasons, and neither is the transfer:
    visible amount is the unchanged pool total. (A SHIELD still shows the deposit entering, plus
    the wallet's leftover token change; an UNSHIELD shows the payout at `out[1]`.)
 
-The ~1,000-sat outputs are just dust carrying the tokens/NFTs. Explorers like Chaingraph decode
-CashTokens and render those fungible-token amounts — which is why they look like "the transfer."
+The ~1,000-sat outputs are just dust carrying the tokens/NFTs. Explorers that decode CashTokens (the chipnet
+explorer linked above does) render those fungible-token amounts — which is why they look like "the transfer."
 On a TRANSFER the single visible amount is the *pool total*, not the transfer.
 
 ## Visibility by operation
