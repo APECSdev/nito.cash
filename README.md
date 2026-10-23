@@ -31,16 +31,28 @@ requires a match, welding the ZK proof to the precise note transition. Pool stat
 The full pool lifecycle is **live and confirmed on chipnet** — deploy, shield,
 private transfer, and withdraw:
 
-| Step | Tx | Confirmed | What it does |
-| ---- | -- | --------- | ------------ |
-| **SHIELD** | TX-S1 | [block 328733](https://chipnet.chaingraph.cash/tx/d3a442f3d3145cba3d1d6fd626164e077fa92b02720b882e3e98b40e70f4188c) | 1,000,000 public PUSD → shielded (hidden 700k + 300k notes created) |
-| **TRANSFER** | TX-T1 | [block 328740](https://chipnet.chaingraph.cash/tx/3a8b9287ea97c050b0110522afa84daf0de90984ef3266db4062768d19adf8a5) | pure shielded → shielded: no public value moves, no link in or out |
-| **UNSHIELD** | TX-U1 | [block 328744](https://chipnet.chaingraph.cash/tx/c8d4c6e67859602a700b36ed33c6d90f0bf0ecb43c2e58b87041f845d4cc214a) | 250,000 PUSD back out publicly; 750,000 stays shielded |
+| Step | Tx | Confirmed | What it does | On-chain shape |
+| ---- | -- | --------- | ------------ | -------------- |
+| **SHIELD** | TX-S1 | [block 328733](https://chipnet.chaingraph.cash/tx/d3a442f3d3145cba3d1d6fd626164e077fa92b02720b882e3e98b40e70f4188c) | 1,000,000 public PUSD → shielded (hidden 700k + 300k notes created) | 8 in / 8 out · 36,999 B |
+| **TRANSFER** | TX-T1 | [block 328740](https://chipnet.chaingraph.cash/tx/3a8b9287ea97c050b0110522afa84daf0de90984ef3266db4062768d19adf8a5) | pure shielded → shielded: no public value moves, no link in or out | 8 in / 8 out · 36,996 B |
+| **UNSHIELD** | TX-U1 | [block 328744](https://chipnet.chaingraph.cash/tx/c8d4c6e67859602a700b36ed33c6d90f0bf0ecb43c2e58b87041f845d4cc214a) | 250,000 PUSD back out publicly; 750,000 stays shielded | 8 in / 9 out · 37,071 B |
 
 > Chipnet proof-of-concept with a disclosed 1-of-1 trusted setup — a full MPC
 > ceremony is mandatory before mainnet. The complete technical design (circuit,
 > covenant, verifier patching, and per-transaction worked examples) lives in the
 > companion repo **[APECSdev/pusd-shielded-pool](https://github.com/APECSdev/pusd-shielded-pool)**.
+
+**Why ~37 KB?** ≈96% of every pool transaction is the **Groth16 verifier executing
+on-chain** — five chained P2SH32 inputs (~35.4 KB of unlocking bytecode) that are pure
+cryptographic machinery, structurally identical for every transaction. That is the
+irreducible cost of trustless verification, not overhead. The covenant pins only six
+inputs (`in[0..4]` verifier + the pool covenant at `in[5]`, with the genesis stage fixed
+at `in[3]`) and its own re-creation output `out[0]`; the remaining sats/token inputs are
+**fee funding** the covenant never reads. So the reference transactions are already at
+their practical minimum: the only removable bytes are the funding pass-through and its
+change (~0.6%), which does not touch the dominant verifier cost. An UNSHIELD carries one
+extra output (the public payout), hence 9 outputs. See
+[Reading a Pool Transaction](https://docs.nito.cash/private-payments/on-chain-anatomy).
 
 ## Getting started
 
