@@ -1,3 +1,5 @@
+<!-- AGENTS.md -->
+
 # AGENTS.md
 
 Guidance for AI coding agents (and humans) working in this repository.
@@ -32,10 +34,9 @@ Full dependency list lives in `package.json`; the authoritative lockfile is `pnp
 
 ## Blockchain Backend — Fulcrum + libauth/scure (Phase F, COMPLETE)
 
-The wallet talks to the BCH network directly (no backend server). The retired
-`window.BITBOX` REST/socket bundle (a 2 MB `public/js/bitbox.js`, loaded via `<script>`
-in index.html; its REST API + `wss://ws.bitcoin.com` socket are defunct) has been
-**fully removed** — zero `window.BITBOX` usage remains (only doc comments).
+The wallet talks to the BCH network directly (no backend server). The legacy
+`window.BITBOX` REST/socket bundle (defunct REST API + `wss://ws.bitcoin.com` socket)
+has been **fully removed** — zero `window.BITBOX` usage remains (only doc comments).
 
 | Concern             | Package / module                                    | Notes |
 | ------------------- | --------------------------------------------------- | ----- |
@@ -55,9 +56,8 @@ in index.html; its REST API + `wss://ws.bitcoin.com` socket are defunct) has bee
   CashAddress prefix differs (`bitcoincash:` vs `bchtest:`). A Mainnet/Chipnet toggle
   lives in Settings (persisted `profile.net`; full-app reload on switch).
 - **Real-time payment notifications** (Receive screen) use server-side-filtered
-  `blockchain.address.subscribe` (`blockchain/actions/openConn.js`), replacing the old
-  client-side-filtered `bitbox.Socket` stream. The initial-status baseline is skipped
-  so Receive doesn't alert on pre-existing history.
+  `blockchain.address.subscribe` (`blockchain/actions/openConn.js`). The initial-status
+  baseline is skipped so Receive doesn't alert on pre-existing history.
 - **Fiat ticker** = CoinGecko (`blockchain/getters/getTicker.js`); **explorer** =
   chaingraph.cash. Send path: `wallets/actions/sendCrypto.js` + `getSignedInput.js`.
 
@@ -73,22 +73,15 @@ in index.html; its REST API + `wss://ws.bitcoin.com` socket are defunct) has bee
 - **Never** hand-edit `pnpm-lock.yaml`. Regenerate it via `pnpm install` after manifest changes.
 - A repo-local `.npmrc` sets `blockExoticSubdeps=false` to tolerate a legacy git-based
   transitive dep; leave it in place until the dependency tree is fully modernized.
-- `pnpm-workspace.yaml` sets `allowBuilds` (core-js, deasync, ejs, yorkie) so `pnpm install`
-  is deterministic across pnpm 10 (warns) and pnpm 11 (errors on ignored build scripts).
+- `pnpm-workspace.yaml` sets `allowBuilds` (core-js, deasync, ejs, yorkie, esbuild, sharp,
+  workerd approved; blake-hash explicitly skipped) so `pnpm install` is deterministic across
+  pnpm 10 (warns) and pnpm 11 (errors on ignored build scripts).
 
 ### Prune unused dependencies
 
 Remove packages that have **zero** real usage. Before removing, verify with a grep over `src/`
 and distinguish *actual imports/calls* from *comment mentions* (e.g. `ipfs`, `moment` were only
-referenced in comments and were safe to drop). Already removed: `chartist`, `ipfs`, `moment`,
-`orbit-db`, `@ledgerhq/hw-app-eth`, `npm`, `crypto-js`.
-
-> **Caveat — `core-js`:** it was a build-time dep of the old `@vue/cli-service@4` (Babel) webpack
-> build. **Webpack/cli-service is no longer the production build (Vite is, since Phase B)**, so
-> `core-js` is now unused and is a **Phase E removal candidate** along with the rest of the legacy
-> toolchain (`vue.config.js`, `babel.config.js`, `jest.config.js`, the Babel plugins, `transpileDependencies`,
-> `@vue/cli-*`, `@vue/test-utils@1`, eslint-6 stack). Do not remove piecemeal until Phase E verifies the
-> legacy packages have zero remaining references.
+referenced in comments and were safe to drop).
 
 ## Repository Layout (pnpm monorepo)
 
@@ -128,7 +121,7 @@ workers/
                         dropped). Deployed to the custom domain `prover.nito.cash`.
     src/index.js        Worker entry (imports src/orchard.wasm as a static module)
     src/lib.rs          Rust crate (cdylib) — the prover
-    src/orchard.wasm    Committed build artifact (rebuild via scripts/build-wasm.sh)
+    src/orchard.wasm    Committed build artifact (rebuild via workers/prover/scripts/build-wasm.sh)
     wrangler.jsonc      Worker config (name `nito-prover`, route `prover.nito.cash`)
     Cargo.toml          Rust deps (orchard / halo2 fork, getrandom custom, sha2)
 pnpm-workspace.yaml     packages globs + allowBuilds
@@ -188,17 +181,16 @@ CI `deploy` job alongside the web wallet (or deployable manually from the apecsd
 
 ## Commands
 
-| Task            | Command                                            |
-| --------------- | -------------------------------------------------- |
-| Install deps    | `pnpm install`                                     |
-| Dev server      | `pnpm run serve`        (sets `VUE_APP_TARGET=all`) |
-| Build (all)     | `pnpm run build-for-all`                           |
-| Build (nito)    | `pnpm run build-for-nito`                          |
-| Lint            | `pnpm run lint`                                    |
-| Unit tests      | `pnpm run test:unit`                               |
-| Regen icons     | `pnpm run generate-icons`                          |
-
-> There is intentionally **no** plain `build` script; use `build-for-all` or `build-for-nito`.
+| Task            | Command                                              |
+| --------------- | ---------------------------------------------------- |
+| Install deps    | `pnpm install`                                       |
+| Dev server      | `pnpm dev`            (delegates to apps/web `serve`) |
+| Build (all)     | `pnpm build`          (→ apps/web `build-for-all`)   |
+| Build (nito)    | `pnpm --filter @nito.cash/web run build-for-nito`    |
+| Lint            | `pnpm run lint`                                      |
+| Unit tests      | `pnpm run test:unit`                                 |
+| Regen icons     | `pnpm --filter @nito.cash/web run generate-icons`    |
+| Prover deploy   | `pnpm run prover:deploy`                             |
 
 ## Build & Verify
 
@@ -206,7 +198,7 @@ After any dependency or source change, verify before pushing:
 
 ```bash
 pnpm install --frozen-lockfile --ignore-scripts   # lockfile must be in sync
-pnpm run build-for-all                            # must compile cleanly
+pnpm build                                        # must compile cleanly
 pnpm run test:unit                                # unit tests must pass
 ```
 
@@ -215,10 +207,9 @@ the build fails with "The lockfile would have been modified by this install." Al
 updated `pnpm-lock.yaml` alongside any `package.json` change. (Cloudflare Pages no longer
 builds from source — see "CI / CD" — but CI enforces the same frozen-lockfile guarantee.)
 
-> **Note — eslint is disabled during builds:** `vue.config.js` sets `lintOnSave: false`. The
-> app intentionally uses `console.*` debug logging, and `.eslintrc.js` promotes `no-console`
-> to an error when `NODE_ENV=production` (Cloudflare's build env), which failed CI builds.
-> Lint remains available as a separate step via `pnpm run lint` rather than gating the build.
+> **Note — lint is a separate step:** the Vite build does not run eslint; `pnpm run lint`
+> uses eslint 9 flat config (`apps/web/eslint.config.js`). The app intentionally uses
+> `console.*` debug logging, so lint is not wired into (and must not gate) the build.
 
 ## Ledger Integration (IN PROGRESS — plan for FULL integration)
 
@@ -276,9 +267,12 @@ sender, receiver, and amount are all masked. Design decisions locked:
   (`{merkleRoot, nullifierSet}` in a CashToken NFT commitment). **Chipnet ONLY** for the hackathon.
 - **Circuit** — a BN254 Groth16 circuit (Circom) with exactly **2 public inputs**
   `[merkleRoot, actionHash]`; all other logical values (nullifiers, new commitments, public
-  value, asset category) are private witnesses packed into `actionHash = Poseidon(7)(…)` and
-  constrained in-circuit. 26,189 constraints. ("Option 2" — keeps the battle-tested 2-scalar
-  on-chain verifier unchanged instead of rewriting it for 8 public inputs.)
+  value, asset category) are private witnesses packed into
+  `actionHash = Bits2Num(253)(SHA256(nf0 | nf1 | cm0 | cm1 | publicValueAbs | publicValueSign | assetCategory | newMerkleRoot))`
+  (each field 32-byte big-endian, digest truncated to 253 bits) and constrained in-circuit.
+  **183,472 constraints** (`build256/pool.r1cs`). ("Option 2" / "Option F" — keeps the
+  battle-tested 2-scalar on-chain verifier unchanged instead of rewriting it for 8 public
+  inputs.)
 - **On-chain verifier** — the `densless-msm` Groth16 verifier from `zk-verifier-bench`, wired to
   OUR verifying key. **Proven on the BCH 2026 VM: PASS (5/5 valid proofs accepted, 9/9 mutated
   public inputs rejected, cross-stage binding BOUND, all 26 maintainer red-team attack runs
@@ -286,14 +280,24 @@ sender, receiver, and amount are all masked. Design decisions locked:
   (Regenerating the red-team for our key required a one-line generality fix to the bench's
   `redteam.mjs`: it assumed the genesis selector is always `OP_0`, but our proofs use selector
   `OP_2`; the fix preserves the raw encoded push bytes. A fixture-dependent generator assumption,
-  not a verifier weakness — the verifier accepts any selector.)
+  not a verifier weakness — the verifier accepts any selector. Fix upstreamed as
+  [mr-zwets/groth16_cashscript#26](https://github.com/mr-zwets/groth16_cashscript/pull/26).)
 - **Trusted setup** — Phase 1 (Powers of Tau) reuses an existing attested BN254 ceremony; Phase 2
   (circuit-specific) is our own. A disclosed local **1-of-1** contribution is acceptable for the
   chipnet PoC; a full MPC ceremony is **mandatory before mainnet**.
 - **Remaining build** — the BCH **covenant** (CashScript) that holds the PUSD CashTokens + pool
-  state and requires the verifier transaction as a spend condition; Fulcrum + Chaingraph
-  note-detection infra (on the `bch-infra` VPS); then the nito.cash wiring (shield/transfer/
-  unshield UI + client-side WASM proving). The **local encrypted note store is DONE**
+  state is **DONE and deployed** (pusd-shielded-pool repo), with the verifier transaction as a spend
+  condition. The full lifecycle is **confirmed on chipnet** on the current **Option B** pool
+  (P2SH32 `aa20a458f7…`): DEPLOY+SHIELD `bd72f1f3…` and TRANSFER `b0a488db…` (both block 329722),
+  UNSHIELD `e90b9a56…` (block 329736). **Multiple shielded transfers settle in ONE block** — three
+  chained TRANSFERs `60fe613e…` / `7d89f877…` / `ebc6e4f9…` confirmed together in block **329764**
+  (each ~36.8 KB, no public value moved; b spends a's pool output, c spends b's). The Groth16 proofs
+  are **pool-address-agnostic** — bound only to the verifying key + the `[merkleRoot, actionHash]`
+  statement, with replay prevented by the on-chain nullifier set / root progression — so the same
+  proofs verified on both the original and Option B redeployments (only the verifier-step scaffolding
+  is regenerated per deployment via `produceTransaction`; VERIFIER_DIR=`/home/ubuntu/zkb/bench-pusd`).
+  Remaining: Fulcrum + Chaingraph note-detection infra (on the `bch-infra` VPS), then the nito.cash
+  wiring (shield/transfer/unshield UI + client-side WASM proving). The **local encrypted note store is DONE**
   (`apps/web/src/lib/pool/seal.js`: AES-256-GCM via WebCrypto, key = sha256 of domain-separated
   wallet entropy; `pool.notes` is a runtime-only mirror excluded from persistence via
   `omit: ['pool.notes']` in the root store's persistedstate config; only the ciphertext
@@ -303,7 +307,7 @@ sender, receiver, and amount are all masked. Design decisions locked:
   `479aeebabc682ddb90a3671bffd2a0bd918737de13f19a92231ed36a8580cc11`, 100M fungible
   units + minting NFT, genesis tx `4257dbfb68540cc9afcf569da8e651790c82d3951bdff88f5232a372760ba977`
   (block 328616) via the chipnet.bch.ninja faucet; mint key (test-only, no value) in
-  `/Workspace/apecsdev/.secrets/pusd-pool-chipnet-mint.json`; full details in pusd-pool
+  `/Workspace/apecsdev/.secrets/pusd-shielded-pool-chipnet-mint.json`; full details in pusd-shielded-pool
   `README.md`. Two Fulcrum protocol caveats discovered (critical for the wallet wiring):
   (1) `blockchain.address.listunspent`/`get_balance` HIDE token-bearing UTXOs unless the
   second param `include_tokens` (or `tokens_only`) is passed; (2) spending a token-bearing
@@ -312,76 +316,49 @@ sender, receiver, and amount are all masked. Design decisions locked:
 - **Heavy compute** (circuit compile, Groth16 setup, proving, benchmarks) runs ONLY on the
   dedicated `bch-infra` VPS — never on the dev host.
 
-## Vue 3 Migration (phased) — Phases A & B DONE
+## Vue 3 Migration (phased) — A–C and E DONE; Phase D in progress
 
 Plan: **Vue 3 + Vite + Pinia + vue-router 4 + vue-i18n 11 + Vitest + Tailwind v4**, executed in
-verifiable phases. **A (toolchain) and B (runtime flip + Vite-as-production) are DONE and live.**
+verifiable phases. A (toolchain bridge), B (runtime flip + Vite as production), B-half-2 (Pinia),
+C (Vitest), and E (legacy removal) are **done and live**. Phase D is in progress (dedicated
+section below).
 
-- **Phase A (done) — toolchain bridge.** `vue@2.6.11 → 2.7.16` then Vite + Tailwind v4 added in
-  parallel to webpack (now superseded by Phase B).
-- **Phase B (done) — runtime flip + Vite production.** `vue@3.5.43`, `vue-router@4.6.4`
-  (`createWebHashHistory`), `vue-i18n@11.4.14` (`legacy: true`), `@bugsnag/js+plugin-vue@9`.
-  `main.js` → `createApp`; `router/index.js` → `createRouter`; `plugins/i18n.js` → `createI18n`;
-  `plugins/bugsnag.js` → v9 API. **`vue-svgicon` replaced** by `src/plugins/svgicon.js` (global
-  `<svgicon>`) + `src/compiled-icons/register.js` shim (generated `compiled-icons/*.js` re-pointed
-  at the shim; the 18 `<svgicon>` call sites are unchanged). `Button.vue` declares `emits:['click']`
-  so `@click.native` keeps working in Vue 3. `Address.vue` moved to the `modelValue`/`update:modelValue`
-  v-model contract. **`vite.config.js`**: `@vitejs/plugin-vue` + `vite-plugin-node-polyfills`
-  (`Buffer`/`process`/`global` for BITBOX + Ledger, which webpack 4 used to auto-polyfill).
-  **Vite is now the production build** (`pnpm build` → `vite build` → `apps/web/dist-vite/`); CI
-  uploads `dist-vite/` and Cloudflare Pages deploys it. Live site confirmed serving the Vue 3 build.
-
-- **Phase B-half-2 — Vuex → Pinia. DONE** via a **Pinia-backed compatibility layer** (the pragmatic
-  path, chosen over a big-bang rewrite of 57 coupled files). The store is now a single Pinia store
-  (`defineStore('main')` in `apps/web/src/store/index.js`) whose `state()` is the union of each
-  module's `state` under its module key. A **`StoreCompatPlugin`** builds a Vuex-shaped **facade**
-  over the Pinia store — `state.<module>.<key>` (reactive), `getters['<module>/<name>']`,
-  `dispatch`/`commit` with namespaced + `{ root: true }` + local (same-module) resolution — so the
-  **50 store sub-files and 12 components are byte-for-byte UNCHANGED** (they keep their
-  `(state, getters, rootState, rootGetters)` / `({commit, dispatch})` signatures and
-  `mapGetters/mapActions/mapState` calls). Components' `import { ... } from 'vuex'` is **aliased to
-  `src/store/vuex-shim.js`** (exact-match regex `/^vuex$/` in `vite.config.js` + `vitest.config.js`),
-  which re-implements `mapGetters/mapActions/mapState/mapMutations` against the facade. The facade is
-  cached on **`globalThis.__nito_store_facade__`** (NOT a module `let`) because Vitest/Vite can load
+- **Phase B (done) — runtime flip + Vite as the production build.** `vue@3.5.43`,
+  `vue-router@4.6.4` (`createWebHashHistory`), `vue-i18n@11.4.14` (`legacy: true`), Bugsnag v9
+  (`Bugsnag.start` + `app.use(getPlugin('vue'))`). `vue-svgicon` replaced by
+  `src/plugins/svgicon.js` (global `<svgicon>`) + `src/compiled-icons/register.js` shim
+  (generated `compiled-icons/*.js` re-point at the shim; the `<svgicon>` call sites are
+  unchanged). `vite.config.js`: `@vitejs/plugin-vue` + `vite-plugin-node-polyfills`
+  (`Buffer`/`process`/`global` for Ledger and Node-style deps); it still shims `process.env`
+  for the Vuex-shaped store + `App.vue`. Output: `apps/web/dist-vite/`; CI uploads it,
+  Cloudflare Pages deploys it.
+- **Phase B-half-2 (done) — Vuex → Pinia via a compatibility layer.** A single Pinia store
+  (`defineStore('main')`, `apps/web/src/store/index.js`) whose `state()` is the union of each
+  module's `state` under its module key; a **`StoreCompatPlugin`** builds a Vuex-shaped
+  **facade** over it — `state.<module>.<key>`, `getters['<module>/<name>']`, `dispatch`/`commit`
+  with namespaced + `{ root: true }` + local resolution — so the **50 store sub-files and 12
+  components are unchanged** (same `(state, getters, rootState, rootGetters)` /
+  `({commit, dispatch})` signatures and `mapGetters/mapActions/mapState` calls). Components'
+  `import { ... } from 'vuex'` is **aliased to `src/store/vuex-shim.js`** (exact-match regex
+  `/^vuex$/` in `vite.config.js` + `vitest.config.js`). The facade is cached on
+  **`globalThis.__nito_store_facade__`** (NOT a module `let`) because Vitest/Vite can load
   `@/store` in more than one realm; built idempotently by `ensureStoreFacade(useStore())` in
-  `main.js` (Pinia plugins don't reliably re-fire for an already-instantiated store). Persistence is
-  `pinia-plugin-persistedstate@4.7.1` replicating the original `vuex-persistedstate` exactly (key
-  `vuex`, JSON, `nito`→secure cross-subdomain cookie `.nito.cash`, else localStorage). Preserved:
-  short state keys, 5 namespaced modules + GLOBAL `system` (detected via `namespaced === true`, NOT
-  `!== false`, because system's `namespaced` is commented-out `undefined`), cross-namespace
-  `rootGetters[...]` refs, and live `get fn()` action/mutation lookup so tests can stub actions.
-  (The old `tests/unit/setup.js` `window.BITBOX` stub was removed once BITBOX itself was
-  dropped in Phase F — no store module references it anymore.) **86/86 Vitest tests pass; app
-  boots with 0 errors and writes `localStorage['vuex']`.** `Import.spec.js` now builds the facade
-  (`ensureStoreFacade`) + stubs `system.actions.displayNotification/Error` instead of a Vuex mock
-  store. A future idiomatic-Pinia rewrite of each component (dropping the shim) remains optional
+  `main.js`. Persistence is `pinia-plugin-persistedstate@4.7.1` replicating the original
+  `vuex-persistedstate` exactly (key `vuex`, JSON, `nito`→secure `.nito.cash` cookie, else
+  localStorage). `system` is the GLOBAL (non-namespaced) module — namespacing is detected via
+  `namespaced === true`. Live action/mutation lookup lets tests stub actions through the facade
+  (`Import.spec.js` pattern). An idiomatic-Pinia rewrite (dropping the shim) remains optional
   cleanup, not required for correctness.
-- **Phase C — Vitest** — **DONE.** All 17 Jest suites ported to Vitest `@5.0.4` + `@vue/test-utils@2.5.1`
-  (jsdom env, `vitest.config.js`). 86 tests pass. Restores `pnpm test:unit` + Codecov coverage (lcov at
-  `apps/web/coverage/lcov.info`). Jest/`@vue/cli-plugin-unit-jest`/`jest.config.js` removed. VTU v2 changes:
-  `propsData`→`props`, `isVueInstance()`→`exists()`, `{store,stubs}`→`global.{plugins,stubs}`,
-  `findAll(Comp)`→`findAllComponents(Comp)`, no `.wrappers`, `jest.fn/mock`→`vi.fn/mock`, and — because
-  shallowMount stubs a `Popup` parent (dropping its slot) — popup specs un-stub `Popup` via `global.stubs`.
-- **Phase D — convert scoped CSS → Tailwind** utilities component-by-component. **IN PROGRESS**
-  (foundation + Footer done, commit `af333be`). See "Phase D — CSS → Tailwind" below.
-- **Phase E — remove legacy** (`vue.config.js`, `babel.config.js`, the 4 Babel
-  plugins, `transpileDependencies`, `@vue/cli-*`, eslint-6 stack, core-js).
-  NOTE: `jest.config.js` + `@vue/cli-plugin-unit-jest` were already removed in Phase C.
-
-**Source bugs fixed during Phase C** (latent Vue-2-isms that broke the Vue 3 / Vite build; all logic-preserving):
-- `inputs/Dropdown.vue` — `getFlagName` used webpack-only `require()`/`require.context()` for flag SVGs;
-  ported to `import.meta.glob('../../assets/flags/*.svg', { eager: true, query: '?url', import: 'default' })`
-  (glob keys are the literal relative paths). This was breaking the currency dropdown under the Vite build.
-- `popups/Popup.vue` — the escape handler mutated the read-only `active` prop (Vue 3 proxy TypeError);
-  now routed through a `activeFlag` computed get/set (set is a no-op; parent owns state, 1-way flow preserved).
-- `QR.vue` — an HTML comment inside a `v-html` div tripped the Vue 3 compiler (`v-html will override element
-  children`); comment moved out, `v-html` div left empty (its `qr` computed already returns `''`).
-- `compiled-icons/*.js` — converted the `require('./register')` (CJS) to `import icon from './register'`
-  (ESM) so Vitest's `@` alias resolves the chain into `@/plugins/svgicon`.
-
-Key mappings (applied): Vuex → Pinia (`mapGetters`/`mapActions` → `mapState`/`mapActions` on Pinia stores),
-vue-svgicon → a small global `<svgicon>` plugin, `process.env.VUE_APP_*` → `import.meta.env.VITE_*`
-(vite.config currently shims `process.env` for the still-Vuex store + `App.vue`), Jest → Vitest.
+- **Phase C (done) — Vitest.** 17 suites / 86 tests on Vitest `@5.0.4` + `@vue/test-utils@2.5.1`
+  (jsdom, `vitest.config.js`); coverage lcov → `apps/web/coverage/lcov.info`. VTU v2
+  conventions: `props` (not `propsData`), `exists()`, `global.{plugins,stubs}`,
+  `findAllComponents`, `vi.fn/mock`; popup specs un-stub `Popup` via `global.stubs`
+  (shallowMount stubs a `Popup` parent and drops its slot).
+- **Phase D — CSS → Tailwind. IN PROGRESS** — see the dedicated section below.
+- **Phase E (done) — legacy toolchain removed.** `vue.config.js`, `babel.config.js`,
+  `jest.config.js`, the Babel plugins, `@vue/cli-*`, the eslint-6 stack, `@vue/test-utils@1`,
+  `vuex`, and `core-js` are all gone; lint uses eslint 9 flat config
+  (`apps/web/eslint.config.js`).
 
 > **Runtime-verification method (used for Phase B):** `puppeteer-core` + system `/usr/bin/google-chrome`
 > against a locally-served `dist-vite/`, asserting `#app` mounts with zero `pageerror`s and that splash/
