@@ -37,6 +37,9 @@ private transfer, and withdraw:
 | **TRANSFER** | TX-T | [block 329722](https://chipnet.imaginary.cash/tx/b0a488db5b7e9bac07eebc45977523cd0730ddfe078571f2e17135231e30546b) | pure shielded → shielded: no public value moves, no link in or out | 7 in / 7 out · 36,784 B |
 | **UNSHIELD** | TX-U | [block 329736](https://chipnet.imaginary.cash/tx/e90b9a568d6908bf507e3239cde8b5ef055f9377aa95240d14453669f784717d) | 250,000 PUSD back out publicly; 750,000 stays shielded | 7 in / 8 out · 36,859 B |
 
+The **DEPLOY+SHIELD** and **TRANSFER** were mined back-to-back in the
+**same block — 329722** — two shielded-pool transactions confirmed in a single block.
+
 > Chipnet proof-of-concept with a disclosed 1-of-1 trusted setup — a full MPC
 > ceremony is mandatory before mainnet. The complete technical design (circuit,
 > covenant, verifier patching, and per-transaction worked examples) lives in the
