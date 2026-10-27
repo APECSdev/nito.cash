@@ -20,15 +20,15 @@ INPUTS (pinned, all txs)               OUTPUTS
 in[0..4] 5 verifier P2SH32 inputs     out[0]   pool covenant (perpetuated, new state)
          (proof-specific unlocking,    + the 5 verifier re-creations (fixed P2SH32):
          ~6–9 KB each)                   shield/transfer → out[1,2,3] 3× executor,
-in[5]   pool covenant (~520 B)                     out[4] terminal, out[5] genesis
-                                       unshield       → out[2,3,4] 3× executor,
-+ funding (per operation):                         out[5] terminal, out[6] genesis
+in[5]   pool covenant (~520 B)                     out[4] genesis, out[5] terminal
+                                       unshield       → out[1,2,3] 3× executor,
++ funding (per operation):                         out[4] genesis, out[5] terminal
   SHIELD   in[6]  PUSD deposit being
            shielded · in[7] sats       + the operation-specific funding / payout:
   TRANSFER in[6]  sats                  SHIELD   out[6] token change · out[7] sats change
   UNSHIELD in[6]  sats                  TRANSFER out[6] sats change
-                                       UNSHIELD out[1] public payout (P2PKH) inserted,
-                                                shifting the rest down · out[7] sats change
+                                       UNSHIELD out[6] public payout (P2PKH) ·
+                                                out[7] sats change
 ```
 
 So the counts are **SHIELD 8 in / 8 out**, **TRANSFER 7 in / 7 out**, **UNSHIELD 7 in / 8
@@ -49,7 +49,7 @@ pinned outputs + one sats change.
 
 The covenant only ever reads `in[0..5]`: itself (`in[5]`, via `this.activeInputIndex`) and the
 verifier **genesis** stage (`in[3]`, for the proven `n0`/`n1`). It requires `out[0]` (its own
-re-creation) and — only when unshielding — `out[1]` (the payout). It **never references the
+re-creation) and — only when unshielding — `out[6]` (the payout). It **never references the
 funding inputs** — those exist purely to fund the fee (and, for a SHIELD, to supply the tokens
 being deposited), and could be replaced by any other funding source without the covenant
 caring.
@@ -62,7 +62,7 @@ so the pool and verifier outpoints move forward together.
 
 The *entire* private action of a TRANSFER lives in the covenant input's (in[5]) unlocking
 bytecode. From the live TRANSFER
-([`6745f445…`](https://chipnet.imaginary.cash/tx/6745f445ef414cfaa544004cf3e3ea3a8681ba0d1218d523c462fc7ffd6732b7)):
+([`b0a488db…`](https://chipnet.imaginary.cash/tx/b0a488db5b7e9bac07eebc45977523cd0730ddfe078571f2e17135231e30546b)):
 
 ```
 isUnshield      = 0          ← a transfer, not an unshield
@@ -89,7 +89,7 @@ Two reasons, and neither is the transfer:
 2. **At the public boundary, the crossing value is visible** — but a TRANSFER crosses no
    boundary. The reference TRANSFER therefore shows **no public token movement at all**: its only
    visible amount is the unchanged pool total. (A SHIELD still shows the deposit entering, plus
-   the wallet's leftover token change; an UNSHIELD shows the payout at `out[1]`.)
+   the wallet's leftover token change; an UNSHIELD shows the payout at `out[6]`.)
 
 The ~1,000-sat outputs are just dust carrying the tokens/NFTs. Explorers that decode CashTokens (the chipnet
 explorer linked above does) render those fungible-token amounts — which is why they look like "the transfer."

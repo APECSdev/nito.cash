@@ -33,18 +33,20 @@ private transfer, and withdraw:
 
 | Step | Tx | Confirmed | What it does | On-chain shape |
 | ---- | -- | --------- | ------------ | -------------- |
-| **SHIELD** | TX-S2 | [block 329193](https://chipnet.imaginary.cash/tx/22360d7a6cc7aec206f7e9821efca644f66fe4e6cc6785b828b80ec76e3229d1) | 1,000,000 public PUSD → shielded (hidden 700k + 300k notes created) | 8 in / 8 out · 36,999 B |
-| **TRANSFER** | TX-T2 | [block 329193](https://chipnet.imaginary.cash/tx/6745f445ef414cfaa544004cf3e3ea3a8681ba0d1218d523c462fc7ffd6732b7) | pure shielded → shielded: no public value moves, no link in or out | 7 in / 7 out · 36,782 B |
-| **UNSHIELD** | TX-U2 | [block 329194](https://chipnet.imaginary.cash/tx/9867f73a7bd29e8b664545cfd80cf5706dcaa252df1959a2d00c810a4da0d0cc) | 250,000 PUSD back out publicly; 750,000 stays shielded | 7 in / 8 out · 36,857 B |
+| **DEPLOY + SHIELD** | TX-D | [block 329722](https://chipnet.imaginary.cash/tx/bd72f1f367cc5e6e8e9f485d84f308ae5e3f80e66b34f82998c7a38eb1698e1a) | pool covenant + 5-chunk verifier deployed; 1,000,000 public PUSD → shielded | 3 in / 9 out · 976 B |
+| **TRANSFER** | TX-T | [block 329722](https://chipnet.imaginary.cash/tx/b0a488db5b7e9bac07eebc45977523cd0730ddfe078571f2e17135231e30546b) | pure shielded → shielded: no public value moves, no link in or out | 7 in / 7 out · 36,784 B |
+| **UNSHIELD** | TX-U | [block 329736](https://chipnet.imaginary.cash/tx/e90b9a568d6908bf507e3239cde8b5ef055f9377aa95240d14453669f784717d) | 250,000 PUSD back out publicly; 750,000 stays shielded | 7 in / 8 out · 36,859 B |
 
 > Chipnet proof-of-concept with a disclosed 1-of-1 trusted setup — a full MPC
 > ceremony is mandatory before mainnet. The complete technical design (circuit,
 > covenant, verifier patching, and per-transaction worked examples) lives in the
 > companion repo **[APECSdev/pusd-shielded-pool](https://github.com/APECSdev/pusd-shielded-pool)**.
 
-**Why ~37 KB?** ≈96% of every pool transaction is the **Groth16 verifier executing
-on-chain** — five chained P2SH32 inputs (~35.4 KB of unlocking bytecode) that are pure
-cryptographic machinery, structurally identical for every transaction. That is the
+**Why ~37 KB?** ≈96% of every shielded-pool operation (shield / transfer / unshield) is
+the **Groth16 verifier executing on-chain** — five chained P2SH32 inputs (~35.4 KB of
+unlocking bytecode) that are pure cryptographic machinery, structurally identical for
+every transaction. (The one-time DEPLOY only *creates* the pool + five verifier UTXOs —
+976 B, no verifier execution; the ~37 KB appears when those verifier inputs are spent.) That is the
 irreducible cost of trustless verification, not overhead. The covenant pins only six
 inputs (`in[0..4]` verifier + the pool covenant at `in[5]`, with the genesis stage fixed
 at `in[3]`) and its own re-creation output `out[0]`; the remaining sats/token inputs are
