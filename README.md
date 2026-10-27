@@ -40,11 +40,12 @@ private transfer, and withdraw:
 **⚡ Multiple shielded transfers in ONE block.** The pool supports parallel shielded
 spending: three chained shielded→shielded **TRANSFERs** — each spending the previous
 transfer's pool output — were confirmed together in a **single block,
-[329433](https://chipnet.imaginary.cash/block/00000000000713585921eced7f7b48dd99862e3c5a51e03e08b110b80452fcfc)**
-([`3d8faa40…`](https://chipnet.imaginary.cash/tx/3d8faa404c52c8ec22458e56d38f2d2af3c29e29bbfb68ed3821436851c1fcb9) · [`864c6c65…`](https://chipnet.imaginary.cash/tx/864c6c65fa361c20174642e46d9052d6be3a12deb5f50a367e7d2f1061dd82c3) · [`ea339140…`](https://chipnet.imaginary.cash/tx/ea3391409a0c09bf0d2f6858a1a537fcfbcc700e96a471be1f27a28514c84859),
+[329764](https://chipnet.imaginary.cash/block/00000000000013e42e5d7d9eb402afde2c977b7b688c7aade0633db66d88f668)**
+([`60fe613e…`](https://chipnet.imaginary.cash/tx/60fe613ec853043908b8dc83fac8165da5b6b7f0ef3e26a4299fd87560784273) · [`7d89f877…`](https://chipnet.imaginary.cash/tx/7d89f877fe22b6ad6e684b17544aaa9e1dbd688dce812d1ff5e76159773ce9e3) · [`ebc6e4f9…`](https://chipnet.imaginary.cash/tx/ebc6e4f9c25bb511781726948e95bcbc6ad0652ccd9756663379c2b2fb76fc0e),
 each ~36.8 KB, no public value moved). Because a transfer spends the prior transfer's
-pool output, many private payments can settle in the same block. (Demonstrated on the
-shielded-pool deployment live at block 329433.)
+pool output, many private payments can settle in the same block. (Same Option B
+redeployment [`aa20a458f7…`](https://chipnet.imaginary.cash/address/bitcoincash:prqnx4s2pqjwslu9v5lz4g6mz7v330mjksa5laj9ux)
+as the lifecycle above.)
 
 > Chipnet proof-of-concept with a disclosed 1-of-1 trusted setup — a full MPC
 > ceremony is mandatory before mainnet. The complete technical design (circuit,
