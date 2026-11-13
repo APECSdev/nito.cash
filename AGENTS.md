@@ -115,6 +115,8 @@ apps/
     .vitepress/         VitePress config (config.mjs) + theme
     *.md                Doc pages (Markdown)
     package.json        docs build/dev scripts (vitepress)
+  blaze/                @nito.cash/blaze — the BCH BLAZE 2026 submission page (single
+                        static index.html), deployed to Cloudflare Pages as `blaze.nito.cash`.
 workers/
   prover/               @nito.cash/prover — Halo 2 / Orchard ZK prover, a Cloudflare Worker
                         (Rust→WASM). Vendored from the Sansbank `wasm-prover` project (history
@@ -173,6 +175,11 @@ The **docs site** (`apps/docs`, VitePress) is deployed to Cloudflare Pages **`do
 (project `nito-cash-docs`) the same Direct-Upload way — `pnpm --filter @nito.cash/docs run build` →
 `wrangler pages deploy apps/docs/.vitepress/dist --project-name=nito-cash-docs`. It is wired into the
 CI `deploy` job alongside the web wallet (or deployable manually from the apecsdev VM).
+
+The **BLAZE submission page** (`apps/blaze`, a single static `index.html`) is deployed the same
+Direct-Upload way to Pages project **`blaze-nito-cash`** (custom domain `blaze.nito.cash` — the
+domain binding is a one-time Cloudflare-dashboard step). It is wired into the CI `deploy` job
+alongside the web wallet and docs.
 
 ### Routes (apps/web/src/router/index.js)
 
@@ -260,7 +267,7 @@ the BCH Blaze 2026 submission):
 
 ### Nito Cash — Private Payments (BCH Blaze 2026 submission)
 
-The flagship new feature: the **first shielded pool for PayonUSD (PUSD) on BCH Chipnet** —
+The flagship new feature: the **first shielded pool for ParyonUSD (PUSD) on BCH Chipnet** —
 sender, receiver, and amount are all masked. Design decisions locked:
 
 - **Shielded-to-shielded** transfers; variable-amount notes; **covenant-carried state**
@@ -281,7 +288,8 @@ sender, receiver, and amount are all masked. Design decisions locked:
   `redteam.mjs`: it assumed the genesis selector is always `OP_0`, but our proofs use selector
   `OP_2`; the fix preserves the raw encoded push bytes. A fixture-dependent generator assumption,
   not a verifier weakness — the verifier accepts any selector. Fix upstreamed as
-  [mr-zwets/groth16_cashscript#26](https://github.com/mr-zwets/groth16_cashscript/pull/26).)
+  [mr-zwets/groth16_cashscript#26](https://github.com/mr-zwets/groth16_cashscript/pull/26)
+  — MERGED 2026-10-30 (merge commit `3af2ad8`).)
 - **Trusted setup** — Phase 1 (Powers of Tau) reuses an existing attested BN254 ceremony; Phase 2
   (circuit-specific) is our own. A disclosed local **1-of-1** contribution is acceptable for the
   chipnet PoC; a full MPC ceremony is **mandatory before mainnet**.
@@ -303,12 +311,18 @@ sender, receiver, and amount are all masked. Design decisions locked:
   `omit: ['pool.notes']` in the root store's persistedstate config; only the ciphertext
   `pool.sealed` and public `pool.leaves` persist; `pool/unlockPool` runs fire-and-forget at
   boot in `main.js`).
-  The **chipnet stand-in CashToken is MINTED** (PUSD is mainnet-only): category
-  `479aeebabc682ddb90a3671bffd2a0bd918737de13f19a92231ed36a8580cc11`, 100M fungible
-  units + minting NFT, genesis tx `4257dbfb68540cc9afcf569da8e651790c82d3951bdff88f5232a372760ba977`
-  (block 328616) via the chipnet.bch.ninja faucet; mint key (test-only, no value) in
+  The **chipnet stand-in CashToken for the LIVE pool is MINTED** (PUSD is
+  mainnet-only): category (display/BE)
+  `8c73ff150fbc5d1599d2de187c3382c5926cc5c9c2621cdc2cac1fc14cd93144`
+  (on-chain/LE `4431d94cc11fac2cdc1c62c2c9c56c92c582337c18ded299155dbc0f15ff738c`),
+  100M fungible units + minting NFT, genesis/mint tx
+  `3fd526e9cc5119cd11ef76615ad0c9e1b6187910aeaae1ed178b48c96897656b` (block 328731,
+  self-minted with the TX-P3/G3/B3 deployment); mint key (test-only, no value) in
   `/Workspace/apecsdev/.secrets/pusd-shielded-pool-chipnet-mint.json`; full details in pusd-shielded-pool
-  `README.md`. Two Fulcrum protocol caveats discovered (critical for the wallet wiring):
+  `CHIPNET.md`. (An earlier faucet-minted token, category
+  `479aeebabc682ddb90a3671bffd2a0bd918737de13f19a92231ed36a8580cc11`, genesis
+  `4257dbfb68540cc9afcf569da8e651790c82d3951bdff88f5232a372760ba977` block 328616,
+  was a preliminary stand-in — SUPERSEDED, the deployed pool does not enforce it.) Two Fulcrum protocol caveats discovered (critical for the wallet wiring):
   (1) `blockchain.address.listunspent`/`get_balance` HIDE token-bearing UTXOs unless the
   second param `include_tokens` (or `tokens_only`) is passed; (2) spending a token-bearing
   UTXO requires the source output's token prefix to be covered by the sighash (libauth:
