@@ -8,7 +8,7 @@
             {{displayAddress}}
         </div>
 
-        <div class="text-[11px] font-semibold text-secondary text-center mt-[16px]">
+        <div class="text-[13px] font-semibold text-secondary text-center mt-[16px]">
             {{getAddress('BCH')}}
         </div>
 

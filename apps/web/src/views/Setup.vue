@@ -9,41 +9,41 @@
                 <svgicon icon="rocketman" width="180" height="180" :fill="false" :original="true" class="relative"></svgicon>
             </div>
 
-            <!-- Onboarding card -->
-            <div class="w-full mt-[20px] rounded-2xl border border-input-border/60 bg-white/10 dark:bg-white/5 backdrop-blur-md shadow-[0_18px_50px_-12px_rgba(20,40,80,0.35)] p-[20px] md:p-[26px] entrance">
+            <!-- Onboarding card (dark surface: readable in light AND dark theme) -->
+            <div class="w-full mt-[20px] rounded-2xl border border-white/10 shadow-[0_18px_50px_-12px_rgba(20,40,80,0.45)] p-[22px] md:p-[28px] entrance setup-card">
                 <div class="flex items-center gap-[12px]">
-                    <span class="inline-flex h-[34px] w-[34px] items-center justify-center rounded-full bg-secondary text-secondary-fg text-[16px] shrink-0">!</span>
-                    <h2 class="text-[18px] md:text-[20px] font-semibold text-trinary">Before you start</h2>
+                    <span class="inline-flex h-[38px] w-[38px] items-center justify-center rounded-full bg-secondary text-secondary-fg text-[20px] shrink-0">!</span>
+                    <h2 class="text-[22px] md:text-[24px] font-semibold text-white">Before you start</h2>
                 </div>
 
-                <p class="text-[12px] leading-[18px] mt-[12px] text-primary-fg/90">
+                <p class="text-[15px] leading-[22px] mt-[14px] text-white/95">
                     Nito.cash is a low-security wallet built for the <strong class="font-semibold">CONVENIENCE</strong>
                     and <strong class="font-semibold">EDUCATION</strong> of newcomers to the Wonderful World of Crypto.
                 </p>
 
-                <p class="text-[12px] leading-[18px] mt-[10px] text-primary-fg/90">
+                <p class="text-[15px] leading-[22px] mt-[10px] text-white/95">
                     We highly recommend that you <strong class="font-semibold">ONLY</strong> send &amp; receive
                     small amounts of crypto(currency).
                 </p>
 
-                <ul class="mt-[14px] grid grid-cols-1 sm:grid-cols-3 gap-[10px]">
-                    <li class="rounded-xl bg-white/10 dark:bg-black/20 px-[12px] py-[10px] text-[11px] leading-[15px] text-primary-fg/85">
+                <ul class="mt-[16px] grid grid-cols-1 sm:grid-cols-3 gap-[10px]">
+                    <li class="rounded-xl bg-white/10 px-[13px] py-[12px] text-[13px] leading-[18px] text-white/95">
                         🔐 Your keys stay on this device — encrypted, never uploaded
                     </li>
-                    <li class="rounded-xl bg-white/10 dark:bg-black/20 px-[12px] py-[10px] text-[11px] leading-[15px] text-primary-fg/85">
+                    <li class="rounded-xl bg-white/10 px-[13px] py-[12px] text-[13px] leading-[18px] text-white/95">
                         🕶️ Shield stablecoins in the private pool — sender, receiver &amp; amount hidden
                     </li>
-                    <li class="rounded-xl bg-white/10 dark:bg-black/20 px-[12px] py-[10px] text-[11px] leading-[15px] text-primary-fg/85">
+                    <li class="rounded-xl bg-white/10 px-[13px] py-[12px] text-[13px] leading-[18px] text-white/95">
                         ⚡ Payments verify with zero-knowledge proofs, right in your browser
                     </li>
                 </ul>
 
-                <div class="mt-[18px] flex flex-col gap-[10px]">
+                <div class="mt-[20px] flex flex-col gap-[12px]">
                     <Button @click.native="create" label="Create a NEW wallet" />
 
                     <button
                         @click="$router.push('connect')"
-                        class="text-[12px] text-trinary underline underline-offset-4 bg-transparent hover:text-primary-fg transition-colors"
+                        class="text-[15px] text-[#4cc3ff] underline underline-offset-4 bg-transparent hover:text-white transition-colors"
                     >
                         …or connect an existing wallet (WizardConnect)
                     </button>
@@ -189,6 +189,12 @@ export default {
 @keyframes rise {
     from { opacity: 0; transform: translateY(16px); }
     to { opacity: 1; transform: translateY(0); }
+}
+
+/* Onboarding card surface: fixed dark gradient (independent of the light/dark
+   theme so the white text is ALWAYS readable). */
+.setup-card {
+    background: linear-gradient(170deg, #1a2233 0%, #0d111a 100%);
 }
 
 /* Scoped child-root rule: styles the svgicon's root <svg> (a child component's

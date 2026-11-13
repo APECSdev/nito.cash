@@ -39,17 +39,24 @@
                                 <AlphanumericQRCode
                                     v-else-if="qrUri"
                                     :value="qrUri"
-                                    :size="168"
+                                    :size="184"
                                     foreground="#0a0c10"
                                     background="#ffffff"
                                 />
 
-                                <div v-else class="wc-qr-empty">Ready when you are</div>
                             </div>
 
                             <p v-if="state === 'connecting'" class="wc-hint">Waiting for your wallet to scan…</p>
                             <p v-if="state === 'reconnecting'" class="wc-hint">Reconnecting to your wallet…</p>
                             <p v-if="error" class="wc-error">{{ error }}</p>
+
+                            <button
+                                v-if="state === 'idle' || state === 'disconnected'"
+                                class="wc-relink"
+                                @click="connect"
+                            >
+                                ↻ Generate a new connection QR
+                            </button>
 
                             <div v-if="uri" class="wc-uri">
                                 <div class="wc-uri-label">Connection URI — paste into a desktop wallet (e.g. Cashonize → Connect to dApp)</div>
@@ -58,9 +65,6 @@
                                 </button>
                             </div>
 
-                            <button class="wc-cta" @click="connect" :disabled="state === 'connecting' || state === 'reconnecting'">
-                                {{ state === 'connecting' ? 'Waiting…' : state === 'reconnecting' ? 'Reconnecting…' : 'Connect Wallet' }}
-                            </button>
                         </div>
 
                         <!-- Connected: the payment surface. -->
@@ -158,7 +162,7 @@ export default {
            mounted and toggles visibility via the `active` flag. */
         active: [Boolean, String],
     },
-    setup() {
+    setup(props) {
         const wc = useWizardConnect({
             dappName: 'Nito Cash',
             dappIcon: 'https://nito.cash/icons/192x192.png',
@@ -178,6 +182,15 @@ export default {
            wallet's own counter governs across sessions). */
         let nextReceive = 0
         let nextChange = 0
+
+        /* Straight to the QR: opening the modal immediately initiates the
+           relay connection (closing it ends the session). */
+        watch(() => props.active, (isActive) => {
+            if (isActive && (wc.state.value === 'idle' || wc.state.value === 'disconnected')) {
+                console.log('[wizardconnect] modal opened → initiating connection')
+                wc.connect()
+            }
+        })
 
         /* When the wallet becomes ready, show the address we will pay from. */
         watch([wc.manager, wc.state], async ([manager, state]) => {
@@ -386,7 +399,7 @@ export default {
 }
 
 .wc-kicker {
-    font-size: 9px;
+    font-size: 10px;
     font-weight: 600;
     letter-spacing: 0.22em;
     text-transform: uppercase;
@@ -394,7 +407,7 @@ export default {
 }
 
 .wc-title {
-    font-size: 18px;
+    font-size: 21px;
     font-weight: 700;
     margin-top: 2px;
     font-family: 'Poppins', sans-serif;
@@ -421,8 +434,8 @@ export default {
 }
 
 .wc-intro {
-    font-size: 12px;
-    line-height: 17px;
+    font-size: 14px;
+    line-height: 20px;
     color: #9aa3b2;
 }
 
@@ -450,20 +463,15 @@ export default {
     margin: 0 auto;
 }
 
-.wc-qr-empty {
-    font-size: 12px;
-    color: #6d7688;
-}
-
 .wc-hint {
-    font-size: 12px;
+    font-size: 13px;
     color: #9aa3b2;
     margin-top: 8px;
     text-align: center;
 }
 
 .wc-error {
-    font-size: 12px;
+    font-size: 13px;
     color: #ff8a7e;
     margin-top: 8px;
 }
@@ -473,7 +481,7 @@ export default {
 }
 
 .wc-uri-label {
-    font-size: 10px;
+    font-size: 11px;
     color: #6d7688;
     margin-bottom: 4px;
 }
@@ -481,7 +489,7 @@ export default {
 .wc-uri-copy {
     width: 100%;
     font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-    font-size: 11px;
+    font-size: 12px;
     color: #c9d2e2;
     background: rgba(255, 255, 255, 0.04);
     border: 1px solid rgba(255, 255, 255, 0.1);
@@ -501,9 +509,9 @@ export default {
 .wc-cta {
     width: 100%;
     margin-top: 14px;
-    padding: 12px 16px;
+    padding: 14px 16px;
     border-radius: 14px;
-    font-size: 14px;
+    font-size: 16px;
     font-weight: 700;
     color: #0a0c10;
     background: linear-gradient(135deg, #4cc3ff 0%, #67dab0 100%);
@@ -520,6 +528,18 @@ export default {
 .wc-cta:disabled {
     opacity: 0.55;
     cursor: default;
+}
+
+.wc-relink {
+    width: 100%;
+    margin-top: 10px;
+    font-size: 13px;
+    color: #4cc3ff;
+    background: transparent;
+    border: 0;
+    cursor: pointer;
+    text-decoration: underline;
+    text-underline-offset: 4px;
 }
 
 /* ---------- Connected surface --------------------------------------------- */
@@ -545,7 +565,7 @@ export default {
 }
 
 .wc-wallet-name {
-    font-size: 14px;
+    font-size: 16px;
     font-weight: 700;
 }
 
@@ -561,7 +581,7 @@ export default {
 }
 
 .wc-payfrom {
-    font-size: 11px;
+    font-size: 13px;
     color: #6d7688;
     word-break: break-all;
     margin-top: 6px;
@@ -579,7 +599,7 @@ export default {
 }
 
 .wc-form label {
-    font-size: 10px;
+    font-size: 12px;
     font-weight: 600;
     letter-spacing: 0.1em;
     text-transform: uppercase;
@@ -591,8 +611,8 @@ export default {
     background: rgba(255, 255, 255, 0.04);
     border: 1px solid rgba(255, 255, 255, 0.12);
     border-radius: 12px;
-    padding: 10px 12px;
-    font-size: 13px;
+    padding: 12px 14px;
+    font-size: 16px;
     color: #e8ebf2;
     word-break: break-all;
     outline: none;
@@ -604,7 +624,7 @@ export default {
 }
 
 .wc-fee {
-    font-size: 11px;
+    font-size: 13px;
     color: #6d7688;
 }
 
@@ -613,7 +633,7 @@ export default {
 }
 
 .wc-sent {
-    font-size: 13px;
+    font-size: 15px;
     text-align: center;
     color: #67dab0;
 }
@@ -626,7 +646,7 @@ export default {
 .wc-link {
     width: 100%;
     margin-top: 12px;
-    font-size: 12px;
+    font-size: 13px;
     color: #6d7688;
     background: transparent;
     border: 0;

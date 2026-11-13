@@ -296,8 +296,8 @@ body.dark {
     background: var(--bg);
     color: var(--fg);
     user-select: none;
-    font-size: 13px;
-    line-height: 16px;
+    font-size: 14px;
+    line-height: 19px;
     overflow: hidden;
     position: relative;
     box-shadow: 0px 20px 30px 5px rgba(0, 0, 0, 0.25);

@@ -80,10 +80,12 @@ button:first-of-type {
     align-items: center;
     width: 100%;
     height: 65px;
-    background: var(--primary);
+    background: linear-gradient(120deg, var(--primary) 0%, #1b3f8f 140%);
     color: var(--primary-fg);
     padding: 0 20px;
-    font-size: 16px;
+    font-size: 17px;
+    font-weight: 600;
+    letter-spacing: 0.03em;
 }
 
 button.right {

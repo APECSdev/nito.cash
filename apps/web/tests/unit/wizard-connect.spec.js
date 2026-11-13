@@ -47,7 +47,7 @@ describe('WizardConnect modal', () => {
         const wrapper = mount()
 
         expect(wrapper.text()).toContain('Connect your wallet')
-        expect(wrapper.text()).toContain('Connect Wallet')
+        expect(wrapper.text()).toContain('Generate a new connection QR')
         expect(wrapper.text()).toContain('WizardConnect-compatible')
         expect(wrapper.text()).toContain('mainnet')
     })

@@ -7,13 +7,13 @@
                 v-for="w of wallets"
                 :key="w.id"
                 @click="switchWallet(w.id)"
-                class="rounded-[8px] px-[6px] py-[8px] text-[12px] font-semibold leading-[16px] border"
+                class="rounded-[8px] px-[6px] py-[8px] text-[14px] font-semibold leading-[20px] border"
                 :class="w.id === wallet.id
                     ? 'bg-primary text-primary-fg border-transparent'
                     : 'bg-box-bg text-secondary border-input-border'"
             >
                 {{w.name}}
-                <div class="text-[10px] font-medium leading-[13px] opacity-70">
+                <div class="text-[12px] font-medium leading-[13px] opacity-70">
                     {{w.privacy === 'nito' ? 'shielded' : 'transparent'}} · {{w.kind}}
                 </div>
             </button>
@@ -23,7 +23,7 @@
 
             <!-- ==================== NITO CASH (shielded stablecoins) ==================== -->
             <div v-if="wallet.id === 'nito-cash'">
-                <div class="text-[13px] font-semibold text-warning text-center">
+                <div class="text-[15px] font-semibold text-warning text-center">
                     Chipnet development preview — no real value
                 </div>
 
@@ -35,24 +35,24 @@
                     {{shieldedBalance}} <small class="text-[16px] font-semibold">PUSD</small>
                 </div>
 
-                <div class="text-[11px] font-semibold text-secondary text-center mt-[8px]">
+                <div class="text-[13px] font-semibold text-secondary text-center mt-[8px]">
                     {{getNoteCount}} note(s) · {{getLeaves.length}} tree leaf(s)
                 </div>
 
                 <!-- Note list -->
                 <div v-for="note of getNotes" :key="note.nf"
-                    class="mt-[12px] text-[11px] font-semibold text-secondary">
+                    class="mt-[12px] text-[13px] font-semibold text-secondary">
                     <span v-if="note.spent">(spent) </span>
                     {{note.value}} PUSD · cm {{shorten(note.cm)}}
                 </div>
 
                 <!-- Action flow scaffold (client-side proving lands next). -->
                 <div v-if="activeAction" class="mt-[24px] p-[14px] rounded-[8px] bg-box-bg">
-                    <div class="text-[13px] font-semibold text-trinary">
+                    <div class="text-[15px] font-semibold text-trinary">
                         {{activeAction}}
                     </div>
 
-                    <p class="text-[11px] leading-[16px] text-secondary mt-[8px]">
+                    <p class="text-[13px] leading-[20px] text-secondary mt-[8px]">
                         {{actionDescription}}
                     </p>
 
@@ -72,13 +72,13 @@
                     {{pusdBalance}} <small class="text-[16px] font-semibold">PUSD</small>
                 </div>
 
-                <div class="text-[11px] font-semibold text-secondary text-center mt-[8px]">
+                <div class="text-[13px] font-semibold text-secondary text-center mt-[8px]">
                     {{pusdNote}}
                 </div>
 
                 <!-- Asset list -->
                 <div v-for="asset of wallet.assets" :key="asset.symbol"
-                    class="mt-[14px] flex items-center justify-between text-[12px] font-semibold">
+                    class="mt-[14px] flex items-center justify-between text-[14px] font-semibold">
                     <span class="text-trinary">{{asset.symbol}} <small class="text-secondary font-medium">{{asset.label}}</small></span>
                     <span :class="asset.status === 'active' ? 'text-secondary' : 'text-warning'">
                         {{asset.status === 'active' ? 'available' : asset.status}}
@@ -88,7 +88,7 @@
 
             <!-- ==================== NITO VAULT (shielded cash-tokens) ==================== -->
             <div v-else-if="wallet.id === 'nito-vault'">
-                <div class="text-[13px] font-semibold text-warning text-center">
+                <div class="text-[15px] font-semibold text-warning text-center">
                     Coming soon
                 </div>
 
@@ -96,7 +96,7 @@
                     Shielded cash-tokens
                 </div>
 
-                <p class="text-[11px] leading-[16px] text-secondary text-center mt-[12px]">
+                <p class="text-[13px] leading-[20px] text-secondary text-center mt-[12px]">
                     Nito Cash shields ONE asset (PUSD) for the PoC. Nito Vault generalizes the
                     same note + nullifier + Groth16 design to ANY CashToken — the circuit
                     carries the asset category as a witness and the covenant holds multiple
@@ -119,13 +119,13 @@
                     {{solBalance === null ? '\u2014' : solBalance}} <small class="text-[14px] font-semibold">SOL</small>
                 </div>
 
-                <div v-if="solAddress" class="text-[10px] font-medium text-secondary text-center mt-[6px] break-all px-[8px]">
+                <div v-if="solAddress" class="text-[12px] font-medium text-secondary text-center mt-[6px] break-all px-[8px]">
                     {{solAddress}}
                 </div>
 
                 <!-- Asset list -->
                 <div v-for="asset of wallet.assets" :key="asset.symbol"
-                    class="mt-[14px] flex items-center justify-between text-[12px] font-semibold">
+                    class="mt-[14px] flex items-center justify-between text-[14px] font-semibold">
                     <span class="text-trinary">{{asset.symbol}} <small class="text-secondary font-medium">{{asset.label}}</small></span>
                     <span :class="asset.status === 'active' ? 'text-secondary' : 'text-warning'">
                         {{asset.status === 'active' ? 'available' : asset.status}}
