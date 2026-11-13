@@ -312,8 +312,19 @@ export default {
                 payFromAddress.value = recvAddr.address
 
                 /* Fetch UTXOs for the wallet's receive address (include tokens,
-                   then skip token-bearing ones — see CHIPNET.md caveat #1). */
-                const raw = await cluster.request('blockchain.address.listunspent', recvAddr.address, true)
+                   then skip token-bearing ones — see CHIPNET.md caveat #1).
+                   Current Fulcrum/Electrum-Cash wants a STRING filter option
+                   ("include_tokens" | "exclude_tokens" | "tokens_only");
+                   older builds take a boolean — try the string, fall back. */
+                let raw
+                try {
+                    raw = await cluster.request('blockchain.address.listunspent', recvAddr.address, 'include_tokens')
+                } catch (err) {
+                    if (!/Invalid token filtering option/i.test(err?.message ?? '')) {
+                        throw err
+                    }
+                    raw = await cluster.request('blockchain.address.listunspent', recvAddr.address, true)
+                }
                 const list = Array.isArray(raw) ? raw : (raw.outputs ?? raw.unspent ?? [])
 
                 /* Two-pass fee: estimate with an assumed shape, then with the
