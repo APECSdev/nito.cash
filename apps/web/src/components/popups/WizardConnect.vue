@@ -123,6 +123,7 @@
    The QR + Connection URI support BOTH phone scans and desktop wallets
    that paste the URI (e.g. Cashonize). */
 import { ref, watch } from 'vue'
+import { decodeHdPublicKey } from '@bitauth/libauth'
 import { useWizardConnect, AlphanumericQRCode } from '@paytaca/wizardconnect-vue'
 
 import Animation from '@/components/Animation'
@@ -140,6 +141,47 @@ import {
 
 /* Default recipient — the builder's tip address (verified p2pkh). */
 const TIP_ADDRESS = 'bitcoincash:qpv4n2kyy6w8n50n3xx4ty8etxekksuqnu44erzapf'
+
+/* Resolve the wallet's HD PUBLIC NODE for a numeric child index (0 = Receive,
+   1 = Change). The dapp manager only stores nodes for CANONICALLY-named paths
+   (receive/change/defi via childIndexOfPathName) — a wallet that names its
+   paths differently (e.g. Cashonize) leaves xpubNodes EMPTY, and the raw
+   node from getXpubNode may also be unusable for derivation. So: direct
+   lookup (validated), then name heuristics over the session paths, then
+   positional (0 = receive, 1 = change). Returns undefined when nothing
+   decodes to a derivation-capable node. */
+function nodeIsDerivable(node) {
+    return !!(node && typeof node === 'object' && node.publicKey instanceof Uint8Array && node.chainCode instanceof Uint8Array)
+}
+
+function resolveChainNode(manager, childIndex) {
+    const direct = manager.getXpubNode(childIndex)
+    if (nodeIsDerivable(direct)) {
+        return direct
+    }
+
+    const paths = manager.getSessionPaths() || []
+    const wanted = childIndex === 0 ? ['receive', '0'] : ['change', '1']
+    for (const p of paths) {
+        const lower = String(p.name || '').toLowerCase()
+        if (wanted.some((n) => lower === n || lower.endsWith('/' + n) || lower.endsWith(n))) {
+            const decoded = decodeHdPublicKey(p.xpub)
+            if (typeof decoded !== 'string' && nodeIsDerivable(decoded.node)) {
+                return decoded.node
+            }
+        }
+    }
+
+    /* Positional fallback: hdwalletv1 lists Receive first, Change second. */
+    const byPos = paths[childIndex]
+    if (byPos) {
+        const decoded = decodeHdPublicKey(byPos.xpub)
+        if (typeof decoded !== 'string' && nodeIsDerivable(decoded.node)) {
+            return decoded.node
+        }
+    }
+    return undefined
+}
 
 /* Resolve the wallet's path NAME for a numeric child index (0 = Receive,
    1 = Change). Names come from wallet_ready; match by "/N" suffix with a
@@ -200,13 +242,18 @@ export default {
 
         /* When the wallet becomes ready, show the address we will pay from. */
         watch([wc.manager, wc.state], async ([manager, state]) => {
-            if (state !== 'connected' || !manager || !manager.hasPath(0)) {
+            if (state !== 'connected' || !manager) {
                 return
             }
             try {
-                const node = manager.getXpubNode(0)
+                /* Log path NAMES only (never keys) — one line, for diagnosis
+                   of wallets that name their paths non-canonically. */
+                console.log('[wizardconnect] session paths:', (manager.getSessionPaths() || []).map((p) => p.name).join(', ') || '(none)')
+                const node = resolveChainNode(manager, 0)
                 if (node) {
                     payFromAddress.value = deriveChainAddress(node, nextReceive, 'bitcoincash').address
+                } else {
+                    console.warn('[wizardconnect] no derivation-capable receive node yet')
                 }
             } catch (err) {
                 /* Non-fatal: the address resolves again on send. */
@@ -248,11 +295,20 @@ export default {
                 }
 
                 const amountSats = parseBchToSats(amount.value)
-                const recipient = await parseRecipientAddress(recipient.value.trim())
+                /* NB: this local must NOT be named `recipient` — the name is
+                   taken by the v-model ref, and the old
+                   `const recipient = await parseRecipientAddress(recipient.value…)`
+                   shadowed it and read itself during initialization
+                   (TDZ: “Cannot access 'o' before initialization” in prod). */
+                const recipientInfo = await parseRecipientAddress(recipient.value.trim())
                 const cluster = await getCluster('mainnet')
 
                 /* Derive the input source address (receive chain). */
-                const recvAddr = deriveChainAddress(manager.getXpubNode(0), nextReceive, 'bitcoincash')
+                const recvNode = resolveChainNode(manager, 0)
+                if (!recvNode) {
+                    throw new Error('Wallet receive-path data is unavailable — reconnect the wallet.')
+                }
+                const recvAddr = deriveChainAddress(recvNode, nextReceive, 'bitcoincash')
                 payFromAddress.value = recvAddr.address
 
                 /* Fetch UTXOs for the wallet's receive address (include tokens,
@@ -276,10 +332,14 @@ export default {
                 const sourceOutputs = await fetchSourceOutputs(cluster, covered.chosen)
 
                 /* Change goes back to the wallet's change chain (child 1). */
-                const changeAddr = deriveChainAddress(manager.getXpubNode(1), nextChange, 'bitcoincash')
+                const changeNode = resolveChainNode(manager, 1)
+                if (!changeNode) {
+                    throw new Error('Wallet change-path data is unavailable — reconnect the wallet.')
+                }
+                const changeAddr = deriveChainAddress(changeNode, nextChange, 'bitcoincash')
                 const built = buildPaymentTransaction({
                     sourceOutputs,
-                    recipientLockingBytecode: recipient.lockingBytecode,
+                    recipientLockingBytecode: recipientInfo.lockingBytecode,
                     changeLockingBytecode: changeAddr.lockingBytecode,
                     amountSats,
                     feeSats,
