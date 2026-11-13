@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<!-- apps/blaze/deck.html — MOCK Widget Factory deck for BCH BLAZE 2026.
+     Mirrors the event's 7-slide template structure (team+handles → what+repo →
+     story → benefits → BCH usage → vision → thank-you), adapted to Nito Cash.
+     TODO(blaze): replace this mock with the published Google Slides deck copy
+     and re-point the Deck links (BlazeBanner.vue + index.html). No build, no
+     external requests. Navigate: click / space / arrow keys. -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Nito Cash — Widget Factory Deck (mock)</title>
+<style>
+    :root {
+        --bg: #0a0c10; --panel: #12151c; --line: #232833;
+        --fg: #e8ebf2; --muted: #9aa3b2; --accent: #f5a623; --ok: #35c48d;
+    }
+    * { box-sizing: border-box; margin: 0; }
+    html, body { height: 100%; }
+    body {
+        background: var(--bg); color: var(--fg);
+        font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+        overflow: hidden;
+    }
+    .slide {
+        position: absolute; inset: 0;
+        display: none;
+        flex-direction: column; justify-content: center; align-items: center;
+        text-align: center;
+        padding: 8vh 8vw;
+    }
+    .slide.active { display: flex; }
+    .kicker {
+        font-size: 12px; letter-spacing: 0.14em; text-transform: uppercase;
+        color: var(--muted); margin-bottom: 22px;
+    }
+    .kicker b { color: var(--accent); font-weight: 600; }
+    h1 { font-size: clamp(30px, 6vw, 58px); line-height: 1.12; font-weight: 700; }
+    h2 { font-size: clamp(24px, 4.5vw, 42px); line-height: 1.15; font-weight: 700; }
+    .sub { color: var(--muted); font-size: clamp(15px, 2.2vw, 19px); margin-top: 16px; max-width: 640px; }
+    .sub b { color: var(--fg); font-weight: 600; }
+    .handles { margin-top: 26px; display: flex; gap: 22px; flex-wrap: wrap; justify-content: center; }
+    .handles span {
+        border: 1px solid var(--line); border-radius: 999px; padding: 6px 16px;
+        font-size: 13px; color: var(--muted);
+        font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    }
+    ul { text-align: left; margin-top: 8px; }
+    li { list-style: none; margin: 14px 0; font-size: clamp(15px, 2.2vw, 20px); }
+    li::before { content: "●"; color: var(--accent); margin-right: 12px; font-size: 0.8em; }
+    li span.child::before { content: "○"; color: var(--muted); }
+    .foot { position: absolute; bottom: 5vh; left: 0; right: 0; text-align: center; font-size: 12px; color: var(--muted); }
+    .foot a { color: var(--accent); text-decoration: none; }
+    .foot a:hover { text-decoration: underline; }
+    .nav {
+        position: fixed; top: 14px; right: 18px;
+        display: flex; gap: 10px; align-items: center;
+        font-size: 12px; color: var(--muted); z-index: 10;
+    }
+    .nav button {
+        background: var(--panel); color: var(--fg); border: 1px solid var(--line);
+        border-radius: 8px; width: 34px; height: 30px; cursor: pointer; font-size: 14px;
+    }
+    .dots { position: fixed; bottom: 18px; right: 18px; display: flex; gap: 6px; z-index: 10; }
+    .dots i { width: 8px; height: 8px; border-radius: 50%; background: var(--line); display: block; }
+    .dots i.on { background: var(--accent); }
+    .link { color: var(--accent); text-decoration: none; font-weight: 600; }
+    .link:hover { text-decoration: underline; }
+</style>
+</head>
+<body>
+<div class="nav">
+    <button id="prev" aria-label="Previous">‹</button>
+    <span id="count">1 / 7</span>
+    <button id="next" aria-label="Next">›</button>
+</div>
+<div class="dots" id="dots"></div>
+
+<!-- 1 · Team + handles -->
+<section class="slide active">
+    <div class="kicker">★ <b>BCH BLAZE 2026</b> · Mainnet Track</div>
+    <h1>Nito Cash<br>— Private Payments</h1>
+    <p class="sub">Team: <b>solo builder</b> · contact <b>@thebchpodcast</b> (X)</p>
+    <div class="handles">
+        <span>nito.cash</span>
+        <span>github.com/APECSdev/nito.cash</span>
+    </div>
+</section>
+
+<!-- 2 · What it is + repo -->
+<section class="slide">
+    <div class="kicker">What is Nito Cash?</div>
+    <h2>The first <span style="color:var(--accent)">shielded pool</span> for<br>ParyonUSD (PUSD) on Bitcoin Cash</h2>
+    <p class="sub">Move PUSD through a covenant pool and your <b>sender, receiver and amount all disappear</b> from the chain — payments that verify with a zero-knowledge proof.</p>
+    <p class="sub"><a class="link" href="https://github.com/APECSdev/nito.cash" target="_blank" rel="noopener">github.com/APECSdev/nito.cash</a></p>
+</section>
+
+<!-- 3 · The story -->
+<section class="slide">
+    <div class="kicker">The Story of Nito Cash</div>
+    <h2>The 2026 upgrade let a transaction<br>verify a zk-proof by itself…</h2>
+    <p class="sub">…so we asked: <b>what if a stablecoin payment could look like nothing at all?</b><br>
+    We built the pool — a <b>covenant</b> that holds the tokens, a <b>Groth16 circuit</b> that hides the payers,
+    and a wallet that <b>proves everything in your browser</b>. No backend. No custodian. Nothing to trust but math.</p>
+</section>
+
+<!-- 4 · Benefits -->
+<section class="slide">
+    <div class="kicker">Benefits of Nito Cash</div>
+    <h2>Why shield your PUSD?</h2>
+    <ul>
+        <li>Payments that look like nothing — sender, receiver &amp; amount masked</li>
+        <li>Variable amounts — no fixed denominations, no round-number tells</li>
+        <li>Keys never leave your device — BIP39/BIP32 + Schnorr, all local</li>
+        <li>Notes sealed with AES-256-GCM; only ciphertext ever persists</li>
+        <li>10x less chain-snooping!</li>
+    </ul>
+</section>
+
+<!-- 5 · BCH usage -->
+<section class="slide">
+    <div class="kicker">BCH Usage</div>
+    <h2>Shield → pay → unshield,<br>in ~37 KB transactions</h2>
+    <p class="sub">One transaction carries the <b>2-public-input Groth16 proof</b> and the covenant state transition.
+    On chipnet, the full lifecycle is confirmed — and <b>three private payments settled in ONE block</b> (329764).</p>
+    <p class="sub"><a class="link" href="https://nito.cash" target="_blank" rel="noopener">Try the live wallet → nito.cash</a></p>
+</section>
+
+<!-- 6 · The vision -->
+<section class="slide">
+    <div class="kicker">The Vision for Nito Cash</div>
+    <h2>From one pool to a private economy</h2>
+    <ul>
+        <li>Nito Vault — shield <b>any</b> CashToken (the circuit already carries the asset category)</li>
+        <li><span class="child">Stablecoin mode — hold incoming BCH as PUSD / MUSD, pay out privately</span></li>
+        <li>WizardConnect + XO dApp-connect — pay privately from any wallet</li>
+        <li>Mainnet after a full MPC trusted setup (chipnet is the rehearsal)</li>
+    </ul>
+</section>
+
+<!-- 7 · Thank you -->
+<section class="slide">
+    <div class="kicker">Thank you!</div>
+    <h2>Hush Your Money™</h2>
+    <p class="sub">
+        <a class="link" href="https://nito.cash" target="_blank" rel="noopener">nito.cash</a> ·
+        <a class="link" href="https://github.com/APECSdev/nito.cash" target="_blank" rel="noopener">source</a> ·
+        <a class="link" href="/" rel="noopener">blaze.nito.cash</a>
+    </p>
+    <p class="sub" style="color:var(--muted)">Chipnet only — test funds, no value · EMBER2026 donations:
+    <span style="font-family:ui-monospace,monospace;color:var(--fg)">bitcoincash:zzhndl6y…4574</span></p>
+</section>
+
+<script>
+    var slides = Array.prototype.slice.call(document.querySelectorAll('.slide'))
+    var i = 0
+    var dots = document.getElementById('dots')
+    slides.forEach(function (_, k) {
+        var d = document.createElement('i')
+        if (k === 0) d.className = 'on'
+        dots.appendChild(d)
+    })
+    function show(n) {
+        i = Math.max(0, Math.min(slides.length - 1, n))
+        slides.forEach(function (s, k) { s.classList.toggle('active', k === i) })
+        Array.prototype.forEach.call(dots.children, function (d, k) { d.classList.toggle('on', k === i) })
+        document.getElementById('count').textContent = (i + 1) + ' / ' + slides.length
+    }
+    function step(delta) {
+        /* Avoid hijacking in-page link clicks. */
+        show(i + delta)
+    }
+    document.getElementById('next').addEventListener('click', function () { step(1) })
+    document.getElementById('prev').addEventListener('click', function () { step(-1) })
+    document.addEventListener('keydown', function (e) {
+        if (e.key === 'ArrowRight' || e.key === ' ' || e.key === 'PageDown') { step(1) }
+        else if (e.key === 'ArrowLeft' || e.key === 'PageUp') { step(-1) }
+        else if (e.key === 'Home') { show(0) }
+        else if (e.key === 'End') { show(slides.length - 1) }
+    })
+    document.addEventListener('click', function (e) {
+        if (e.target.closest('a') || e.target.closest('.nav') || e.target.closest('.dots')) { return }
+        step(1)
+    })
+    show(0)
+</script>
+</body>
+</html>

@@ -81,8 +81,8 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: blaze-dist
-          # Single static file — no build step (see apps/blaze/README.md).
-          path: apps/blaze/index.html
+          # Static files, no build step (see apps/blaze/README.md).
+          path: apps/blaze/*.html
           retention-days: 1
 
   deploy:
@@ -111,13 +111,12 @@ jobs:
           name: docs-dist
           path: docs-dist
 
-      - name: Deploy docs to Cloudflare Pages (nito-cash-docs)
-        uses: cloudflare/wrangler-action@v3
-        with:
-          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          accountId: 38907316ed118886fa8035039f92056d
-          command: pages deploy docs-dist --project-name=nito-cash-docs
-
+      # BLAZE page deploys BEFORE docs so a docs-side problem can never block
+      # the hackathon submission page. (Note: the docs deploy has failed since
+      # 2026-10-27 — docs.nito.cash no longer resolves; the Pages project/
+      # domain appears to have been deleted and needs re-creating. The web
+      # (nitocash) deploy on the same token succeeds, so the token itself is
+      # healthy.)
       - name: Download blaze artifact (blaze-dist)
         uses: actions/download-artifact@v4
         with:
@@ -130,3 +129,10 @@ jobs:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: 38907316ed118886fa8035039f92056d
           command: pages deploy blaze-dist --project-name=blaze-nito-cash
+
+      - name: Deploy docs to Cloudflare Pages (nito-cash-docs)
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: 38907316ed118886fa8035039f92056d
+          command: pages deploy docs-dist --project-name=nito-cash-docs
