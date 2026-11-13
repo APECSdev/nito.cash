@@ -54,13 +54,29 @@ export function p2pkhLockingBytecode(pubkeyHash) {
     return lock
 }
 
-/* encodeCashAddress across libauth signature variants (positional / object). */
+/* encodeCashAddress across libauth signature variants AND return shapes:
+   3.1.x accepts only the object form and returns { address } (an OBJECT) —
+   the positional form throws. Fulcrum needs the plain STRING, so unwrap
+   whatever shape comes back and fail loudly otherwise. */
 export function encodeCashAddr(prefix, type, hash) {
+    let result
     try {
-        return encodeCashAddress(prefix, type, hash)
-    } catch (err) {
-        return encodeCashAddress({ prefix, type, payload: hash })
+        result = encodeCashAddress({ prefix, type, payload: hash })
+    } catch {
+        result = undefined
     }
+    if (typeof result === 'string') return result
+    if (result && typeof result === 'object' && typeof result.address === 'string') {
+        return result.address
+    }
+    /* Older builds: positional signature returning a string. */
+    try {
+        const legacy = encodeCashAddress(prefix, type, hash)
+        if (typeof legacy === 'string') return legacy
+    } catch {
+        /* fall through to the loud failure */
+    }
+    throw new Error(`encodeCashAddress failed for ${prefix} (${type}) — payload ${hash ? hash.length : 'null'}B`)
 }
 
 /* Derive the address of a wallet chain node (child 0 = receive, 1 = change)
