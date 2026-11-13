@@ -24,6 +24,10 @@
             </article>
 
             <Button @click.native="create" label="Create a NEW wallet" />
+
+            <button @click="$router.push('connect')" class="text-[12px] text-secondary underline bg-transparent mt-[10px]">
+                …or connect an existing wallet (WizardConnect)
+            </button>
         </Footer>
     </main>
 </template>

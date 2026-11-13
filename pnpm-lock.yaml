@@ -36,6 +36,9 @@ importers:
       '@noble/hashes':
         specifier: ^2.4.0
         version: 2.4.0
+      '@paytaca/wizardconnect-vue':
+        specifier: ^0.2.2
+        version: 0.2.2(vue@3.5.43)
       '@scure/base':
         specifier: ^2.4.0
         version: 2.4.0
@@ -179,12 +182,21 @@ packages:
     resolution: {integrity: sha512-Vj1jF3cPfxg7OAfoI7QnVKLoILlm2JF9pnVHrX8qx7AHMiYWT+NDAA7jChlNgRS4WTLc/fD1lXLmPixluj+3Gg==}
     engines: {node: '>=6.9.0'}
 
+  '@bch-wc2/interfaces@0.0.8':
+    resolution: {integrity: sha512-gRt95azHVqoViGI4X3F1ObgTpYBh3//KaCHRBWSMJbAKNM09T+TA/h9kx9u9SZmE8otMtpFSy4awSHWHUQZmbg==}
+    peerDependencies:
+      '@bitauth/libauth': ^3.1.0-next.2
+
   '@bcoe/v8-coverage@1.0.2':
     resolution: {integrity: sha512-6zABk/ECA/QYSCQ1NGiVwwbQerUCZ+TQbp64Q3AgmfNvurHH0j8TtXa1qbShXA6qqkpAj4V5W8pP6mLe1mcMqA==}
     engines: {node: '>=18'}
 
   '@bitauth/libauth@3.0.0':
     resolution: {integrity: sha512-3yoL31XpnhAnf5nDVMFk4xPqebxDwXrgYAwpa31ARJnV5A/eXWlpNYvCd6FTZPFM4VvKfjCBi+jRCrw1hOZ0Jg==}
+    engines: {node: ^12.20.0 || ^14.13.1 || >=16.0.0}
+
+  '@bitauth/libauth@3.1.0-next.8':
+    resolution: {integrity: sha512-Pm+Ju+YP3JeBLLTiVrBnia2wwE4G17r4XqpvPRMcklElJTe8J6x3JgKRg1by0Xm3ZY6UFxACkEAoSA+x419/zA==}
     engines: {node: ^12.20.0 || ^14.13.1 || >=16.0.0}
 
   '@bramus/specificity@2.4.3':
@@ -825,9 +837,17 @@ packages:
     os: [linux]
     libc: [glibc]
 
+  '@noble/ciphers@2.1.1':
+    resolution: {integrity: sha512-bysYuiVfhxNJuldNXlFEitTVdNnYUc+XNJZd7Qm2a5j1vZHgY+fazadNFWFaMK/2vye0JVlxV3gHmC0WDfAOQw==}
+    engines: {node: '>= 20.19.0'}
+
   '@noble/curves@1.9.7':
     resolution: {integrity: sha512-gbKGcRUYIjA3/zCCNaWDciTMFI0dCkvou3TL8Zmy5Nc7sJ47a0jtOeZoTaMxkuqRo9cRhjOdZJXegxYE5FN/xw==}
     engines: {node: ^14.21.3 || >=16}
+
+  '@noble/curves@2.0.1':
+    resolution: {integrity: sha512-vs1Az2OOTBiP4q0pwjW5aF0xp9n4MxVrmkFBxc6EKZc6ddYx5gaZiAsZoq0uRRXWbi3AT/sBqn05eRPtn1JCPw==}
+    engines: {node: '>= 20.19.0'}
 
   '@noble/curves@2.4.0':
     resolution: {integrity: sha512-P4/62zrgfH33CneE3Dn4WhJVA22YUU0eR51wKIan4NVRvwsA0YnPTwWGpNbpuacSujmSFLvyzpyuR30+fbq2Ew==}
@@ -836,6 +856,10 @@ packages:
   '@noble/hashes@1.8.0':
     resolution: {integrity: sha512-jCs9ldd7NwzpgXDIf6P3+NrHh9/sD6CQdxHyjQI+h/6rDNo88ypBxxz45UDuZHz9r3tNz7N/VInSVoVdtXEI4A==}
     engines: {node: ^14.21.3 || >=16}
+
+  '@noble/hashes@2.0.1':
+    resolution: {integrity: sha512-XlOlEbQcE9fmuXxrVTXCTlG2nlRXa9Rj3rr5Ue/+tX+nmkgbX720YHh0VR3hBF9xDvwnb8D2shVGOwNx+ulArw==}
+    engines: {node: '>= 20.19.0'}
 
   '@noble/hashes@2.4.0':
     resolution: {integrity: sha512-X5XaVWZIBCT7HHZGm5I7ZQXDwLG+bGXuSrMQAW+7Zvl87h1kmc1ZB1VSRJcpUfoUrGQp4Fkoxm5kZ+Ms+aW+eA==}
@@ -846,6 +870,11 @@ packages:
 
   '@oxc-project/types@0.153.0':
     resolution: {integrity: sha512-jSNrRIyvPVLL5E1z/tS5zLAprosGz/FuI1PWwEOz59j3E4TTTzSpqKb/RDGqJhhW0QHYISGXxq582wGx6T11Tw==}
+
+  '@paytaca/wizardconnect-vue@0.2.2':
+    resolution: {integrity: sha512-Yp/VyM+m7Qgp7VSwmyglJmTawesFx9Wa/6PlBRnOEDlqP4KO/IpVPtpApyaTioqdYHg3CNl26Gnd7ZrxCJZHaQ==}
+    peerDependencies:
+      vue: ^3.0.0
 
   '@puppeteer/browsers@3.2.4':
     resolution: {integrity: sha512-okJ6yQMc0SBexOKxMi966omwAV1uAPwgF/YMZdb04gZQPXVjWHl9bmXjZYtIcsN1+PN3Bz4iFfGK3g+c6lZJ0Q==}
@@ -1115,11 +1144,20 @@ packages:
     cpu: [x64]
     os: [win32]
 
+  '@scure/base@2.0.0':
+    resolution: {integrity: sha512-3E1kpuZginKkek01ovG8krQ0Z44E3DHPjc5S2rjJw9lZn3KSQOs8S7wqikF/AH7iRanHypj85uGyxk0XAyC37w==}
+
   '@scure/base@2.4.0':
     resolution: {integrity: sha512-thZ1TuJwFwBblOhgsjDKvvGirBxNp+wSvY/DR6tJBJOTDhdAAcHJ8Vbr2eFnqaxeca4+t0i9KBf+uHYGWwZORg==}
 
+  '@scure/bip32@2.0.1':
+    resolution: {integrity: sha512-4Md1NI5BzoVP+bhyJaY3K6yMesEFzNS1sE/cP+9nuvE7p/b0kx9XbpDHHFl8dHtufcbdHRUUQdRqLIPHN/s7yA==}
+
   '@scure/bip32@2.4.0':
     resolution: {integrity: sha512-i3DS0CptAocyvqE4n3SUkpzeQK4vJMFwWLofTwRiiKo2aWojBOfyMCgfKw9HVpO6fSY5AK86sHS/Uzn8kK9Few==}
+
+  '@scure/bip39@2.0.1':
+    resolution: {integrity: sha512-PsxdFj/d2AcJcZDX1FXN3dDgitDDTmwf78rKZq1a6c1P1Nan1X/Sxc7667zU3U+AN60g7SxxP0YCVw2H/hBycg==}
 
   '@scure/bip39@2.4.0':
     resolution: {integrity: sha512-82dxFbZUYboyOf0AXiydsQrFQ5Q4h9mX+O2UkE91ROYmsc0BKMGZLwDmy96Jpa2+vrtoxomjUhy1RPIgH/r2nA==}
@@ -1325,6 +1363,12 @@ packages:
     peerDependenciesMeta:
       '@vue/server-renderer':
         optional: true
+
+  '@wizardconnect/core@0.2.5':
+    resolution: {integrity: sha512-4O4YCpudKGyPDB5zuKBlhh2x8dHonLc3J+xiEmkPeiIHKwT2k0gXrBeZUWdWSuVMAmPU+YYfaBakWSt824Pn8Q==}
+
+  '@wizardconnect/dapp@0.2.2':
+    resolution: {integrity: sha512-A71y5Qg5SIdIjXNngfpgBGxuQFgWRLQOigFa7zRX8HCoOh/62yOBfQUFtQDOgfRtGV7jv8nZ1Xb6wFqXVoEQvg==}
 
   abbrev@5.0.0:
     resolution: {integrity: sha512-/XrFJgzQQQHpti1raDJC6m4ws6aNktmjBlhk8Fdlk7LwCEuDoieEJJY9OFHjfiFJFFRM2tK+Ky/IsfbbmlMu1w==}
@@ -2261,6 +2305,11 @@ packages:
     resolution: {integrity: sha512-u4sej9B1LPSxTGKB/HiuzvEQnXH0ECYkSVQU39koSwmFAxhlEAFl9RdTvLv4TOTQUgBS5O3O5fwUxk6byBZ+IQ==}
     engines: {node: '>=10'}
 
+  isomorphic-ws@5.0.0:
+    resolution: {integrity: sha512-muId7Zzn9ywDsyXgTIafTry2sV3nySZeUDe6YedVd1Hvuuep5AsIlqK+XefWpYTyJG5e503F2xIuT2lcU6rCSw==}
+    peerDependencies:
+      ws: '*'
+
   isstream@0.1.2:
     resolution: {integrity: sha512-Yljz7ffyPbrLpLngrMtZ7NduUgVvi6wG9RJ9IUcyCd59YQ911PBJphODUcbOVbqYfxe1wuYf/LJ8PauMRwsM/g==}
 
@@ -2642,6 +2691,17 @@ packages:
   nostics@1.3.0:
     resolution: {integrity: sha512-wzRsrJwNlFbqIRQt8aCeL2WE8USip/uuvGSOZV1D02CxX8ABTMbw8IywKjH7yWHETMXbWJI4OBpihg9rmz2Vyg==}
 
+  nostr-tools@2.26.0:
+    resolution: {integrity: sha512-PMy//IuirMQR61o44UvjKQcQ4C7puKLxELHGv2ghn16P4NvmgdOMX7kyr9VZW9SxHeZHrSTiNoLeRe3fDbE4RA==}
+    peerDependencies:
+      nostr-wasm: 0.1.0
+      typescript: '>=5.0.0'
+    peerDependenciesMeta:
+      nostr-wasm:
+        optional: true
+      typescript:
+        optional: true
+
   nth-check@2.1.1:
     resolution: {integrity: sha512-lqjrjmaOoAnWfMmBPL+XNnynZh2+swxiX3WUE0s4yEHI6m+AwrK2UZOimIRl3X/4QctVqS8AiZjFqyOGrMXb/w==}
 
@@ -2857,6 +2917,9 @@ packages:
 
   qr-scanner@1.1.1:
     resolution: {integrity: sha512-vZmtaIpxx4rqnrg4iX62pQJ12bcIpfTEe/hL4Pr5PwQ/fih8W+ErfAZVFnnrdipeDC6L+5BfzMIqs/s6SYi4WA==}
+
+  qrcode-generator@1.5.2:
+    resolution: {integrity: sha512-pItrW0Z9HnDBnFmgiNrY1uxRdri32Uh9EjNYLPVC2zZ3ZRIIEqBoDgm4DkvDwNNDHTK7FNkmr8zAa77BYc9xNw==}
 
   qrcode@1.4.4:
     resolution: {integrity: sha512-oLzEC5+NKFou9P0bMj5+v6Z40evexeE29Z9cummZXZ9QXyMr3lphkURzxjXgPJC5azpxcshoDWV1xE46z+/c3Q==}
@@ -3512,9 +3575,15 @@ snapshots:
       '@babel/helper-string-parser': 7.29.7
       '@babel/helper-validator-identifier': 7.29.7
 
+  '@bch-wc2/interfaces@0.0.8(@bitauth/libauth@3.1.0-next.8)':
+    dependencies:
+      '@bitauth/libauth': 3.1.0-next.8
+
   '@bcoe/v8-coverage@1.0.2': {}
 
   '@bitauth/libauth@3.0.0': {}
+
+  '@bitauth/libauth@3.1.0-next.8': {}
 
   '@bramus/specificity@2.4.3':
     dependencies:
@@ -4229,9 +4298,15 @@ snapshots:
   '@napi-rs/lzma-linux-x64-gnu@1.5.1':
     optional: true
 
+  '@noble/ciphers@2.1.1': {}
+
   '@noble/curves@1.9.7':
     dependencies:
       '@noble/hashes': 1.8.0
+
+  '@noble/curves@2.0.1':
+    dependencies:
+      '@noble/hashes': 2.0.1
 
   '@noble/curves@2.4.0':
     dependencies:
@@ -4239,11 +4314,25 @@ snapshots:
 
   '@noble/hashes@1.8.0': {}
 
+  '@noble/hashes@2.0.1': {}
+
   '@noble/hashes@2.4.0': {}
 
   '@one-ini/wasm@0.2.1': {}
 
   '@oxc-project/types@0.153.0': {}
+
+  '@paytaca/wizardconnect-vue@0.2.2(vue@3.5.43)':
+    dependencies:
+      '@wizardconnect/core': 0.2.5
+      '@wizardconnect/dapp': 0.2.2
+      qrcode-generator: 1.5.2
+      vue: 3.5.43
+    transitivePeerDependencies:
+      - bufferutil
+      - nostr-wasm
+      - typescript
+      - utf-8-validate
 
   '@puppeteer/browsers@3.2.4':
     dependencies:
@@ -4388,13 +4477,26 @@ snapshots:
   '@rollup/rollup-win32-x64-msvc@4.64.7':
     optional: true
 
+  '@scure/base@2.0.0': {}
+
   '@scure/base@2.4.0': {}
+
+  '@scure/bip32@2.0.1':
+    dependencies:
+      '@noble/curves': 2.0.1
+      '@noble/hashes': 2.0.1
+      '@scure/base': 2.0.0
 
   '@scure/bip32@2.4.0':
     dependencies:
       '@noble/curves': 2.4.0
       '@noble/hashes': 2.4.0
       '@scure/base': 2.4.0
+
+  '@scure/bip39@2.0.1':
+    dependencies:
+      '@noble/hashes': 2.0.1
+      '@scure/base': 2.0.0
 
   '@scure/bip39@2.4.0':
     dependencies:
@@ -4601,6 +4703,31 @@ snapshots:
       vue-component-type-helpers: 3.3.13
     optionalDependencies:
       '@vue/server-renderer': 3.5.43
+
+  '@wizardconnect/core@0.2.5':
+    dependencies:
+      '@bch-wc2/interfaces': 0.0.8(@bitauth/libauth@3.1.0-next.8)
+      '@bitauth/libauth': 3.1.0-next.8
+      eventemitter3: 5.0.4
+      isomorphic-ws: 5.0.0(ws@8.22.0)
+      lossless-json: 4.3.1
+      nostr-tools: 2.26.0
+      ws: 8.22.0
+    transitivePeerDependencies:
+      - bufferutil
+      - nostr-wasm
+      - typescript
+      - utf-8-validate
+
+  '@wizardconnect/dapp@0.2.2':
+    dependencies:
+      '@wizardconnect/core': 0.2.5
+      eventemitter3: 5.0.4
+    transitivePeerDependencies:
+      - bufferutil
+      - nostr-wasm
+      - typescript
+      - utf-8-validate
 
   abbrev@5.0.0: {}
 
@@ -5657,6 +5784,10 @@ snapshots:
 
   isomorphic-timers-promises@1.0.1: {}
 
+  isomorphic-ws@5.0.0(ws@8.22.0):
+    dependencies:
+      ws: 8.22.0
+
   isstream@0.1.2: {}
 
   jake@10.9.4:
@@ -6015,6 +6146,15 @@ snapshots:
 
   nostics@1.3.0: {}
 
+  nostr-tools@2.26.0:
+    dependencies:
+      '@noble/ciphers': 2.1.1
+      '@noble/curves': 2.0.1
+      '@noble/hashes': 2.0.1
+      '@scure/base': 2.0.0
+      '@scure/bip32': 2.0.1
+      '@scure/bip39': 2.0.1
+
   nth-check@2.1.1:
     dependencies:
       boolbase: 1.0.0
@@ -6218,6 +6358,8 @@ snapshots:
       - yauzl
 
   qr-scanner@1.1.1: {}
+
+  qrcode-generator@1.5.2: {}
 
   qrcode@1.4.4:
     dependencies:

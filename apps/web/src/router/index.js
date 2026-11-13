@@ -9,6 +9,8 @@ import ConciergeSpendAdvanced from '@/views/Concierge/Spend/Advanced'
 
 import Dashboard from '@/views/Dashboard'
 
+import Connect from '@/views/Connect'
+
 import History from '@/views/History'
 
 import Receive from '@/views/Receive'
@@ -34,6 +36,10 @@ const routes = [{
 }, {
     path: '/dashboard',
     component: Dashboard
+}, {
+    /* WizardConnect surface: judges connect their OWN wallet and pay from it. */
+    path: '/connect',
+    component: Connect
 }, {
     path: '/history',
     component: History

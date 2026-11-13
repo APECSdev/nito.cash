@@ -24,6 +24,10 @@
             Launching soon
             <span class="tracking-[0.1em]">{{ '...'.substr(0, index) }}</span>
         </p>
+
+        <button @click="$router.push('connect')" class="text-[11px] text-secondary underline bg-transparent">
+            Connect an external wallet →
+        </button>
   </main>
 </template>
 
