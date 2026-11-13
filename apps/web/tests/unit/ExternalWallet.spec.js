@@ -87,6 +87,19 @@ describe('external-wallet pay helpers', () => {
         expect(built.change).toBe(100000n - 5000n - 200n)
     })
 
+    it('deriveChainAddress — public-child derivation matches the libauth reference', async () => {
+        const L = await import('@bitauth/libauth')
+        const lib = L.default ?? L
+        const seed = lib.sha256.hash(new TextEncoder().encode('deterministic test seed for repro'))
+        const acctPriv = lib.deriveHdPath(lib.deriveHdPrivateNodeFromSeed(seed), "m/44'/145'/0'")
+        const xpub = lib.encodeHdPublicKey({ version: 0x0488B21E, node: lib.deriveHdPublicNode(acctPriv) }).hdPublicKey
+        const node = lib.decodeHdPublicKey(xpub).node
+        const a0 = deriveChainAddress(node, 0, 'bitcoincash').address
+        const ref = lib.hdPublicKeyToP2pkhCashAddress({ hdPublicKey: xpub, addressIndex: 0, addressPrefix: 'bitcoincash' })
+        expect(a0.address).toBe(ref.address)
+        expect(a0.address.startsWith('bitcoincash:q')).toBe(true)
+    })
+
     it('signedTxidFromHex — double sha256 reversed (known txid)', () => {
         /* the handcrafted funding tx: txid = double-sha256 of its bytes, reversed */
         const id = signedTxidFromHex(fundingTx())

@@ -22,7 +22,7 @@ import {
     cashAddressToLockingBytecode,
     decodeCashAddress,
     decodeTransaction,
-    deriveHdPublicNode,
+    deriveHdPublicNodeChild,
     encodeCashAddress,
     hexToBin,
     ripemd160,
@@ -64,9 +64,15 @@ export function encodeCashAddr(prefix, type, hash) {
 }
 
 /* Derive the address of a wallet chain node (child 0 = receive, 1 = change)
-   at `index`. Returns { publicKey, pubkeyHash, lockingBytecode, address }. */
+   at `index`. Returns { publicKey, pubkeyHash, lockingBytecode, address }.
+
+   NB: libauth 3.x split HD helpers by input shape — deriveHdPublicNode()
+   converts a PRIVATE node to public; deriving a CHILD PUBLIC node from a
+   shared public node (the WizardConnect wallet's xpub chains) is
+   deriveHdPublicNodeChild(node, index) with a plain-number index. The old
+   call threw Uint8Array.set(undefined) on every public node. */
 export function deriveChainAddress(chainNode, index, prefix) {
-    const child = deriveHdPublicNode(chainNode, { index: BigInt(index) })
+    const child = deriveHdPublicNodeChild(chainNode, index)
     const pubkeyHash = hash160(child.publicKey)
     return {
         publicKey: child.publicKey,
