@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<!-- apps/blaze/index.html — BCH BLAZE 2026 submission page (blaze.nito.cash).
+     Single static file: no build, no dependencies, no external requests.
+     TODO(blaze): swap the Deck link target for the published Widget Factory
+     deck copy (currently the event's template URL). -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Nito Cash — Private Payments · BCH BLAZE 2026</title>
+<meta name="description" content="The first shielded pool for ParyonUSD (PUSD) on Bitcoin Cash Chipnet — sender, receiver and amount all masked. BCH BLAZE 2026 Mainnet Track submission.">
+<style>
+    :root {
+        --bg: #0a0c10;
+        --panel: #12151c;
+        --line: #232833;
+        --fg: #e8ebf2;
+        --muted: #9aa3b2;
+        --accent: #f5a623;
+        --ok: #35c48d;
+    }
+    * { box-sizing: border-box; }
+    body {
+        margin: 0;
+        background: var(--bg);
+        color: var(--fg);
+        font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+        line-height: 1.55;
+    }
+    main { max-width: 860px; margin: 0 auto; padding: 28px 20px 64px; }
+    .badge {
+        display: inline-block;
+        border: 1px solid var(--line);
+        border-radius: 999px;
+        padding: 4px 14px;
+        font-size: 12px;
+        letter-spacing: 0.08em;
+        color: var(--muted);
+        text-transform: uppercase;
+    }
+    .badge b { color: var(--accent); font-weight: 600; }
+    h1 { font-size: 40px; line-height: 1.15; margin: 18px 0 8px; font-weight: 700; }
+    .tag { color: var(--muted); font-size: 17px; margin: 0 0 26px; }
+    .tag b { color: var(--fg); font-weight: 600; }
+    .card {
+        background: var(--panel);
+        border: 1px solid var(--line);
+        border-radius: 14px;
+        padding: 18px 20px;
+        margin: 14px 0;
+    }
+    .card h2 { font-size: 13px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); margin: 0 0 12px; font-weight: 600; }
+    .elements { display: flex; flex-wrap: wrap; gap: 10px 18px; align-items: baseline; }
+    .elements a, .elements button {
+        color: var(--accent);
+        text-decoration: none;
+        font-weight: 600;
+        font-size: 14px;
+        background: none;
+        border: 0;
+        padding: 0;
+        cursor: pointer;
+        font-family: inherit;
+    }
+    .elements a:hover, .elements button:hover { text-decoration: underline; }
+    .addr {
+        display: block;
+        margin-top: 8px;
+        font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+        font-size: 13px;
+        color: var(--fg);
+        word-break: break-all;
+        background: var(--bg);
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        padding: 8px 10px;
+        cursor: pointer;
+        text-align: left;
+        width: 100%;
+    }
+    .addr small { color: var(--muted); font-family: inherit; }
+    ul { margin: 0; padding-left: 20px; }
+    li { margin: 7px 0; }
+    li b { font-weight: 600; }
+    a.tx { color: var(--ok); text-decoration: none; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 13px; }
+    a.tx:hover { text-decoration: underline; }
+    .row { color: var(--muted); font-size: 13px; margin: 4px 0 10px; }
+    .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+    @media (max-width: 640px) { .grid { grid-template-columns: 1fr; } h1 { font-size: 30px; } }
+    footer { margin-top: 34px; padding-top: 18px; border-top: 1px solid var(--line); color: var(--muted); font-size: 13px; }
+    footer a { color: var(--accent); text-decoration: none; }
+    footer a:hover { text-decoration: underline; }
+    .copied { color: var(--ok); }
+</style>
+</head>
+<body>
+<main>
+    <span class="badge">★ <b>BCH BLAZE 2026</b> · Mainnet Track</span>
+
+    <h1>Nito Cash — Private Payments</h1>
+    <p class="tag">The first <b>shielded pool</b> for <b>ParyonUSD (PUSD)</b> on Bitcoin Cash <b>Chipnet</b> —
+    sender, receiver and amount are all masked. Live demo: <a href="https://nito.cash" style="color:var(--accent);text-decoration:none;font-weight:600">nito.cash</a></p>
+
+    <div class="card">
+        <h2>Submission links</h2>
+        <div class="elements">
+            <!-- TODO(blaze): point at the published Widget Factory deck copy. -->
+            <a href="https://docs.google.com/presentation/d/1Yfuk9CJkf4U9M_WukcELhumWgj3Ak6345Ewy8hSp-Hk/edit" target="_blank" rel="noopener">📑 Deck</a>
+            <a href="https://github.com/APECSdev/nito.cash" target="_blank" rel="noopener">💻 Source</a>
+            <span style="color:var(--muted);font-size:14px">🗳 EMBER2026:</span>
+        </div>
+        <button class="addr" id="ember" title="Click to copy the EMBER2026 donation address">
+            <small>EMBER2026 donations (Community Choice voting):</small><br>
+            bitcoincash:zzhndl6y6a82gp0376meu4t2q0kwh0pxfy85da4574
+        </button>
+    </div>
+
+    <div class="card">
+        <h2>Verified on-chain (chipnet)</h2>
+        <p class="row">Full lifecycle confirmed on the live Option B pool (covenant
+        <span style="font-family:ui-monospace,monospace">bitcoincash:prqnx4s2pqjwslu9v5lz4g6mz7v330mjksa5laj9ux</span>,
+        stand-in token category <span style="font-family:ui-monospace,monospace">8c73ff15…</span>):</p>
+        <ul>
+            <li><b>Deploy + Shield</b> · block 329722 —
+                <a class="tx" href="https://chipnet.imaginary.cash/tx/bd72f1f367cc5e6e8e9f485d84f308ae5e3f80e66b34f82998c7a38eb1698e1a" target="_blank" rel="noopener">bd72f1f3…</a>
+                · 1,000,000 PUSD shielded</li>
+            <li><b>Shielded → shielded transfer</b> · block 329722 —
+                <a class="tx" href="https://chipnet.imaginary.cash/tx/b0a488db5b7e9bac07eebc45977523cd0730ddfe078571f2e17135231e30546b" target="_blank" rel="noopener">b0a488db…</a>
+                · nothing public moves</li>
+            <li><b>Unshield</b> · block 329736 —
+                <a class="tx" href="https://chipnet.imaginary.cash/tx/e90b9a568d6908bf507e3239cde8b5ef055f9377aa95240d14453669f784717d" target="_blank" rel="noopener">e90b9a56…</a>
+                · 250,000 PUSD paid out publicly</li>
+            <li><b>Three chained shielded transfers settled in ONE block</b> (329764) —
+                many private payments, one block</li>
+        </ul>
+    </div>
+
+    <div class="grid">
+        <div class="card">
+            <h2>How it works</h2>
+            <ul>
+                <li><b>Shield</b> — deposit PUSD into a covenant pool; the deposit is public, the resulting note is not.</li>
+                <li><b>Pay privately</b> — every transfer is a single ~37 KB transaction carrying a Groth16 proof with exactly <b>2 public inputs</b> [merkleRoot, actionHash] (~183k constraints); nullifiers + fresh commitments are private witnesses.</li>
+                <li><b>Covenant-carried state</b> — {merkleRoot, nullifierSet} rides in a CashToken NFT commitment; replay is stopped on-chain.</li>
+                <li><b>Unshield</b> — withdraw to a public address; the payout amount is visible again.</li>
+            </ul>
+        </div>
+        <div class="card">
+            <h2>Under the hood</h2>
+            <ul>
+                <li><b>Keys never leave the device</b> — BIP39/BIP32 derivation + Schnorr signing locally (libauth).</li>
+                <li><b>Sealed note store</b> — AES-256-GCM via WebCrypto; only ciphertext persists.</li>
+                <li><b>In-browser proving</b> — snarkjs WASM Groth16; no proving server.</li>
+                <li><b>No single point of trust</b> — a quorum (2) of Fulcrum servers must agree on every response (default server: chipnet.bch.ninja).</li>
+                <li><b>Trusted setup</b> — phase 1 reuses the public Perpetual Powers of Tau (86 contributors); phase 2 is a disclosed 1-of-1 placeholder — a full MPC ceremony is mandatory before any mainnet value.</li>
+            </ul>
+        </div>
+    </div>
+
+    <footer>
+        Nito.cash — Hush Your Money™ · Contact: <a href="https://x.com/thebchpodcast" target="_blank" rel="noopener">@thebchpodcast</a> ·
+        Event: <a href="https://dorahacks.io/hackathon/bchblaze2026" target="_blank" rel="noopener">BCH BLAZE 2026</a> ·
+        Chipnet only — test funds, no value.
+    </footer>
+</main>
+<script>
+    document.getElementById('ember').addEventListener('click', function () {
+        var el = this
+        var addr = 'bitcoincash:zzhndl6y6a82gp0376meu4t2q0kwh0pxfy85da4574'
+        var done = function () {
+            var prev = el.innerHTML
+            el.innerHTML = '<small>EMBER2026 donations:</small><br><span class="copied">copied ✓ ' + addr + '</span>'
+            setTimeout(function () { el.innerHTML = prev }, 1600)
+        }
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(addr).then(done, done)
+        } else {
+            var ta = document.createElement('textarea')
+            ta.value = addr
+            ta.style.position = 'fixed'
+            ta.style.opacity = '0'
+            document.body.appendChild(ta)
+            ta.select()
+            try { document.execCommand('copy') } catch (e) {}
+            document.body.removeChild(ta)
+            done()
+        }
+    })
+</script>
+</body>
+</html>

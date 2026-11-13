@@ -1,0 +1,6 @@
+{
+    "name": "@nito.cash/blaze",
+    "version": "20.4.18",
+    "private": true,
+    "description": "BCH BLAZE 2026 submission page for Nito.cash (single static file; deployed to Cloudflare Pages as blaze.nito.cash). No build step — CI uploads apps/blaze/index.html directly."
+}

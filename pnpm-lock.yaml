@@ -8,6 +8,8 @@ importers:
 
   .: {}
 
+  apps/blaze: {}
+
   apps/docs:
     devDependencies:
       vitepress:
