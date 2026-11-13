@@ -38,6 +38,7 @@ const ButtonStub = {
 
 function mount() {
     return shallowMount(WizardConnect, {
+        props: { active: true },
         global: {
             /* Un-stub Popup (the real one) so its slot renders — VTU v2 stubs
                drop slot content by default (repo popup-spec convention). */

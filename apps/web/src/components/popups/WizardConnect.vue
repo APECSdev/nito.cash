@@ -1,5 +1,5 @@
 <template>
-    <Popup active>
+    <Popup :active="active">
         <section>
             <header>Connect your wallet</header>
 
@@ -132,6 +132,11 @@ export default {
         AlphanumericQRCode,
         Button,
         Popup,
+    },
+    props: {
+        /* Pre-mounted pattern (Transaction.vue): the parent keeps this popup
+           mounted and toggles visibility via the Popup `active` flag. */
+        active: [Boolean, String],
     },
     setup() {
         const wc = useWizardConnect({
@@ -282,6 +287,9 @@ export default {
             pay,
             close,
         }
+    },
+    mounted: function () {
+        console.log('[wizardconnect] popup mounted')
     },
     methods: {
         /**

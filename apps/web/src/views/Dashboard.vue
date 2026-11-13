@@ -12,7 +12,7 @@
         />
 
         <WizardConnect
-            v-if="showWizardConnect"
+            :active="showWizardConnect"
             @close-wizard-connect="showWizardConnect = false"
         />
 
@@ -20,7 +20,7 @@
             <BlazeBanner />
 
             <header class="text-right pt-[18px] px-[17px] pb-[16px]">
-                <button @click="showWizardConnect = true" class="cursor-pointer bg-transparent text-[12px] text-secondary underline mr-[12px] align-middle">
+                <button @click="openWizardConnect" class="cursor-pointer bg-transparent text-[12px] text-secondary underline mr-[12px] align-middle">
                     Connect wallet
                 </button>
                 <button @click="loadSettings" class="cursor-pointer bg-transparent">
@@ -121,6 +121,14 @@ export default {
         ]),
 
         /**
+         * Open the WizardConnect popup (with diagnostics).
+         */
+        openWizardConnect() {
+            console.log('[wizard] Connect wallet clicked → opening modal')
+            this.showWizardConnect = true
+        },
+
+        /**
          * Load Send Screen
          */
         loadSend() {
@@ -162,6 +170,7 @@ export default {
         /* Deep link: /dashboard?connect=1 opens the WizardConnect popup
            (the old /connect route redirects here). */
         if (this.$route.query.connect === '1') {
+            console.log('[wizard] deep link (?connect=1) → opening modal')
             this.showWizardConnect = true
         }
 
