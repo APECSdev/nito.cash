@@ -71,7 +71,7 @@ describe('external-wallet helpers', () => {
             outpointTransactionHash: new Uint8Array(32),
             outpointIndex: 0,
             unlockingBytecode: new Uint8Array(0),
-            value: BigInt(value),
+            valueSatoshis: BigInt(value),
             lockingBytecode: lock,
         })
 
@@ -86,9 +86,9 @@ describe('external-wallet helpers', () => {
 
             expect(transaction.version).toBe(2)
             expect(transaction.inputs.length).toBe(1)
-            expect(transaction.outputs[0].value).toBe(30_000n)
+            expect(transaction.outputs[0].valueSatoshis).toBe(30_000n)
             expect(change).toBe(69_500n)
-            expect(transaction.outputs[1].value).toBe(69_500n)
+            expect(transaction.outputs[1].valueSatoshis).toBe(69_500n)
         })
 
         it('omits the change output when change is zero', () => {

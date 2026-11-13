@@ -135,6 +135,7 @@ import {
     parseBchToSats,
     parseRecipientAddress,
     selectCoins,
+    signedTxidFromHex,
 } from '@/lib/bch/external-wallet'
 
 /* Default recipient — the builder's tip address (verified p2pkh). */
@@ -298,7 +299,11 @@ export default {
                     },
                 )
 
-                txid.value = response.signedTransactionHash
+                /* Prefer the wallet's own hash; compute it from the signed
+                   tx hex when the wallet answers the bare protocol response
+                   ({ signedTransaction } only). Same bytes ⇒ same txid. */
+                txid.value = response.signedTransactionHash ??
+                    (response.signedTransaction ? signedTxidFromHex(response.signedTransaction) : undefined)
                 nextReceive += 1
                 if (built.change > 0n) {
                     nextChange += 1

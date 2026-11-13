@@ -18,6 +18,9 @@
 // `Input & Output` (WcSourceOutput), not just outpoints.
 
 import {
+    binToHex,
+    cashAddressToLockingBytecode,
+    decodeCashAddress,
     decodeTransaction,
     deriveHdPublicNode,
     encodeCashAddress,
@@ -25,6 +28,12 @@ import {
     ripemd160,
     sha256,
 } from '@bitauth/libauth'
+/* NOTE: keep ALL libauth usage on this STATIC import. A dynamic
+   `import('@bitauth/libauth')` inside a function makes the bundler emit a
+   side chunk that re-exports libauth AND imports the app entry chunk back —
+   a circular chunk init that throws `Cannot access 'o' before
+   initialization` (minified TDZ) in the production build, killing the
+   WizardConnect pay flow at parseRecipientAddress. */
 
 /* hash160 = ripemd160(sha256(x)) — the P2PKH pubkey hash. */
 export function hash160(bytes) {
@@ -107,7 +116,9 @@ export async function fetchSourceOutputs(cluster, utxos) {
             outpointTransactionHash: hexToBin(u.tx_hash),
             outpointIndex: u.tx_pos,
             unlockingBytecode: new Uint8Array(0),
-            value: source.value,
+            /* libauth 3.x Output shape — valueSatoshis, NOT value (a `value`
+               field decodes as undefined and explodes later in BigInt()). */
+            valueSatoshis: source.valueSatoshis,
             lockingBytecode: source.lockingBytecode,
         })
     }
@@ -150,8 +161,6 @@ export function parseBchToSats(input) {
 /* Validate a recipient CashAddress and return its locking bytecode.
    Accepts p2pkh and token-aware p2pkh (payments to either type are fine). */
 export async function parseRecipientAddress(address, prefix = 'bitcoincash') {
-    const { decodeCashAddress, cashAddressToLockingBytecode } = await import('@bitauth/libauth')
-
     const decoded = decodeCashAddress(address)
     if (typeof decoded === 'string') {
         throw new Error(`Invalid recipient address: ${decoded}`)
@@ -171,11 +180,19 @@ export async function parseRecipientAddress(address, prefix = 'bitcoincash') {
     return { lockingBytecode: lock.bytecode, type: decoded.type }
 }
 
+/* txid of a SIGNED transaction hex (double SHA-256, byte-reversed) — used
+   when a wallet answers the sign request without signedTransactionHash. */
+export function signedTxidFromHex(hex) {
+    const bytes = hexToBin(hex)
+    const digest = sha256.hash(sha256.hash(bytes))
+    return binToHex(digest.reverse())
+}
+
 /* Build the unsigned BCH payment transaction (libauth Transaction shape).
    Returns { transaction, change } — the caller wraps it into a
    WcSignTransactionRequest together with the sourceOutputs. */
 export function buildPaymentTransaction({ sourceOutputs, recipientLockingBytecode, changeLockingBytecode, amountSats, feeSats }) {
-    const total = sourceOutputs.reduce((sum, o) => sum + BigInt(o.value), 0n)
+    const total = sourceOutputs.reduce((sum, o) => sum + BigInt(o.valueSatoshis), 0n)
     const change = total - BigInt(amountSats) - BigInt(feeSats)
 
     if (change < 0n) {
@@ -188,9 +205,11 @@ export function buildPaymentTransaction({ sourceOutputs, recipientLockingBytecod
         unlockingBytecode: new Uint8Array(0),
     }))
 
-    const outputs = [{ value: BigInt(amountSats), lockingBytecode: recipientLockingBytecode }]
+    /* libauth 3.x Output shape: valueSatoshis (the wallet decodes the
+       request's transaction with the same family). */
+    const outputs = [{ valueSatoshis: BigInt(amountSats), lockingBytecode: recipientLockingBytecode }]
     if (change > 0n) {
-        outputs.push({ value: change, lockingBytecode: changeLockingBytecode })
+        outputs.push({ valueSatoshis: change, lockingBytecode: changeLockingBytecode })
     }
 
     return {
