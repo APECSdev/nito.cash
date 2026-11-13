@@ -185,12 +185,17 @@ export default {
 
         /* Straight to the QR: opening the modal immediately initiates the
            relay connection (closing it ends the session). */
+        /* `immediate: true` matters: the deep link (dashboard?connect=1) mounts
+           the modal with active ALREADY true, so without immediate the watcher
+           never fires and the modal sits empty (no connection, no QR). The
+           Dashboard button path flips active after mount, which is why that
+           path worked while the deep link showed an empty window. */
         watch(() => props.active, (isActive) => {
             if (isActive && (wc.state.value === 'idle' || wc.state.value === 'disconnected')) {
                 console.log('[wizardconnect] modal opened → initiating connection')
                 wc.connect()
             }
-        })
+        }, { immediate: true })
 
         /* When the wallet becomes ready, show the address we will pay from. */
         watch([wc.manager, wc.state], async ([manager, state]) => {
@@ -482,7 +487,7 @@ export default {
 
 .wc-uri-label {
     font-size: 11px;
-    color: #6d7688;
+    color: #93a1bd;
     margin-bottom: 4px;
 }
 
@@ -582,7 +587,7 @@ export default {
 
 .wc-payfrom {
     font-size: 13px;
-    color: #6d7688;
+    color: #93a1bd;
     word-break: break-all;
     margin-top: 6px;
 }
@@ -603,7 +608,7 @@ export default {
     font-weight: 600;
     letter-spacing: 0.1em;
     text-transform: uppercase;
-    color: #6d7688;
+    color: #93a1bd;
 }
 
 .wc-form input {
@@ -625,7 +630,7 @@ export default {
 
 .wc-fee {
     font-size: 13px;
-    color: #6d7688;
+    color: #93a1bd;
 }
 
 .wc-success {
@@ -647,7 +652,7 @@ export default {
     width: 100%;
     margin-top: 12px;
     font-size: 13px;
-    color: #6d7688;
+    color: #93a1bd;
     background: transparent;
     border: 0;
     cursor: pointer;

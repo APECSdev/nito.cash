@@ -20,10 +20,10 @@
 
         <div class="w-full max-w-[680px] w-full mx-auto px-[16px] md:px-[24px] flex-1 flex flex-col">
             <header class="flex items-center justify-between pt-[14px] pb-[6px]">
-                <span class="text-[10px] font-semibold tracking-[0.22em] uppercase text-secondary">Wallet</span>
+                <span class="text-[10px] font-semibold tracking-[0.22em] uppercase text-muted">Wallet</span>
 
                 <div class="flex items-center gap-[14px]">
-                    <button @click="openWizardConnect" class="cursor-pointer bg-transparent text-[12px] text-trinary underline underline-offset-4 hover:text-primary-fg transition-colors">
+                    <button @click="openWizardConnect" class="cursor-pointer bg-transparent text-[12px] text-fg underline underline-offset-4 hover:text-primary-fg transition-colors">
                         Connect wallet
                     </button>
                     <button @click="loadSettings" class="cursor-pointer bg-transparent hover:opacity-70 transition-opacity">
@@ -37,7 +37,7 @@
                 <div class="card-glow" aria-hidden="true"></div>
 
                 <div class="relative text-center">
-                    <div class="text-[10px] font-semibold tracking-[0.22em] uppercase text-white/70">Total balance</div>
+                    <div class="text-[10px] font-semibold tracking-[0.22em] uppercase text-white">Total balance</div>
 
                     <h1 class="relative inline-block mt-[8px] mx-auto text-[44px] md:text-[52px] leading-[40px] font-medium font-['Poppins',sans-serif] text-white">
                         {{walletBalance?.value}}
@@ -259,7 +259,7 @@ export default {
     font-size: 9px;
     letter-spacing: 0.08em;
     text-transform: uppercase;
-    color: rgba(255, 255, 255, 0.7);
+    color: rgba(255, 255, 255, 0.95);
 }
 
 .stat-tile span {
@@ -293,8 +293,23 @@ export default {
     flex-direction: row;
     align-items: center;
     gap: 10px;
-    background: linear-gradient(120deg, rgba(76, 195, 255, 0.16), rgba(255, 197, 85, 0.14));
-    border-color: var(--trinary);
+    /* Fixed deep-navy CTA (branded, like Splash): the translucent trinary/
+       secondary wash measured 3.3-4.1:1 against var(--fg) labels in BOTH
+       themes. White on this gradient measures ~8:1. */
+    background: linear-gradient(120deg, #14417e, #0b1c3f);
+    border-color: rgba(76, 195, 255, 0.55);
+}
+
+.tile-accent .tile-label {
+    color: #fff;
+}
+
+.tile-accent .tile-sub {
+    color: #9fd8ff;
+}
+
+.tile-accent .tile-icon {
+    color: #ffc555;
 }
 
 .tile-icon {
@@ -310,7 +325,7 @@ export default {
 
 .tile-sub {
     font-size: 10px;
-    color: var(--secondary);
+    color: var(--fg-muted);
 }
 
 .entrance {

@@ -1,5 +1,7 @@
 <template>
-    <main class="relative flex flex-col items-center h-full bg-primary text-primary-fg px-0 pb-[36px] overflow-hidden">
+    <!-- Fixed branded navy canvas: the light text stack below stays >=10:1
+       against it in BOTH themes (bg-primary flips too light in dark mode). -->
+    <main class="relative flex flex-col items-center min-h-full bg-[#0b1c3f] text-primary-fg px-0 pb-[36px] overflow-x-hidden">
         <BlazeBanner />
 
         <!-- Decorative background: soft radial glows (pure CSS, GPU-cheap). -->
@@ -21,19 +23,19 @@
                 Hush Your Money™
             </h2>
 
-            <h3 class="text-center text-[12px] md:text-[14px] leading-[1.4] font-medium tracking-[0.28em] text-[#b9c8ff]/80 entrance-3">
+            <h3 class="text-center text-[12px] md:text-[14px] leading-[1.4] font-medium tracking-[0.28em] text-[#c9d8ff] entrance-3">
                 (Developer Preview)
             </h3>
         </div>
 
         <!-- Mascot -->
-        <div class="relative z-10 h-[210px] md:h-[250px] my-[8px] float-anim entrance-2 shrink-0">
-            <svgicon icon="rocketman" width="194" height="242" :fill="false" :original="true"></svgicon>
+        <div class="relative z-10 h-[210px] md:h-[250px] my-[8px] entrance-2 shrink-0">
+            <Animation type="rocket" />
         </div>
 
         <!-- Footer block -->
         <div class="relative z-10 flex flex-col items-center gap-[12px] pb-[10px] entrance-4">
-            <p class="text-[15px] leading-[1.4] text-[#c7d6ff]">
+            <p class="text-[15px] leading-[1.4] text-[#d6e2ff]">
                 Launching soon
                 <span class="tracking-[0.1em]">{{ '...'.substr(0, index) }}</span>
             </p>
@@ -51,15 +53,16 @@
 <script>
 /* Import components. */
 import BlazeBanner from '@/components/BlazeBanner.vue'
+import { Animation } from '@/components'
 
 /* Import icons. */
 import '@/compiled-icons/carnival'
 import '@/compiled-icons/rocket'
-import '@/compiled-icons/rocketman'
 
 export default {
     components: {
         BlazeBanner,
+        Animation,
     },
     data: () => {
         return {
@@ -110,6 +113,9 @@ export default {
     left: -120px;
     top: 10%;
     background: radial-gradient(circle, #4cc3ff 0%, transparent 70%);
+    /* Opacity kept low: the glow sits BEHIND the hero text stack — at 0.35 it
+       lightened the effective background under the tagline to ~3.7:1. */
+    opacity: 0.2;
     animation: drift 9s ease-in-out infinite alternate;
 }
 
@@ -119,6 +125,7 @@ export default {
     right: -110px;
     bottom: 6%;
     background: radial-gradient(circle, #ffc555 0%, transparent 70%);
+    opacity: 0.2;
     animation: drift 11s ease-in-out infinite alternate-reverse;
 }
 
@@ -139,18 +146,9 @@ export default {
 .entrance-3 { animation: fadeUp 0.7s 0.24s cubic-bezier(0.2, 0.7, 0.2, 1) both; }
 .entrance-4 { animation: fadeUp 0.7s 0.36s cubic-bezier(0.2, 0.7, 0.2, 1) both; }
 
-.float-anim {
-    animation: float 5s ease-in-out infinite;
-}
-
 @keyframes fadeUp {
     from { opacity: 0; transform: translateY(14px); }
     to { opacity: 1; transform: translateY(0); }
-}
-
-@keyframes float {
-    0%, 100% { transform: translateY(0); }
-    50% { transform: translateY(-10px); }
 }
 
 @keyframes drift {

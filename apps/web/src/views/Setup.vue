@@ -12,7 +12,7 @@
             <!-- Onboarding card (dark surface: readable in light AND dark theme) -->
             <div class="w-full mt-[20px] rounded-2xl border border-white/10 shadow-[0_18px_50px_-12px_rgba(20,40,80,0.45)] p-[22px] md:p-[28px] entrance setup-card">
                 <div class="flex items-center gap-[12px]">
-                    <span class="inline-flex h-[38px] w-[38px] items-center justify-center rounded-full bg-secondary text-secondary-fg text-[20px] shrink-0">!</span>
+                    <span class="inline-flex h-[38px] w-[38px] items-center justify-center rounded-full bg-secondary text-[#4a3410] text-[20px] font-semibold shrink-0">!</span>
                     <h2 class="text-[22px] md:text-[24px] font-semibold text-white">Before you start</h2>
                 </div>
 
@@ -43,7 +43,7 @@
 
                     <button
                         @click="$router.push('connect')"
-                        class="text-[15px] text-[#4cc3ff] underline underline-offset-4 bg-transparent hover:text-white transition-colors"
+                        class="text-[15px] text-fg-link underline underline-offset-4 bg-transparent hover:text-white transition-colors"
                     >
                         …or connect an existing wallet (WizardConnect)
                     </button>

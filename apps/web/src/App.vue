@@ -187,16 +187,23 @@ body.dark {
 
     --bg: #eef1f3;
     --fg: #485776;
+    --fg-muted: #5a6a8a;
     --fg-hover: #2f5a94;
-    --fg-link: #4376e2;
+    /* Darkened from #4376e2: white-bg ratio measured 4.26:1 (needs 4.5). */
+    --fg-link: #3a68d9;
     --primary: #3569d7;
     --primary-fg: #fff;
     --primary-hover: #1454da;
     --secondary: #ffc555;
-    --secondary-fg: #fff;
+    /* Dark text on the amber surface: white-on-amber measured 1.57:1 (WCAG F).
+       Applies to both themes (the amber value is shared). */
+    --secondary-fg: #4a3410;
     --secondary-hover: #f3b336;
     --secondary-disabled: #ffdc98;
     --secondary-dark: #615640;
+    /* Text-grade warning (the --warning token doubles as a BUTTON background,
+       so its value cannot serve long text on dark --bg). */
+    --warning-text: #c03540;
     --trinary: #4cc3ff;
     --trinary-fg: #fff;
     --trinary-dark: #1f5571;
@@ -231,13 +238,18 @@ body.dark {
 .app.dark {
     --bg: #485776;
     --fg: #fff;
+    --fg-muted: #c9d2e4;
     --fg-hover: #e0e4ec;
     --fg-link: #a9c5ff;
-    --primary: #5377c2;
+    /* Darkened from #5377c2: white text on it measured 4.39:1 (Header,
+       primary buttons, Setup CTA). #3f61ad measures ~6.0:1. */
+    --primary: #3f61ad;
     --primary-fg: #fff;
     --primary-hover: #2a5abd;
     --secondary: #fec65a;
-    --secondary-fg: #fff;
+    /* Dark text on the amber surface (matches the light-theme fix: white
+       measured 1.56:1 on it). */
+    --secondary-fg: #4a3410;
     --secondary-dark: #615640;
     --secondary-hover: #f3b336;
     --trinary: #4cc3ff;
@@ -247,6 +259,8 @@ body.dark {
     --warning: #f76c5e;
     --warning-fg: #fff;
     --warning-hover: #f45444;
+    /* Light text-grade warning for dark --bg (#f76c5e as text measured 2.5:1). */
+    --warning-text: #ffbcae;
     --success: #67dab0;
     --input-bg: #627294;
     --input-border: #717e97;
@@ -298,7 +312,11 @@ body.dark {
     user-select: none;
     font-size: 14px;
     line-height: 19px;
-    overflow: hidden;
+    /* Vertical scroll lives INSIDE the app frame (html/body stay overflow
+       hidden): content taller than the frame (short phones, long lists) is
+       reachable instead of clipped. Horizontal stays contained. */
+    overflow: hidden auto;
+    -webkit-overflow-scrolling: touch;
     position: relative;
     box-shadow: 0px 20px 30px 5px rgba(0, 0, 0, 0.25);
 }

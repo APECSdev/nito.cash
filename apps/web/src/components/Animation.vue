@@ -36,6 +36,9 @@ export default {
             case 'pay-ok':
                 animationData = await import('./animations/pay-ok.json')
                 break
+            case 'rocket':
+                animationData = await import('./animations/rocket.json')
+                break
             default:
                 animationData = await import('./animations/president.json')
                 break

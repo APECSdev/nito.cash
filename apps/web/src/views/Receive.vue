@@ -4,11 +4,11 @@
             <QR :value="getAddress('BCH')" />
         </div>
 
-        <div class="text-[20px] font-semibold text-trinary text-center mt-[48px]">
+        <div class="text-[20px] font-semibold text-fg text-center mt-[48px]">
             {{displayAddress}}
         </div>
 
-        <div class="text-[13px] font-semibold text-secondary text-center mt-[16px]">
+        <div class="text-[13px] font-semibold text-muted text-center mt-[16px]">
             {{getAddress('BCH')}}
         </div>
 

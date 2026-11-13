@@ -25,6 +25,7 @@
     /* Surfaces / chrome */
     --color-bg: var(--bg);
     --color-fg: var(--fg);
+    --color-fg-muted: var(--fg-muted);
     --color-fg-hover: var(--fg-hover);
     --color-fg-link: var(--fg-link);
     --color-box-bg: var(--box-bg);
@@ -51,6 +52,7 @@
     --color-warning: var(--warning);
     --color-warning-fg: var(--warning-fg);
     --color-warning-hover: var(--warning-hover);
+    --color-warning-text: var(--warning-text);
     --color-success: var(--success);
 
     /* Inputs */
