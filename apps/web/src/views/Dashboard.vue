@@ -12,6 +12,8 @@
         />
 
         <div>
+            <BlazeBanner />
+
             <header class="text-right pt-[18px] px-[17px] pb-[16px]">
                 <button @click="loadSettings" class="cursor-pointer bg-transparent">
                     <svgicon icon="cog" width="24" height="24" :fill="false" :original="true"></svgicon>
@@ -67,7 +69,7 @@
 import { mapActions, mapGetters, mapState } from 'vuex'
 
 /* Import components. */
-import { Backup, Button, Footer, Import } from '@/components'
+import { BlazeBanner, Backup, Button, Footer, Import } from '@/components'
 
 /* Import icons. */
 import '@/compiled-icons/cog'
@@ -75,6 +77,7 @@ import '@/compiled-icons/fire'
 
 export default {
     components: {
+        BlazeBanner,
         Backup,
         Button,
         Footer,

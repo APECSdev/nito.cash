@@ -1,5 +1,7 @@
 <template>
     <main class="flex-1 flex flex-col justify-between items-center pt-[60px] px-0 pb-0 h-full short:pt-[40px]">
+        <BlazeBanner />
+
         <!-- <svgicon icon="carnival" width="172" height="172" :fill="false" :original="true"></svgicon> -->
 
         <svgicon icon="rocketman" width="256" height="256" :fill="false" :original="true"></svgicon>
@@ -31,13 +33,14 @@
 import { mapActions, mapGetters, mapState } from 'vuex'
 
 /* Import components. */
-import { Button, Footer } from '@/components'
+import { BlazeBanner, Button, Footer } from '@/components'
 
 /* Import icons. */
 import '@/compiled-icons/alarm'
 
 export default {
     components: {
+        BlazeBanner,
         Button,
         Footer,
     },

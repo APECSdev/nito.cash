@@ -1,5 +1,7 @@
 <template>
     <main class="flex justify-between flex-col items-center h-full bg-primary text-primary-fg pt-[66px] px-0 pb-[55px] [@media(max-height:560px)]:pt-[30px] [@media(max-height:560px)]:pb-[30px]">
+        <BlazeBanner />
+
         <svgicon icon="carnival" width="128" height="128" :fill="false" :original="true"></svgicon>
 
         <h1 class="text-center text-[28px] leading-[0px] font-semibold uppercase tracking-[0.4em]">
@@ -26,12 +28,18 @@
 </template>
 
 <script>
+/* Import components. */
+import BlazeBanner from '@/components/BlazeBanner.vue'
+
 /* Import icons. */
 import '@/compiled-icons/carnival'
 import '@/compiled-icons/rocket'
 import '@/compiled-icons/rocketman'
 
 export default {
+    components: {
+        BlazeBanner,
+    },
     data: () => {
         return {
             index: 0,

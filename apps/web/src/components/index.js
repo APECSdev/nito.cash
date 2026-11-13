@@ -1,5 +1,6 @@
 /* Import components. */
 import Animation from './Animation'
+import BlazeBanner from './BlazeBanner'
 import Button from './Button'
 import Footer from './Footer'
 import Header from './Header'
@@ -26,6 +27,7 @@ import Warning from './popups/Warning'
 /* Export components. */
 export {
     Animation,
+    BlazeBanner,
     Button,
     Footer,
     Header,
