@@ -11,10 +11,18 @@
             v-on:close-import="showImport = false"
         />
 
+        <WizardConnect
+            v-if="showWizardConnect"
+            @close-wizard-connect="showWizardConnect = false"
+        />
+
         <div>
             <BlazeBanner />
 
             <header class="text-right pt-[18px] px-[17px] pb-[16px]">
+                <button @click="showWizardConnect = true" class="cursor-pointer bg-transparent text-[12px] text-secondary underline mr-[12px] align-middle">
+                    Connect wallet
+                </button>
                 <button @click="loadSettings" class="cursor-pointer bg-transparent">
                     <svgicon icon="cog" width="24" height="24" :fill="false" :original="true"></svgicon>
                 </button>
@@ -69,7 +77,7 @@
 import { mapActions, mapGetters, mapState } from 'vuex'
 
 /* Import components. */
-import { BlazeBanner, Backup, Button, Footer, Import } from '@/components'
+import { BlazeBanner, Backup, Button, Footer, Import, WizardConnect } from '@/components'
 
 /* Import icons. */
 import '@/compiled-icons/cog'
@@ -82,12 +90,14 @@ export default {
         Button,
         Footer,
         Import,
+        WizardConnect,
     },
     data: () => {
         return {
             backupReminder: false,
             showBackup: false,
             showImport: false,
+            showWizardConnect: false,
             walletBalance: null,
         }
     },
@@ -148,6 +158,12 @@ export default {
     created: async function () {
         // FOR DEVELOPMENT PURPOSES ONLY
         console.log('DEBUG: ACCOUNTS', this.getAccounts)
+
+        /* Deep link: /dashboard?connect=1 opens the WizardConnect popup
+           (the old /connect route redirects here). */
+        if (this.$route.query.connect === '1') {
+            this.showWizardConnect = true
+        }
 
         /* Initialize balance display (values). */
         this.walletBalance = {

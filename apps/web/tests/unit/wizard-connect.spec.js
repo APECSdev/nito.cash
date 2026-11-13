@@ -1,4 +1,4 @@
-/* Unit tests for the WizardConnect payment surface (Connect.vue). */
+/* Unit tests for the WizardConnect payment popup. */
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { shallowMount } from '@vue/test-utils'
 
@@ -22,11 +22,12 @@ vi.mock('@paytaca/wizardconnect-vue', async () => {
             disconnect: vi.fn(),
             error: ref(undefined),
         }),
-        WizardConnectQRDialog: { name: 'WizardConnectQRDialog', template: '<div />' },
+        AlphanumericQRCode: { name: 'AlphanumericQRCode', template: '<div />' },
     }
 })
 
-import Connect from '@/views/Connect'
+import Popup from '@/components/popups/Popup'
+import WizardConnect from '@/components/popups/WizardConnect'
 
 /* Stub that renders the Button label like the real component does. */
 const ButtonStub = {
@@ -36,24 +37,27 @@ const ButtonStub = {
 }
 
 function mount() {
-    return shallowMount(Connect, {
+    return shallowMount(WizardConnect, {
         global: {
-            stubs: { Button: ButtonStub },
+            /* Un-stub Popup (the real one) so its slot renders — VTU v2 stubs
+               drop slot content by default (repo popup-spec convention). */
+            stubs: { Popup, Button: ButtonStub },
         },
     })
 }
 
-describe('Connect.vue', () => {
+describe('WizardConnect popup', () => {
     beforeEach(() => {
         wcState.v = 'idle'
     })
 
-    it('renders the connect surface with the QR flow entry (idle)', () => {
+    it('renders the connect surface with QR + paste-URI support (idle)', () => {
         const wrapper = mount()
 
         expect(wrapper.text()).toContain('Connect your wallet')
         expect(wrapper.text()).toContain('Connect Wallet')
         expect(wrapper.text()).toContain('WizardConnect-compatible')
+        expect(wrapper.text()).toContain('mainnet')
     })
 
     it('renders the payment form fields when connected', () => {

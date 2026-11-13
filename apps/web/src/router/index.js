@@ -9,8 +9,6 @@ import ConciergeSpendAdvanced from '@/views/Concierge/Spend/Advanced'
 
 import Dashboard from '@/views/Dashboard'
 
-import Connect from '@/views/Connect'
-
 import History from '@/views/History'
 
 import Receive from '@/views/Receive'
@@ -37,9 +35,10 @@ const routes = [{
     path: '/dashboard',
     component: Dashboard
 }, {
-    /* WizardConnect surface: judges connect their OWN wallet and pay from it. */
+    /* WizardConnect is a DASHBOARD MODAL, not a page; keep the old route
+       deep-linkable by redirecting with the auto-open query flag. */
     path: '/connect',
-    component: Connect
+    redirect: { path: '/dashboard', query: { connect: '1' } }
 }, {
     path: '/history',
     component: History

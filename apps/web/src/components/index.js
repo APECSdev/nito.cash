@@ -19,6 +19,7 @@ import Toggle from './inputs/Toggle'
 /* Popups */
 import Backup from './popups/Backup'
 import Concierge from './popups/Concierge'
+import WizardConnect from './popups/WizardConnect'
 import Help from './popups/Help'
 import Import from './popups/Import'
 import Transaction from './popups/Transaction'
@@ -48,4 +49,6 @@ export {
     Import,
     Transaction,
     Warning,
+
+    WizardConnect,
 }
