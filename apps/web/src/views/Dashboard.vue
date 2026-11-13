@@ -30,17 +30,17 @@
 
             <div class="block text-center mb-[40px]">
                 <h1 class="relative inline-block mt-0 mx-auto mb-[10px] text-[48px] leading-[40px] font-medium font-['Poppins',sans-serif]">
-                    {{walletBalance.value}}
-                    <small class="leading-[21px] font-medium text-[16px] absolute top-[2px] left-[calc(100%+3px)]">{{walletBalance.unit}}</small>
+                    {{walletBalance?.value}}
+                    <small class="leading-[21px] font-medium text-[16px] absolute top-[2px] left-[calc(100%+3px)]">{{walletBalance?.unit}}</small>
                 </h1>
 
-                <h2 class="leading-[21px] font-medium text-[20px] short:mb-[16px]">{{walletBalance.fiat}}</h2>
+                <h2 class="leading-[21px] font-medium text-[20px] short:mb-[16px]">{{walletBalance?.fiat}}</h2>
 
                 <div class="w-full max-w-[186px] mx-auto h-[3px] mt-[10px] mb-[10px] bg-[rgba(255,255,255,0.7)]" />
 
                 <h4 class="text-[14px] mb-[10px]">
                     <small>Cash Wallet</small>
-                    {{walletBalance.fiat}}
+                    {{walletBalance?.fiat}}
                 </h4>
 
                 <h4 class="text-[14px] mb-[10px]">
@@ -173,8 +173,15 @@ export default {
             fiat: 0
         }
 
-        /* Retrieve current (wallet) balance. */
-        this.walletBalance = await this.getBalance('BCH', 'USD')
+        /* Retrieve current (wallet) balance. NOTE: null pre-setup (no
+           accounts yet) — keep the zero-initialized display object so the
+           template never reads `.value` of null (the judge deep-link path
+           lands here before any wallet exists). */
+        const balance = await this.getBalance('BCH', 'USD')
+
+        if (balance) {
+            this.walletBalance = balance
+        }
     },
     mounted: function () {
         //
