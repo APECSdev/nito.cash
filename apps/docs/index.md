@@ -5,7 +5,7 @@ layout: home
 hero:
   name: Nito.cash
   text: Hush Your Money.
-  tagline: A Bitcoin Cash privacy wallet — and the first shielded pool for PayonUSD (PUSD) on BCH.
+  tagline: A Bitcoin Cash privacy wallet — and the first shielded pool for ParyonUSD (PUSD) on BCH.
   actions:
     - theme: brand
       text: Get Started

@@ -42,7 +42,7 @@ This is exactly the UX Milestone 1 targets (hold USD privately, pay out as neede
 
 | Axis | USDCx (Aleo) | PUSD (BCH mainnet) | Chipnet stand-in (our pool) |
 |------|--------------|--------------------|-----------------------------|
-| Backing | Circle USDC 1:1 | PayonUSD reserves | valueless test token |
+| Backing | Circle USDC 1:1 | ParyonUSD reserves | valueless test token |
 | Privacy | Aleo ZK (native) | none (transparent CashToken) | our Groth16 covenant pool |
 | Chain | Aleo | BCH | BCH Chipnet |
 | Maturity | Mainnet, live | Mainnet | PoC (TX-S1/T1/U1 proven) |

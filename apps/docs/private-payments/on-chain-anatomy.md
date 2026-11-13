@@ -177,6 +177,6 @@ meaningful size or fee reduction.
   Chipnet. The exact figure is arbitrary — chipnet tokens have no value.
 - **Mainnet** — the pool mints **zero**. It does not create PUSD; it shields *existing* PUSD
   (category `0x2469acc5afa4b10cb5b5c04afb89c3a3ffd61c5da9c01e26d00951cae2a02544`, issued by
-  PayonUSD). The pool is a privacy layer on top of an existing CashToken: users deposit PUSD they
+  ParyonUSD). The pool is a privacy layer on top of an existing CashToken: users deposit PUSD they
   already hold, and the pool's balance is simply the sum of deposits. The pool never holds PUSD's
   minting capability — that stays with the issuer.

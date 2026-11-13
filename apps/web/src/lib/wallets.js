@@ -37,7 +37,7 @@ export const WALLETS = [
         status: 'active',
         tagline: 'Shielded stablecoins — private sender, receiver & amount',
         assets: [
-            { symbol: 'PUSD', label: 'PayonUSD', status: 'active' },
+            { symbol: 'PUSD', label: 'ParyonUSD', status: 'active' },
         ],
     },
     {
@@ -48,7 +48,7 @@ export const WALLETS = [
         status: 'active',
         tagline: 'Transparent stablecoins — public on-chain',
         assets: [
-            { symbol: 'PUSD', label: 'PayonUSD', status: 'active' },
+            { symbol: 'PUSD', label: 'ParyonUSD', status: 'active' },
             { symbol: 'USDCx', label: 'USDC on Aleo', status: 'exploring' },
         ],
     },

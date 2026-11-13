@@ -18,7 +18,7 @@ A privacy-focused Bitcoin Cash (BCH) wallet and ZK proving stack, built for
 
 ## Nito Cash — Private Payments (flagship feature)
 
-The headline build for BCH Blaze 2026 is the **first shielded pool for PayonUSD
+The headline build for BCH Blaze 2026 is the **first shielded pool for ParyonUSD
 (PUSD) on BCH Chipnet** — sender, receiver, and amount are all masked. A BN254
 Groth16 zero-knowledge proof (split across 5 transaction inputs so it fits the BCH
 VM's cost limits) proves each note transition is valid, while a CashToken-aware

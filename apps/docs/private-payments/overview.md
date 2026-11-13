@@ -1,6 +1,6 @@
 # Private Payments — Overview
 
-**Nito Cash — Private Payments** is the first **shielded pool for PayonUSD (PUSD) on Bitcoin
+**Nito Cash — Private Payments** is the first **shielded pool for ParyonUSD (PUSD) on Bitcoin
 Cash**. It hides the **sender, receiver, and amount** of every transfer, using a zero-knowledge
 proof verified **directly on the BCH VM**.
 
