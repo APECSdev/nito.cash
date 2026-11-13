@@ -94,10 +94,12 @@ describe('external-wallet pay helpers', () => {
         const acctPriv = lib.deriveHdPath(lib.deriveHdPrivateNodeFromSeed(seed), "m/44'/145'/0'")
         const xpub = lib.encodeHdPublicKey({ version: 0x0488B21E, node: lib.deriveHdPublicNode(acctPriv) }).hdPublicKey
         const node = lib.decodeHdPublicKey(xpub).node
+        /* deriveChainAddress returns a PLAIN address string (Fulcrum requires it). */
         const a0 = deriveChainAddress(node, 0, 'bitcoincash').address
         const ref = lib.hdPublicKeyToP2pkhCashAddress({ hdPublicKey: xpub, addressIndex: 0, addressPrefix: 'bitcoincash' })
-        expect(a0.address).toBe(ref.address)
-        expect(a0.address.startsWith('bitcoincash:q')).toBe(true)
+        expect(typeof a0).toBe('string')
+        expect(a0).toBe(ref.address)
+        expect(a0.startsWith('bitcoincash:q')).toBe(true)
     })
 
     it('signedTxidFromHex — double sha256 reversed (known txid)', () => {
