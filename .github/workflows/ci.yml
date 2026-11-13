@@ -8,7 +8,7 @@
 #   2. deploy     — runs ONLY after build-test succeeds (on master). Uploads the
 #      pre-built, pre-tested `dist/` to Cloudflare Pages (`nitocash`) via Wrangler
 #      Direct Upload, plus the docs site (`nito-cash-docs`) and the static BLAZE
-#      submission page (`blaze-nito-cash`, served at blaze.nito.cash). Cloudflare
+#      submission page (`nitocash-blaze`, served at blaze.nito.cash). Cloudflare
 #      does NOT build from git — it only ever receives a tested artifact.
 #
 # Mirrors the "Build & Verify" steps in AGENTS.md.
@@ -128,7 +128,7 @@ jobs:
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: 38907316ed118886fa8035039f92056d
-          command: pages deploy blaze-dist --project-name=blaze-nito-cash
+          command: pages deploy blaze-dist --project-name=nitocash-blaze
 
       - name: Deploy docs to Cloudflare Pages (nito-cash-docs)
         uses: cloudflare/wrangler-action@v3

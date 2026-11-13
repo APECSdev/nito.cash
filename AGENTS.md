@@ -176,10 +176,13 @@ The **docs site** (`apps/docs`, VitePress) is deployed to Cloudflare Pages **`do
 `wrangler pages deploy apps/docs/.vitepress/dist --project-name=nito-cash-docs`. It is wired into the
 CI `deploy` job alongside the web wallet (or deployable manually from the apecsdev VM).
 
-The **BLAZE submission page** (`apps/blaze`, a single static `index.html`) is deployed the same
-Direct-Upload way to Pages project **`blaze-nito-cash`** (custom domain `blaze.nito.cash` — the
-domain binding is a one-time Cloudflare-dashboard step). It is wired into the CI `deploy` job
-alongside the web wallet and docs.
+The **BLAZE submission page** (`apps/blaze`, static `index.html` + mock `deck.html`) is deployed
+the same Direct-Upload way to Pages project **`nitocash-blaze`** (custom domain `blaze.nito.cash` —
+the domain binding is a one-time Cloudflare-dashboard step; the Pages domain API rejects `.cash`
+with "invalid TLD" and the apecsdev zone token lacks DNS:Edit, so it cannot be done via API).
+First deployed manually from the `apecsdev` VM on 2026-11-13 (project created via wrangler with
+`CLOUDFLARE_ACCOUNT_ID` set — the VM's zone-scoped token otherwise trips wrangler's /memberships
+preflight). It is wired into the CI `deploy` job alongside the web wallet and docs.
 
 ### Routes (apps/web/src/router/index.js)
 

@@ -3,7 +3,7 @@
 # @nito.cash/blaze — BCH BLAZE 2026 submission page
 
 The public submission page for the BCH Blaze 2026 hackathon, served at
-**`blaze.nito.cash`** (Cloudflare Pages project `blaze-nito-cash`).
+**`blaze.nito.cash`** (Cloudflare Pages project **`nitocash-blaze`**).
 
 - Static files, no build step, no dependencies, no external requests
   (inline CSS/JS only): `index.html` (landing) and `deck.html` — a **mock
@@ -19,28 +19,37 @@ The public submission page for the BCH Blaze 2026 hackathon, served at
   (`nito-cash-docs`). The `blaze.nito.cash` custom-domain binding on the
   Pages project is a one-time Cloudflare-dashboard step.
 
-## One-time project setup (required before the first CI deploy)
+## Project status (2026-11-13)
+
+- The `nitocash-blaze` Pages project was **created + first-deployed from the
+  `apecsdev` VM** (wrangler with `CLOUDFLARE_ACCOUNT_ID` set — the VM's
+  zone-scoped token otherwise trips wrangler's `/memberships` preflight).
+  Live at `https://nitocash-blaze.pages.dev`.
+- **Custom domain `blaze.nito.cash`: one dashboard step remains** (project →
+  Custom domains → Set up a custom domain). The Pages domain API rejects
+  `.cash` domains with "invalid TLD", and the apecsdev zone token lacks
+  DNS:Edit — so this cannot be done via API. Cloudflare then auto-creates
+  the CNAME + certificate for same-account zones.
+- CI deploys this project on every push to `master` (artifact `blaze-dist`,
+  `--project-name=nitocash-blaze`).
+
+## One-time setup notes (for other/new projects)
 
 CI's non-interactive wrangler does NOT auto-create missing Pages projects —
 it fails with `Project not found … [code: 8000007]` (this is what has been
 breaking the docs deploy since the `nito-cash-docs` project was deleted on
-or around 2026-10-27). Create the projects once, from a machine with
-Cloudflare auth:
+or around 2026-10-27 — it is still missing and needs re-creating):
 
 ```bash
 npx wrangler login
-npx wrangler pages project create blaze-nito-cash --production-branch=master
-npx wrangler pages project create nito-cash-docs   --production-branch=master   # if restoring docs
+npx wrangler pages project create nito-cash-docs --production-branch=master
 ```
 
 Then re-run the failed CI `deploy` job (Actions → ci → Re-run failed jobs) —
-no new push needed. Finally bind the custom domains (one-time, dashboard):
-project → **Custom domains** → Set up a custom domain → `blaze.nito.cash`
-(and `docs.nito.cash` for the docs project) — Cloudflare auto-adds the CNAME
-and certificate for same-account zones.
+no new push needed.
 
 Manual deploy (from a machine with Cloudflare auth):
 
 ```bash
-wrangler pages deploy apps/blaze --project-name=blaze-nito-cash
+wrangler pages deploy apps/blaze --project-name=nitocash-blaze
 ```
