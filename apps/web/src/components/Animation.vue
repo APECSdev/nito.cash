@@ -39,10 +39,19 @@ export default {
             case 'rocket':
                 animationData = await import('./animations/rocket.json')
                 break
+            case 'rocketman':
+                animationData = await import('./animations/rocketman.json')
+                break
             default:
                 animationData = await import('./animations/president.json')
                 break
         }
+
+        /* Unwrap the module namespace: Vite serves dynamic JSON imports as a
+           FROZEN namespace object; lottie-web mutates the data (e.g.
+           `data.assets = []`) and throws on the read-only proxy, dying before
+           any layer renders. The plain parsed object under `.default` is safe. */
+        animationData = animationData?.default ?? animationData
 
         /* Initialize DOM element that will contain the animation. */
         const container = document.getElementById('container')

@@ -28,9 +28,10 @@
             </h3>
         </div>
 
-        <!-- Mascot -->
-        <div class="relative z-10 h-[210px] md:h-[250px] my-[8px] entrance-2 shrink-0">
-            <Animation type="rocket" />
+        <!-- Mascot (wrapper sized to the 194:242 artwork aspect so the
+             Animation container, which has no intrinsic width, doesn't collapse) -->
+        <div class="relative z-10 h-[210px] w-[168px] md:h-[250px] md:w-[200px] my-[8px] entrance-2 shrink-0">
+            <Animation type="rocketman" />
         </div>
 
         <!-- Footer block -->
@@ -57,7 +58,6 @@ import { Animation } from '@/components'
 
 /* Import icons. */
 import '@/compiled-icons/carnival'
-import '@/compiled-icons/rocket'
 
 export default {
     components: {

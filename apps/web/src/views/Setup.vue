@@ -3,10 +3,10 @@
         <BlazeBanner />
 
         <div class="w-full max-w-[560px] flex-1 flex flex-col items-center justify-center px-[20px] py-[28px]">
-            <!-- Hero mark -->
-            <div class="relative">
+            <!-- Hero mark (animated Rocketman Lottie — same artwork as Splash) -->
+            <div class="relative h-[180px] w-[180px]">
                 <div class="absolute inset-0 rounded-full bg-[#4cc3ff]/20 blur-2xl" aria-hidden="true"></div>
-                <svgicon icon="rocketman" width="180" height="180" :fill="false" :original="true" class="relative"></svgicon>
+                <Animation type="rocketman" />
             </div>
 
             <!-- Onboarding card (dark surface: readable in light AND dark theme) -->
@@ -62,12 +62,13 @@ import { BlazeBanner, Button } from '@/components'
 
 /* Import icons. */
 import '@/compiled-icons/alarm'
-import '@/compiled-icons/rocketman'
+import Animation from '@/components/Animation.vue'
 
 export default {
     components: {
         BlazeBanner,
         Button,
+        Animation,
     },
     data: () => {
         return {
