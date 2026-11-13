@@ -22,10 +22,10 @@
    presentation link, the source-repo link, and a CashTokens address for
    EMBER2026 donations (Community Choice voting). */
 
-/* TODO(blaze): swap DECK_URL for the published Widget Factory deck copy on
-   Google Slides. The current target is the MOCK deck shipped on the BLAZE
-   page (apps/blaze/deck.html, served at blaze.nito.cash/deck). */
-const DECK_URL = 'https://blaze.nito.cash/deck'
+/* The official Widget Factory deck: the generated PDF (apps/blaze/deck.pdf,
+   printed from apps/blaze/deck-print.html via headless Chrome). The
+   interactive HTML deck remains at blaze.nito.cash/deck. */
+const DECK_URL = 'https://blaze.nito.cash/deck.pdf'
 
 /* Source repository (public). */
 const REPO_URL = 'https://github.com/APECSdev/nito.cash'

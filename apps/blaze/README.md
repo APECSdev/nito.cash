@@ -6,10 +6,17 @@ The public submission page for the BCH Blaze 2026 hackathon, served at
 **`blaze.nito.cash`** (Cloudflare Pages project **`nitocash-blaze`**).
 
 - Static files, no build step, no dependencies, no external requests
-  (inline CSS/JS only): `index.html` (landing) and `deck.html` — a **mock
-  Widget Factory deck** (7 slides, event-template structure) standing in
-  until the published Google Slides deck copy replaces it (then re-point
-  the Deck links in `BlazeBanner.vue` + `index.html`).
+  (inline CSS/JS only): `index.html` (landing), `deck.html` (interactive
+  7-slide deck), and **`deck.pdf` — the official Widget Factory deck**
+  (the Deck links in `BlazeBanner.vue` + `index.html` point here).
+- Regenerate the PDF after editing `deck-print.html`:
+
+  ```bash
+  cd apps/blaze
+  google-chrome --headless=new --disable-gpu --no-sandbox \
+    --print-to-pdf=deck.pdf --no-pdf-header-footer \
+    file://$PWD/deck-print.html
+  ```
 - Carries the three Mainnet-Track banner elements required by the event brief:
   the Widget Factory presentation link, the source-repo link, and the
   EMBER2026 CashTokens donation address (Community Choice voting), plus
