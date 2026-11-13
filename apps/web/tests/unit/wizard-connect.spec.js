@@ -1,4 +1,4 @@
-/* Unit tests for the WizardConnect payment popup. */
+/* Unit tests for the WizardConnect payment modal. */
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { shallowMount } from '@vue/test-utils'
 
@@ -26,28 +26,19 @@ vi.mock('@paytaca/wizardconnect-vue', async () => {
     }
 })
 
-import Popup from '@/components/popups/Popup'
 import WizardConnect from '@/components/popups/WizardConnect'
-
-/* Stub that renders the Button label like the real component does. */
-const ButtonStub = {
-    name: 'Button',
-    props: ['label', 'disabled'],
-    template: '<button :disabled="disabled">{{ label }}</button>',
-}
 
 function mount() {
     return shallowMount(WizardConnect, {
         props: { active: true },
         global: {
-            /* Un-stub Popup (the real one) so its slot renders — VTU v2 stubs
-               drop slot content by default (repo popup-spec convention). */
-            stubs: { Popup, Button: ButtonStub },
+            /* Render <Teleport> in place so wrapper.text() sees the content. */
+            stubs: { teleport: true },
         },
     })
 }
 
-describe('WizardConnect popup', () => {
+describe('WizardConnect modal', () => {
     beforeEach(() => {
         wcState.v = 'idle'
     })
@@ -65,7 +56,8 @@ describe('WizardConnect popup', () => {
         wcState.v = 'connected'
         const wrapper = mount()
 
-        expect(wrapper.text()).toContain('Connected wallet')
+        expect(wrapper.text()).toContain('mainnet')
+        expect(wrapper.text()).toContain('Wallet')
         expect(wrapper.find('#wc-recipient').exists()).toBe(true)
         expect(wrapper.find('#wc-amount').exists()).toBe(true)
         expect(wrapper.text()).toContain('Amount (BCH)')
