@@ -183,6 +183,16 @@ export default {
             this.$router.push('concierge')
         },
     },
+    watch: {
+        /* In-session deep links (dashboard → dashboard?connect=1) don't
+           re-run created(); watch the query so the modal always opens. */
+        '$route.query.connect': function (v) {
+            if (v === '1') {
+                console.log('[wizard] deep link (?connect=1) → opening modal')
+                this.showWizardConnect = true
+            }
+        },
+    },
     created: async function () {
         // FOR DEVELOPMENT PURPOSES ONLY
         console.log('DEBUG: ACCOUNTS', this.getAccounts)

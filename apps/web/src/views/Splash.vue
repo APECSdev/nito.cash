@@ -1,5 +1,5 @@
 <template>
-    <main class="relative flex justify-between flex-col items-center h-full bg-primary text-primary-fg px-0 pb-[55px] overflow-hidden">
+    <main class="relative flex flex-col items-center h-full bg-primary text-primary-fg px-0 pb-[36px] overflow-hidden">
         <BlazeBanner />
 
         <!-- Decorative background: soft radial glows (pure CSS, GPU-cheap). -->
@@ -7,37 +7,44 @@
         <div class="orb orb-b" aria-hidden="true"></div>
         <div class="grid-lines" aria-hidden="true"></div>
 
-        <div class="relative z-10 flex flex-col items-center entrance-1">
-            <svgicon icon="carnival" width="64" height="64" :fill="false" :original="true"></svgicon>
+        <!-- Hero block (real line-heights + explicit gaps: no collapsed boxes). -->
+        <div class="relative z-10 flex flex-col items-center gap-[16px] md:gap-[20px] pt-[5vh] flex-1 w-full">
+            <div class="entrance-1">
+                <svgicon icon="carnival" width="60" height="60" :fill="false" :original="true"></svgicon>
+            </div>
+
+            <h1 class="text-center text-[30px] md:text-[44px] leading-[1.15] font-semibold uppercase tracking-[0.32em] entrance-2">
+                Nito.cash
+            </h1>
+
+            <h2 class="text-center text-[15px] md:text-[18px] leading-[1.3] font-semibold tracking-[0.32em] text-[#9fd8ff] entrance-3">
+                Hush Your Money™
+            </h2>
+
+            <h3 class="text-center text-[12px] md:text-[14px] leading-[1.4] font-medium tracking-[0.28em] text-[#b9c8ff]/80 entrance-3">
+                (Developer Preview)
+            </h3>
         </div>
 
-        <h1 class="relative z-10 text-center text-[28px] leading-[0px] md:text-[40px] font-semibold uppercase tracking-[0.4em] entrance-2">
-            Nito.cash
-        </h1>
-
-        <h2 class="relative z-10 text-center text-[14px] leading-[0px] md:text-[16px] font-semibold tracking-[0.4em] text-[#9fd8ff] entrance-3">
-            Hush Your Money™
-        </h2>
-
-        <h3 class="relative z-10 text-center text-[12px] md:text-[14px] leading-[24px] font-medium tracking-[0.3em] text-[#b9c8ff]/80 entrance-3">
-            (Developer Preview)
-        </h3>
-
-        <div class="relative z-10 h-[242px] md:h-[280px] float-anim entrance-2">
+        <!-- Mascot -->
+        <div class="relative z-10 h-[210px] md:h-[250px] my-[8px] float-anim entrance-2 shrink-0">
             <svgicon icon="rocketman" width="194" height="242" :fill="false" :original="true"></svgicon>
         </div>
 
-        <p class="relative z-10 text-left w-[125px] text-[13px] text-[#c7d6ff] entrance-4">
-            Launching soon
-            <span class="tracking-[0.1em]">{{ '...'.substr(0, index) }}</span>
-        </p>
+        <!-- Footer block -->
+        <div class="relative z-10 flex flex-col items-center gap-[12px] pb-[10px] entrance-4">
+            <p class="text-[15px] leading-[1.4] text-[#c7d6ff]">
+                Launching soon
+                <span class="tracking-[0.1em]">{{ '...'.substr(0, index) }}</span>
+            </p>
 
-        <button
-            @click="$router.push('connect')"
-            class="relative z-10 text-[11px] text-[#9fd8ff] underline underline-offset-4 bg-transparent hover:text-white transition-colors entrance-4"
-        >
-            Connect an external wallet →
-        </button>
+            <button
+                @click="$router.push('connect')"
+                class="text-[14px] leading-[1.4] text-[#9fd8ff] underline underline-offset-4 bg-transparent hover:text-white transition-colors"
+            >
+                Connect an external wallet →
+            </button>
+        </div>
     </main>
 </template>
 
@@ -57,7 +64,8 @@ export default {
     data: () => {
         return {
             index: 0,
-            frame: 0
+            frame: 0,
+            redirectTimer: null,
         }
     },
     methods: {
