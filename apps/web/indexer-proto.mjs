@@ -30,7 +30,7 @@ function actionHash({ nf0, nf1, cm0, cm1, publicValueAbs, publicValueSign, asset
     return d.reduce((acc, b) => (acc << 8n) | BigInt(b), 0n)
 }
 
-const ws = new WebSocket('wss://chipnet.imaginary.cash:50004')
+const ws = new WebSocket('wss://chipnet.bch.ninja:50004') /* fallback: wss://chipnet.imaginary.cash:50004 */
 await new Promise((res, rej) => { ws.onopen = res; ws.onerror = rej })
 await rpc(ws, 0, 'server.version', ['indexer-proto', '1.5'])
 

@@ -55,7 +55,7 @@ const networks = {
         /* Minimum agreeing servers required to accept a response. */
         quorum: 2,
         /* CashToken categories tracked by the wallet (by symbol). Mainnet PUSD
-           (PayonUSD) is mainnet-only but not yet wired; add its category here. */
+           (ParyonUSD) is mainnet-only but not yet wired; add its category here. */
         tokens: {},
     },
 
@@ -69,9 +69,12 @@ const networks = {
         /* Public Chipnet faucet for funding test wallets. */
         faucet: 'https://chipnet.bch.ninja',
         /* Fulcrum WSS cluster (verified live). */
+        /* Default server: chipnet.bch.ninja (fulcrum + faucet host).
+           chipnet.imaginary.cash is the fallback (and hosts the chipnet
+           block explorer used by the docs links). */
         servers: [
-            { host: 'chipnet.imaginary.cash', port: 50004 },
             { host: 'chipnet.bch.ninja', port: 50004 },
+            { host: 'chipnet.imaginary.cash', port: 50004 },
         ],
         quorum: 2,
         /* CashToken categories tracked by the wallet (by symbol). The chipnet
