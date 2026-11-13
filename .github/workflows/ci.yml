@@ -123,7 +123,7 @@ jobs:
           name: blaze-dist
           path: blaze-dist
 
-      - name: Deploy BLAZE page to Cloudflare Pages (blaze-nito-cash)
+      - name: Deploy BLAZE page to Cloudflare Pages (nitocash-blaze)
         uses: cloudflare/wrangler-action@v3
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
