@@ -1,5 +1,6 @@
 # pnpm workspace for the Nito.cash monorepo.
-#   apps/web       — the Vue 2 SPA (Nito.cash wallet), deployed to Cloudflare Pages.
+#   apps/web       — the Vue 3 SPA (Nito.cash wallet), deployed to Cloudflare Pages.
+#   apps/blaze     — the BCH BLAZE 2026 submission page, deployed to Cloudflare Pages (blaze.nito.cash).
 #   workers/prover — the Halo 2 / Orchard ZK prover, deployed as a Cloudflare Worker.
 packages:
   - "apps/*"

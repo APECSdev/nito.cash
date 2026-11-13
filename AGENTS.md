@@ -110,13 +110,8 @@ apps/
     tests/unit/         Vitest unit tests (17 suites / 86 tests)
     vitest.config.js    Vitest config (jsdom, `@` alias, v8 coverage -> coverage/lcov.info)
     package.json  vite.config.js  vitest.config.js  eslint.config.js
-  docs/                 @nito.cash/docs — the documentation site (VitePress), deployed to
-                        Cloudflare Pages as `docs.nito.cash`. Sources live here:
-    .vitepress/         VitePress config (config.mjs) + theme
-    *.md                Doc pages (Markdown)
-    package.json        docs build/dev scripts (vitepress)
-  blaze/                @nito.cash/blaze — the BCH BLAZE 2026 submission page (single
-                        static index.html), deployed to Cloudflare Pages as `blaze.nito.cash`.
+  blaze/                @nito.cash/blaze — the BCH BLAZE 2026 submission page (static
+                        index.html + mock deck.html), deployed to Cloudflare Pages as `blaze.nito.cash`.
 workers/
   prover/               @nito.cash/prover — Halo 2 / Orchard ZK prover, a Cloudflare Worker
                         (Rust→WASM). Vendored from the Sansbank `wasm-prover` project (history
@@ -171,10 +166,9 @@ build config). Production domains `nito.cash` / `www.nito.cash`; deploy previews
 The **prover Worker** (`workers/prover`) is deployed separately/manually via the `apecsdev` VM
 (`pnpm run prover:deploy` = `bash scripts/deploy-prover.sh`), not by this CI workflow.
 
-The **docs site** (`apps/docs`, VitePress) is deployed to Cloudflare Pages **`docs.nito.cash`**
-(project `nito-cash-docs`) the same Direct-Upload way — `pnpm --filter @nito.cash/docs run build` →
-`wrangler pages deploy apps/docs/.vitepress/dist --project-name=nito-cash-docs`. It is wired into the
-CI `deploy` job alongside the web wallet (or deployable manually from the apecsdev VM).
+The **docs site** (`apps/docs`, VitePress, `docs.nito.cash`) was **DEPRECATED 2026-11-13** — the
+`nito-cash-docs` Pages project was deleted on the CF side and `apps/docs` was removed from the
+repo (content survives in git history); the docs build/deploy CI steps are gone.
 
 The **BLAZE submission page** (`apps/blaze`, static `index.html` + mock `deck.html`) is deployed
 the same Direct-Upload way to Pages project **`nitocash-blaze`** (custom domain `blaze.nito.cash` —

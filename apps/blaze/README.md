@@ -15,9 +15,9 @@ The public submission page for the BCH Blaze 2026 hackathon, served at
   EMBER2026 CashTokens donation address (Community Choice voting), plus
   verified on-chain chipnet evidence links.
 - Deployed by CI (`.github/workflows/ci.yml`, `deploy` job) via Wrangler
-  Direct Upload — same pattern as the web wallet (`nitocash`) and docs
-  (`nito-cash-docs`). The `blaze.nito.cash` custom-domain binding on the
-  Pages project is a one-time Cloudflare-dashboard step.
+  Direct Upload — same pattern as the web wallet (`nitocash`). The
+  `blaze.nito.cash` custom-domain binding on the Pages project is a one-time
+  Cloudflare-dashboard step.
 
 ## Project status (2026-11-13)
 
@@ -36,17 +36,10 @@ The public submission page for the BCH Blaze 2026 hackathon, served at
 ## One-time setup notes (for other/new projects)
 
 CI's non-interactive wrangler does NOT auto-create missing Pages projects —
-it fails with `Project not found … [code: 8000007]` (this is what has been
-breaking the docs deploy since the `nito-cash-docs` project was deleted on
-or around 2026-10-27 — it is still missing and needs re-creating):
-
-```bash
-npx wrangler login
-npx wrangler pages project create nito-cash-docs --production-branch=master
-```
-
-Then re-run the failed CI `deploy` job (Actions → ci → Re-run failed jobs) —
-no new push needed.
+it fails with `Project not found … [code: 8000007]`. (This bit the docs
+deploy: the `nito-cash-docs` project was deleted on the CF side and the docs
+site was DEPRECATED 2026-11-13 — `apps/docs` removed, CI docs steps removed;
+the docs content survives in git history.)
 
 Manual deploy (from a machine with Cloudflare auth):
 

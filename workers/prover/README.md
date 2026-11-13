@@ -1,15 +1,15 @@
-# Sansbank DAO — Shielded Prover Service (`wasm-prover`)
+<!-- workers/prover/README.md -->
 
-**Repository:** `sansbankdao/wasm-prover` (**PRIVATE**). Deployed as the
-Cloudflare Worker **`wasm-prover`** at **`https://prover.sansbank.dev`**.
+# Nito.cash — Shielded Prover Service (`@nito.cash/prover`)
 
-Extracted from `dashpoint-api/apps/prover` with history preserved. The old
-`dashpoint-prover` Worker was **retired**; this is the only prover.
+Part of the [`APECSdev/nito.cash`](https://github.com/APECSdev/nito.cash)
+monorepo (`workers/prover/`), vendored from the Sansbank `wasm-prover` project
+(git history intentionally dropped). Deployed as the Cloudflare Worker
+**`nito-prover`** at **`https://prover.nito.cash`**.
 
-This service is **DAO-wide**: it serves all of Sansbank DAO. It was NOT named
-`dashpoint-prover` for that reason. The name is wide; the interface is not — the
-ABI below is Dash/Orchard-specific, and it should only be generalized when a
-second real circuit needs it.
+The interface is narrower than the name — the ABI below is
+Dash/Orchard-specific, and it should only be generalized when a second real
+circuit needs it (see `AGENTS.md`).
 
 ## What this is
 
@@ -89,7 +89,8 @@ the Rust wallet directly. Both prove on-device with a real allocator and threads
 
 ## Where it runs: Cloudflare Workers, Workers Paid
 
-Deployed as **`wasm-prover`** → `https://prover.sansbank.dev`.
+Deployed as **`nito-prover`** → `https://prover.nito.cash` (a `custom_domain`
+route in the `nito.cash` zone; see `wrangler.jsonc`).
 Worker startup **13-16 ms**; upload **1.56 MiB** (617 KiB gzip).
 
 ### Measured in production, on real Cloudflare
@@ -139,6 +140,9 @@ Workers Free = **10 ms** CPU; Workers Paid = **5 min** CPU; memory **128 MB on b
 `limits.cpu_ms` accepts up to `300000` on Workers Paid.
 
 **Do not run this on the Workers Free plan.** Free gives 10 ms CPU.
+`wrangler.jsonc` currently ships with the `limits.cpu_ms = 300000` block
+**commented out** so deploys succeed on the current (Free) plan; restore it
+once the account is on Workers Paid (see the NOTE in `wrangler.jsonc`).
 
 ## Verification — the bundle passes consensus's own checks
 
@@ -280,7 +284,7 @@ Summary:
 ## Layout
 
 ```
-wasm-prover/
+workers/prover/
   Cargo.toml            Rust crate manifest (pins the orchard fork + features)
   package.json          wrangler scripts
   wrangler.jsonc        Worker config: custom domain, limits.cpu_ms, CompiledWasm rule

@@ -66,7 +66,7 @@ pass-through entirely (the covenant never validated that net-zero self-transfer,
 was removed), leaving the six pinned inputs plus one sats funding input. A SHIELD keeps
 one extra input (the token deposit being shielded), and an UNSHIELD keeps one extra
 output (the public payout). See
-[Reading a Pool Transaction](https://docs.nito.cash/private-payments/on-chain-anatomy).
+[CHIPNET.md — the on-chain build record](https://github.com/APECSdev/pusd-shielded-pool/blob/master/CHIPNET.md).
 
 ## Getting started
 
@@ -183,7 +183,6 @@ This is a pnpm **monorepo** with three packages:
 | Package             | Path             | What it is                                                          |
 | ------------------- | ---------------- | ------------------------------------------------------------------- |
 | `@nito.cash/web`    | `apps/web/`      | The Nito.cash wallet — a client-side Vue SPA, deployed to Cloudflare Pages. |
-| `@nito.cash/docs`   | `apps/docs/`     | VitePress documentation site, deployed to Cloudflare Pages as `docs.nito.cash`. |
 | `@nito.cash/prover` | `workers/prover/`| A Halo 2 / Orchard ZK prover (Rust → WASM), deployed as a Cloudflare Worker at `prover.nito.cash`. |
 
 **Related repo:** **[APECSdev/pusd-shielded-pool](https://github.com/APECSdev/pusd-shielded-pool)** — the

@@ -7,9 +7,9 @@
 #      artifact for the deploy job.
 #   2. deploy     — runs ONLY after build-test succeeds (on master). Uploads the
 #      pre-built, pre-tested `dist/` to Cloudflare Pages (`nitocash`) via Wrangler
-#      Direct Upload, plus the docs site (`nito-cash-docs`) and the static BLAZE
-#      submission page (`nitocash-blaze`, served at blaze.nito.cash). Cloudflare
-#      does NOT build from git — it only ever receives a tested artifact.
+#      Direct Upload, plus the static BLAZE submission page (`nitocash-blaze`,
+#      served at blaze.nito.cash). Cloudflare does NOT build from git — it only
+#      ever receives a tested artifact.
 #
 # Mirrors the "Build & Verify" steps in AGENTS.md.
 
@@ -57,9 +57,6 @@ jobs:
           files: apps/web/coverage/lcov.info
           fail_ci_if_error: true
 
-      - name: Build docs site
-        run: pnpm --filter @nito.cash/docs run build
-
       - name: Upload build artifact (dist)
         uses: actions/upload-artifact@v4
         with:
@@ -67,14 +64,6 @@ jobs:
           # The Vite production build emits to dist-vite/ (see apps/web/vite.config.js).
           path: apps/web/dist-vite
           # Only needed by the immediately-following deploy job in this run.
-          retention-days: 1
-
-      - name: Upload docs artifact (docs-dist)
-        uses: actions/upload-artifact@v4
-        with:
-          name: docs-dist
-          # VitePress build output (see apps/docs/.vitepress/config.mjs).
-          path: apps/docs/.vitepress/dist
           retention-days: 1
 
       - name: Upload blaze artifact (blaze-dist)
@@ -105,18 +94,9 @@ jobs:
           accountId: 38907316ed118886fa8035039f92056d
           command: pages deploy dist --project-name=nitocash
 
-      - name: Download docs artifact (docs-dist)
-        uses: actions/download-artifact@v4
-        with:
-          name: docs-dist
-          path: docs-dist
-
-      # BLAZE page deploys BEFORE docs so a docs-side problem can never block
-      # the hackathon submission page. (Note: the docs deploy has failed since
-      # 2026-10-27 — docs.nito.cash no longer resolves; the Pages project/
-      # domain appears to have been deleted and needs re-creating. The web
-      # (nitocash) deploy on the same token succeeds, so the token itself is
-      # healthy.)
+      # The docs site (nito-cash-docs / docs.nito.cash) was DEPRECATED 2026-11-13:
+      # the Pages project was deleted on the CF side and apps/docs was removed
+      # from the repo (content survives in git history). No docs steps below.
       - name: Download blaze artifact (blaze-dist)
         uses: actions/download-artifact@v4
         with:
@@ -130,9 +110,4 @@ jobs:
           accountId: 38907316ed118886fa8035039f92056d
           command: pages deploy blaze-dist --project-name=nitocash-blaze
 
-      - name: Deploy docs to Cloudflare Pages (nito-cash-docs)
-        uses: cloudflare/wrangler-action@v3
-        with:
-          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          accountId: 38907316ed118886fa8035039f92056d
-          command: pages deploy docs-dist --project-name=nito-cash-docs
+
