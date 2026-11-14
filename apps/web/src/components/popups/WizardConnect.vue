@@ -229,7 +229,6 @@ export default {
 
         /* In-session address counters (avoid reuse within one session; the
            wallet's own counter governs across sessions). */
-        let nextReceive = 0
         let nextChange = 0
 
         /* Straight to the QR: opening the modal immediately initiates the
@@ -245,6 +244,45 @@ export default {
                 wc.connect()
             }
         }, { immediate: true })
+
+        /* Scan BOTH shared chains (receive + change, indexes 0..SCAN_DEPTH-1)
+           for funded plain-BCH addresses. Wallets rotate their deposit/change
+           addresses, so the funds may sit at any index; the shared xpubs let
+           the dapp derive them all, and inputPaths carries each input's own
+           chain + address index so the wallet signs every input with its
+           matching key. Current Fulcrum wants a STRING token filter; older
+           builds take a boolean — try the string, fall back. */
+        const SCAN_DEPTH = 20
+        async function scanFundedUtxos(manager, cluster) {
+            const funded = []
+            for (const [pathName, childIndex] of [['receive', 0], ['change', 1]]) {
+                const node = resolveChainNode(manager, childIndex)
+                if (!node) continue
+                const candidates = []
+                for (let i = 0; i < SCAN_DEPTH; i++) {
+                    candidates.push({ pathName, addressIndex: i, ...deriveChainAddress(node, i, 'bitcoincash') })
+                }
+                const lists = await Promise.all(candidates.map(async (c) => {
+                    try {
+                        return await cluster.request('blockchain.address.listunspent', c.address, 'include_tokens')
+                    } catch (err) {
+                        if (/Invalid token filtering option/i.test(err?.message ?? '')) {
+                            return cluster.request('blockchain.address.listunspent', c.address, true)
+                        }
+                        return null
+                    }
+                }))
+                for (const [i, raw] of lists.entries()) {
+                    if (!raw) continue
+                    const arr = Array.isArray(raw) ? raw : (raw.outputs ?? raw.unspent ?? [])
+                    for (const u of arr) {
+                        if (u.token || !(u.value > 0)) continue
+                        funded.push({ ...u, pathName, addressIndex: candidates[i].addressIndex, address: candidates[i].address })
+                    }
+                }
+            }
+            return funded
+        }
 
         /* The @wizardconnect core disconnects the relay whenever the tab is
            HIDDEN (its own visibilitychange handler) — which kills the sign
@@ -279,11 +317,12 @@ export default {
                 /* Log path NAMES only (never keys) — one line, for diagnosis
                    of wallets that name their paths non-canonically. */
                 console.log('[wizardconnect] session paths:', (manager.getSessionPaths() || []).map((p) => p.name).join(', ') || '(none)')
-                const node = resolveChainNode(manager, 0)
-                if (node) {
-                    payFromAddress.value = deriveChainAddress(node, nextReceive, 'bitcoincash').address
+                const cluster = await getCluster('mainnet')
+                const funded = await scanFundedUtxos(manager, cluster)
+                if (funded.length) {
+                    payFromAddress.value = funded[0].address
                 } else {
-                    console.warn('[wizardconnect] no derivation-capable receive node yet')
+                    console.warn('[wizardconnect] no funded addresses on the shared chains yet')
                 }
             } catch (err) {
                 /* Non-fatal: the address resolves again on send. */
@@ -333,39 +372,27 @@ export default {
                 const recipientInfo = await parseRecipientAddress(recipient.value.trim())
                 const cluster = await getCluster('mainnet')
 
-                /* Derive the input source address (receive chain). */
-                const recvNode = resolveChainNode(manager, 0)
-                if (!recvNode) {
-                    throw new Error('Wallet receive-path data is unavailable — reconnect the wallet.')
+                /* Scan BOTH shared chains for funded plain-BCH addresses:
+                   wallets rotate their deposit/change addresses, so the funds
+                   may sit at any index (Paytaca/Cashonize both do). The shared
+                   xpubs let the dapp derive them all, and inputPaths carries
+                   each input's own chain + address index so the wallet signs
+                   every input with its matching key. */
+                const funded = await scanFundedUtxos(manager, cluster)
+                if (funded.length === 0) {
+                    throw new Error('No BCH UTXOs found on the connected wallet\u2019s shared chains (mainnet).')
                 }
-                const recvAddr = deriveChainAddress(recvNode, nextReceive, 'bitcoincash')
-                payFromAddress.value = recvAddr.address
-
-                /* Fetch UTXOs for the wallet's receive address (include tokens,
-                   then skip token-bearing ones — see CHIPNET.md caveat #1).
-                   Current Fulcrum/Electrum-Cash wants a STRING filter option
-                   ("include_tokens" | "exclude_tokens" | "tokens_only");
-                   older builds take a boolean — try the string, fall back. */
-                let raw
-                try {
-                    raw = await cluster.request('blockchain.address.listunspent', recvAddr.address, 'include_tokens')
-                } catch (err) {
-                    if (!/Invalid token filtering option/i.test(err?.message ?? '')) {
-                        throw err
-                    }
-                    raw = await cluster.request('blockchain.address.listunspent', recvAddr.address, true)
-                }
-                const list = Array.isArray(raw) ? raw : (raw.outputs ?? raw.unspent ?? [])
+                payFromAddress.value = funded[0].address
 
                 /* Two-pass fee: estimate with an assumed shape, then with the
                    real input/output counts. */
                 let feeSats = await fetchFeeSats(cluster, 2, 2)
-                let covered = selectCoins(list, amountSats + feeSats)
+                let covered = selectCoins(funded, amountSats + feeSats)
                 if (covered.chosen.length === 0) {
-                    throw new Error('No BCH UTXOs found on the connected wallet\u2019s address (mainnet).')
+                    throw new Error('No BCH UTXOs found on the connected wallet\u2019s shared chains (mainnet).')
                 }
                 feeSats = await fetchFeeSats(cluster, covered.chosen.length, 2)
-                covered = selectCoins(list, amountSats + feeSats)
+                covered = selectCoins(funded, amountSats + feeSats)
                 if (covered.sum < amountSats + feeSats) {
                     throw new Error('Not enough BCH in the connected wallet for this amount + fee.')
                 }
@@ -404,9 +431,11 @@ export default {
                     },
                     /* inputPaths[i] = [position of input i in the tx,
                        path name, address index] — the position must be
-                       per-entry (0, 1, 2, …); hardcoding 0 for every input
-                   fails Cashonize's unique-index refine. */
-                    inputPaths: covered.chosen.map((_, idx) => [idx, pickPathName(manager, 0), nextReceive]),
+                       per-entry (0, 1, 2, …) (Cashonize's unique-index
+                       refine), and each entry carries ITS input's own chain
+                       + address index (funds may sit on any scanned
+                       address, and rotated wallets keep them off index 0). */
+                    inputPaths: covered.chosen.map((u, idx) => [idx, u.pathName, u.addressIndex]),
                 }
 
                 let response
@@ -429,7 +458,6 @@ export default {
                    ({ signedTransaction } only). Same bytes ⇒ same txid. */
                 txid.value = response.signedTransactionHash ??
                     (response.signedTransaction ? signedTxidFromHex(response.signedTransaction) : undefined)
-                nextReceive += 1
                 if (built.change > 0n) {
                     nextChange += 1
                 }
