@@ -444,6 +444,54 @@ knob) were verified with a computed-style probe. **Still open:** App.vue's globa
 base rule (4 consumers: Amount, Address, Send, Spend) + `Amount.vue` + the views/popups — deferred to
 a dedicated follow-up that converts all consumers together.
 
+## BLAZE 2026 Submission — State (as of 2026-11-14)
+
+**Submitted to DoraHacks on 2026-11-14.** Judging 11-23→27, winners 11-28.
+Live artifacts verified at submission: nito.cash · blaze.nito.cash (+/deck,
+/deck.pdf) · nitocash-blaze.pages.dev. Full session history in
+`NOTES/blaze2026.md` (gitignored) — read it before touching WC code.
+
+**Shipped in the 2026-11-14 sessions (all pushed, CI green, prod verified):**
+- UI facelift batch: contrast overhaul (WCAG-audited, tokens `--fg-muted`/
+  `--warning-text`, dark `--primary` darkened), BlazeBanner → floating
+  bottom-right overlay (`.blaze-layer`, z-900, under modal), Splash →
+  animated Lottie rocketman (faithful SVG conversion via
+  `apps/web/scripts/convert-rocketman.mjs` — 0.64% pixel diff vs the
+  original SVG; Setup hero uses the same animation), `.app` scrollable
+  (vertical), deep-link QR fix (watch `immediate: true`).
+- **FIXED — every app Lottie was silently dead since the Vite migration**:
+  dynamic JSON imports hand lottie-web a frozen namespace; its data mutation
+  throws. `Animation.vue` unwraps `.default`.
+- Mainnet Fulcrum cluster = 3 verified-alive servers (imaginary.cash ×2,
+  blackie.c3-soft.com; dead bch.loping.net REMOVED; quorum 2-of-3).
+  `FulcrumCluster.request()` is self-healing: idempotent connect() sweep
+  before every dispatch + one full reconnect-retry (the electrum client does
+  NOT auto-connect on request).
+
+**WizardConnect (external-wallet payments) — dapp side COMPLETE & verified;
+blocked on the WALLET-SIDE signers.** The full flow works end-to-end except
+the final broadcast: connect ✓ → xpubs ✓ → address derivation ✓ → UTXO scan
+✓ (both chains, indexes 0–19 — wallets rotate deposit addresses) → fee ✓ →
+tx build ✓ → wire serialization ✓ (tx as HEX + sourceOutputs in the TAGGED
+extended-JSON form `<Uint8Array: 0x…>` / `<bigint: Nn>` — the zod schema
+also accepts bare hex, but Cashonize's signer parses with its OWN
+parseExtendedJson, which needs the tags) → published to relays ✓ → wallet
+signs ✓ → response matched ✓. The wallet's signature then FAILS consensus
+(NULLFAIL): **Cashonize AND Paytaca sign P2PKH inputs with 64-byte
+Schnorr-format signatures that verify under neither ECDSA nor Schnorr over
+any plausible preimage** (verified offline vs real chain data — see NOTES
+rounds 7–11 + the sigcheck/sigsweep scripts' methodology). This is a
+wallet-ecosystem bug, NOT a dapp bug. The user will contact wallet support
+the week of 2026-11-17; candidate fixes: upstream report (evidence pack
+ready in NOTES), Selene wallet, or a Paytaca/Cashonize fix.
+- Debug instrumentation is LIVE in the WC flow (funded-UTXO set, unsigned
+  hex, signed hex + hash console logs) — remove once the wallet signing is
+  fixed. Any new code reading a binding must sit BELOW its declaration (two
+  separate self-referential TDZ bugs bit this flow; both prod-only).
+- Next session (user's agenda): **review ALL screens and functions —
+  verify everything works as promised.** The visual-baseline harness + the
+  overlap auditor + the contrast auditor remain the QA gates.
+
 ## Conventions & Rules for Agents
 
 - **No guessing.** Verify every claim against the actual files; cite `path:line`. If a fact
