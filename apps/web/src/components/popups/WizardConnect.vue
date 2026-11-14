@@ -415,10 +415,11 @@ export default {
 
                 feeDisplay.value = `${Number(feeSats) / 1e8} BCH`
 
-                /* DEBUG: the funded set + the exact unsigned hex, so a failed
-                   broadcast can be diffed against the chain offline. */
+                /* DEBUG: the funded set, so a failed broadcast can be diffed
+                   against the chain offline. (The unsigned-tx-hex log lives
+                   AFTER the signRequest declaration — reading it before would
+                   be another self-referential TDZ.) */
                 console.log('[wizardconnect] funded UTXOs:', JSON.stringify(funded.map((u) => ({ pathName: u.pathName, addressIndex: u.addressIndex, txid: u.tx_hash, pos: u.tx_pos, sats: u.value }))))
-                console.log('[wizardconnect] unsigned tx hex:', signRequest.transaction.transaction)
                 const signRequest = {
                     transaction: {
                         /* Relay wire form: the tx as HEX + relay-shaped
@@ -441,6 +442,7 @@ export default {
                        address, and rotated wallets keep them off index 0). */
                     inputPaths: covered.chosen.map((u, idx) => [idx, u.pathName, u.addressIndex]),
                 }
+                console.log('[wizardconnect] unsigned tx hex:', signRequest.transaction.transaction)
 
                 let response
                 try {
