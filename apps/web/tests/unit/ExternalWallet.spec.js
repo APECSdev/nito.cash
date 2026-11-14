@@ -108,6 +108,7 @@ describe('external-wallet pay helpers', () => {
             outpointTransactionHash: new Uint8Array(32).fill(1),
             outpointIndex: 0,
             unlockingBytecode: new Uint8Array(0),
+            sequenceNumber: 4294967295,
             valueSatoshis: 100000n,
             lockingBytecode: new Uint8Array(25).fill(2),
         }
@@ -131,6 +132,10 @@ describe('external-wallet pay helpers', () => {
         const json = JSON.stringify(payload)
         expect(json).toContain('"<bigint: 100000n>"')
         expect(json).toContain('"broadcast":true')
+        /* Cashonize's zod schema: sequenceNumber REQUIRED on every source
+           output — sourceOutputToRelay must not drop it. */
+        expect(payload.transaction.sourceOutputs[0].sequenceNumber).toBe(4294967295)
+        expect(json).toContain('"sequenceNumber":4294967295')
         /* Round-trips as plain JSON without BigInt crashes. */
         expect(() => JSON.parse(json)).not.toThrow()
     })

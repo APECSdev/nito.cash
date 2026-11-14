@@ -138,6 +138,10 @@ export async function fetchSourceOutputs(cluster, utxos) {
             outpointTransactionHash: hexToBin(u.tx_hash),
             outpointIndex: u.tx_pos,
             unlockingBytecode: new Uint8Array(0),
+            /* Cashonize's schema REQUIRES sequenceNumber on every source
+               output (sourceOutputToRelay drops undefined); 0xffffffff is
+               the canonical default. */
+            sequenceNumber: 0xffffffff,
             /* libauth 3.x Output shape — valueSatoshis, NOT value (a `value`
                field decodes as undefined and explodes later in BigInt()). */
             valueSatoshis: source.valueSatoshis,
@@ -225,6 +229,7 @@ export function buildPaymentTransaction({ sourceOutputs, recipientLockingBytecod
         outpointTransactionHash: o.outpointTransactionHash,
         outpointIndex: o.outpointIndex,
         unlockingBytecode: new Uint8Array(0),
+        sequenceNumber: 0xffffffff,
     }))
 
     /* libauth 3.x Output shape: valueSatoshis (the wallet decodes the
