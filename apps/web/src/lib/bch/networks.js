@@ -45,12 +45,15 @@ const networks = {
            tx/address path scheme is confirmed when wiring the popup in F5). */
         explorerTx: 'https://chaingraph.cash/tx/',
         explorerAddress: 'https://chaingraph.cash/address/',
-        /* Fulcrum WSS cluster (verified live). */
+        /* Fulcrum WSS cluster — re-verified live over WSS (2026-11-14): the
+           three servers below answered server.version + headers.subscribe in
+           sync at height 977258. bch.loping.net was REMOVED (its WebSocket
+           handshake fails with 1006 — dead since at least 2026-11-14).
+           A quorum-2-of-3 cluster tolerates one dead server. */
         servers: [
             { host: 'bch.imaginary.cash', port: 50004 },
             { host: 'electrum.imaginary.cash', port: 50004 },
             { host: 'blackie.c3-soft.com', port: 50004 },
-            { host: 'bch.loping.net', port: 50004 },
         ],
         /* Minimum agreeing servers required to accept a response. */
         quorum: 2,
