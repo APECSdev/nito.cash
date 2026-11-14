@@ -47,4 +47,20 @@ describe('Button.vue', () => {
 
         expect(wrapper.classes()).toContain('disabled')
     })
+
+    /*
+     * REGRESSION (Vue 3): `click` must NOT be declared in `emits`. A declared
+     * emit is filtered out of attrs fallthrough, and this component never
+     * `$emit`s one — every parent handler (`@click.native` / `@click` at all
+     * the call sites) would silently never fire. With no `emits` entry the
+     * listener falls through onto the inner `<button>` (native click).
+     */
+    it('invokes a parent click listener via fallthrough', async () => {
+        const onClick = vi.fn()
+        const wrapper = shallowMount(Button, { attrs: { onClick } })
+
+        await wrapper.find('button').trigger('click')
+
+        expect(onClick).toHaveBeenCalledTimes(1)
+    })
 })

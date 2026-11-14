@@ -74,6 +74,7 @@ export default {
             addresses: [],
             history: [],
             historyItems: [],
+            marketPrice: null,
 
             selectedHash: null,
             showDetails: false,
@@ -85,6 +86,10 @@ export default {
         ...mapGetters('utils', [
             'getFormattedValue',
             'getUUID',
+        ]),
+
+        ...mapGetters('blockchain', [
+            'getTicker',
         ]),
 
         ...mapGetters('wallets', [
@@ -220,6 +225,14 @@ export default {
         },
     },
     created: async function () {
+        /* Retrieve the market price (the fiat column is calculated against
+           it; on failure the formatted fiat gracefully degrades to zero). */
+        try {
+            this.marketPrice = await this.getTicker('BCH', 'USD')
+        } catch (err) {
+            console.error(err) // eslint-disable-line no-console
+        }
+
         /* Update wallet history. */
         this.history = await this.getHistory
         // console.log('HISTORY', this.history)

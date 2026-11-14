@@ -72,7 +72,7 @@ export default {
         //
         // }
     },
-    beforeDestroy() {
+    beforeUnmount() {
         /* Cleanup animation. */
         if (this.animation) {
             this.animation.destroy()

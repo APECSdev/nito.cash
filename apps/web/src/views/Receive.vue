@@ -61,6 +61,11 @@ export default {
             let formatted = this.getAddress('BCH')
             // console.log('FORMATTED', formatted)
 
+            /* Handle pre-setup (no wallet address yet) gracefully. */
+            if (!formatted) {
+                return ''
+            }
+
             /* Handle `bitcoincash` prefix. */
             if (formatted.indexOf(':') !== -1) {
                 // formatted = formatted.split(':')[0] + '\n' + formatted.split(':')[1]
@@ -147,7 +152,7 @@ export default {
     mounted: function () {
         //
     },
-    beforeDestroy() {
+    beforeUnmount() {
         /* Wait 60 seconds, then close the real-time blockchain connection. */
         // setTimeout(() => {
             this.closeConn()

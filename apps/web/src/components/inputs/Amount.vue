@@ -24,7 +24,7 @@
                 :key="item"
                 class="block h-[36px] w-[75px] text-center text-[14px] first:rounded-t-[3px]"
                 :class="activeUnit === item ? 'active bg-dropdown-active' : 'bg-input-bg hover:bg-dropdown-hover'"
-                @click.prevent="selectedUnit = item">
+                @click.prevent="selectUnit(item)">
                 {{item}}
             </button>
         </nav>
@@ -140,13 +140,28 @@ export default {
             /* Emit to parent. */
             this.$emit('amount-update', _amount)
         },
+
+        /**
+         * Select Unit
+         *
+         * NOTE: The parent must know the unit the amount is entered in (the
+         *       send pipeline converts the amount to satoshis with it), so a
+         *       unit selection is emitted alongside the amount updates.
+         */
+        selectUnit(_unit) {
+            /* Update selected unit. */
+            this.selectedUnit = _unit
+
+            /* Emit to parent. */
+            this.$emit('unit-update', _unit)
+        },
     },
     created: async function () {
         /* Retrieve market value. */
         this.marketValue = await this.getTicker('BCH', 'USD')
         console.log('MARKET VALUE', this.marketValue)
     },
-    beforeDestroy() {
+    beforeUnmount() {
         /* Set flag. */
         // NOTE: This should be triggered on `clickOutside`.
         this.dropdown = false

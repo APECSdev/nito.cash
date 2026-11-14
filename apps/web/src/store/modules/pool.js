@@ -105,6 +105,20 @@ const actions = {
 
         commit('SET_NOTES', { notes: [] })
     },
+
+    /*
+     * Destroy ALL pool state (runtime notes, public leaves, the persisted
+     * ciphertext AND the derived seal key) — dispatched when the wallet
+     * itself is destroyed (Settings → Destroy), so a newly-created wallet
+     * starts with a clean pool instead of inheriting stale (undecryptable)
+     * leaves/ciphertext from the destroyed one.
+     */
+    resetPool({ commit }) {
+        /* Drop the (derived) seal key. */
+        _sealKey = null
+
+        commit('RESET_POOL')
+    },
 }
 
 /* Re-seal the runtime notes into the persisted ciphertext (no-op while locked). */
@@ -142,6 +156,17 @@ const mutations = {
 
     SET_SEALED(state, { sealed }) {
         state.sealed = sealed
+    },
+
+    RESET_POOL(state) {
+        /* Reset (runtime) notes. */
+        state.notes = []
+
+        /* Reset (public) leaves. */
+        state.leaves = []
+
+        /* Reset (persisted) ciphertext. */
+        state.sealed = null
     },
 }
 

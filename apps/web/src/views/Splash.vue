@@ -88,7 +88,7 @@ export default {
             this.$router.replace('setup')
         }, 3000)
     },
-    beforeDestroy() {
+    beforeUnmount() {
         /* Cleanup animation frame + redirect timer (the timer previously
            leaked past destroy and hijacked routes navigated away from Splash). */
         cancelAnimationFrame(this.frame)

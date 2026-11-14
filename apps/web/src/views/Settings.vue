@@ -35,7 +35,7 @@
                     <label class="inline">
                         <span>Dark mode</span>
                         <span>
-                            <Toggle :on="darkMode" />
+                            <Toggle :on="darkMode" @toggle="toggleDarkMode" />
                         </span>
                     </label>
 
@@ -156,6 +156,7 @@ export default {
         ]),
 
         ...mapGetters('profile', [
+            'getFlags',
             'getNetwork',
         ]),
 
@@ -206,6 +207,10 @@ export default {
             'displayNotification',
         ]),
 
+        ...mapActions('pool', [
+            'resetPool',
+        ]),
+
         ...mapActions('profile', [
             'destroyProfile',
             'initProfile',
@@ -250,6 +255,24 @@ export default {
         },
 
         /**
+         * Toggle Dark Mode
+         *
+         * NOTE: The flag is persisted in the profile flags (`f.dm`) and read
+         *       by the (global) `getDarkMode` getter, whose change the
+         *       `darkMode` computed applies to `document.body.classList`.
+         */
+        toggleDarkMode(_isDark) {
+            /* Retrieve (current) flags. */
+            const flags = this.getFlags || {}
+
+            /* Persist the (new) flags (preserving the other flags, eg. `ut`). */
+            this.$store.commit('profile/setFlags', {
+                ...flags,
+                dm: _isDark,
+            })
+        },
+
+        /**
          * Toggle Network (Mainnet <-> Chipnet)
          *
          * Persist the newly-selected network, then reload the app so that ALL
@@ -290,6 +313,10 @@ export default {
 
                 /* Request (total) wallet destruction. */
                 this.destroyWallet()
+
+                /* Request (total) shielded-pool destruction (the runtime
+                   notes, the public leaves AND the persisted ciphertext). */
+                this.resetPool()
 
                 /* Set flag. */
                 this.showWarning = false

@@ -7,12 +7,16 @@
 <script>
 export default {
     /*
-     * NOTE (Vue 3): `.native` was removed. Parent templates listen with
-     *       `@click.native="..."` / `@click="..."`; declaring `click` here lets
-     *       Vue 3 treat it as fallthrough onto the inner `<button>`, so those
-     *       handlers keep firing without touching every call site.
+     * NOTE (Vue 3): the compiler strips the `.native` modifier, so every
+     *       parent handler (`@click.native="..."` / `@click="..."`) arrives as
+     *       a plain `onClick` prop. `click` must therefore NOT be declared in
+     *       `emits`: a declared emit is filtered OUT of attrs fallthrough, and
+     *       this component never `$emit`s one — every call site's handler
+     *       would silently never fire (verified empirically on vue 3.5.43).
+     *       With no `emits` entry, the listener falls through onto the inner
+     *       `<button>` and fires as a native click, keeping all call sites
+     *       unchanged.
      */
-    emits: ['click'],
 
     props: {
         label: String,

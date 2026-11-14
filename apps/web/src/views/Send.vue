@@ -62,6 +62,7 @@
                             <Amount
                                 :amount="amount"
                                 v-on:amount-update="updateAmount"
+                                v-on:unit-update="updateUnit"
                                 :unit="unit"
                             />
 
@@ -170,6 +171,43 @@ export default {
             'getBalance',
         ]),
 
+        /*
+         * Current Balance
+         *
+         * The wallet balance expressed in the SELECTED (input) unit, compared
+         * against the entered amount by the insufficient-funds guard in
+         * `onSend`. The balance arrives formatted (`value` scaled to its own
+         * display unit), so both legs convert through satoshis using the same
+         * multipliers the send pipeline applies. An unknown unit maps to
+         * zero, which blocks the send until a valid unit is selected.
+         */
+        currentBalance: function () {
+            /* Unit multipliers (to satoshis) — mirrors the store conversion. */
+            const multipliers = {
+                SATS: 1,
+                SATOSHIS: 1,
+                BITS: Math.pow(10, 2),
+                MBCH: Math.pow(10, 5),
+                BCH: Math.pow(10, 8),
+            }
+
+            /* Balance (display) unit + multiplier. */
+            const balanceUnit = ((this.walletBalance && this.walletBalance.unit) || '').toUpperCase()
+            const balanceMultiplier = multipliers[balanceUnit] || 0
+
+            /* Amount (input) unit + multiplier. */
+            const amountUnit = (this.unit || '').toUpperCase()
+            const amountMultiplier = multipliers[amountUnit] || 0
+
+            /* Validate units. */
+            if (!balanceMultiplier || !amountMultiplier) {
+                return 0
+            }
+
+            /* Convert (displayed balance -> satoshis) -> (input unit). */
+            return ((this.walletBalance.value || 0) * balanceMultiplier) / amountMultiplier
+        },
+
     },
     methods: {
         ...mapActions([
@@ -252,11 +290,31 @@ export default {
                 return this.displayError('Insufficient funds')
             }
 
-            /* Send crypto. */
+            /* Show the processing state while the transaction is built +
+               signed + broadcast. */
+            this.sendState = 'sending'
+
+            /* Send crypto. The action resolves once the broadcast settles
+               (and rejects after it has warned the user), so this drives the
+               'sending' -> 'done' / 'idle' (send) states. */
             this.sendCrypto({
                 receiver: this.receiver,
                 amount: this.amount,
                 unit: this.unit,
+            }).then(() => {
+                /* Payment complete (pay-ok animation + OK button). */
+                this.sendState = 'done'
+            }, (_error) => {
+                /* Failure (broadcast errors were already warned by the
+                   store; pre-broadcast failures were not) — reset. */
+                this.sendState = 'idle'
+
+                console.error(_error) // eslint-disable-line no-console
+            }).catch((_error) => {
+                /* Safety net (errors thrown inside the handlers above). */
+                this.sendState = 'idle'
+
+                console.error(_error) // eslint-disable-line no-console
             })
         },
 
@@ -282,6 +340,16 @@ export default {
 
             /* Update amount. */
             this.amount = _amount
+        },
+
+        /**
+         * Update Unit
+         */
+        updateUnit(_unit) {
+            // console.log('UPDATING UNIT', _unit)
+
+            /* Update unit. */
+            this.unit = _unit
         },
 
         setReceiver(_result) {
@@ -387,8 +455,14 @@ export default {
             fiat: 0
         }
 
-        /* Retrieve current (wallet) balance. */
-        this.walletBalance = await this.getBalance('BCH', 'USD')
+        /* Retrieve current (wallet) balance. NOTE: null pre-setup (no
+           accounts yet) — keep the zero-initialized display object so the
+           template never reads `.rounded` of null (mirrors Dashboard). */
+        const balance = await this.getBalance('BCH', 'USD')
+
+        if (balance) {
+            this.walletBalance = balance
+        }
     },
     mounted: function () {
         /* Initialize send state. */
@@ -411,7 +485,7 @@ export default {
             this.startScanner()
         }
     },
-    beforeDestroy() {
+    beforeUnmount() {
         /* Cleanup camera. */
         if (this.camera) {
             this.camera.stop()

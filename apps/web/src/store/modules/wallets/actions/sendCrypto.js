@@ -1,5 +1,6 @@
 /* Import crypto helpers (local tx build + Schnorr sign). */
 import {
+    addressToLockingBytecode,
     buildTransaction,
     encodeTransactionToHex,
     estimateByteCount,
@@ -21,12 +22,38 @@ const sendCrypto = async ({ dispatch, getters, rootGetters }, _params) => {
     const receiver = _params.receiver
     // console.log('RECEIVER (address)', receiver)
 
+    /* Validate (receiver) address. NOTE: libauth's CashAddress utilities
+       return an error STRING (not a throw) on invalid input, and an
+       unparseable value can also throw — either way the address must be
+       rejected BEFORE it reaches the (unsigned) transaction (previously an
+       invalid address failed silently, mid-send). */
+    let receiverValid = false
+
+    try {
+        receiverValid = !!addressToLockingBytecode(receiver)
+    } catch (err) {
+        receiverValid = false
+    }
+
+    /* Validate receiver. */
+    if (!receiverValid) {
+        /* Set error message. */
+        const error = new Error('Invalid receiver address.')
+
+        /* Warn user. */
+        dispatch('displayError', error, { root: true })
+
+        /* Stop (send) execution. */
+        return
+    }
+
     /* Set send amount. */
     const amount = parseFloat(_params.amount)
     // console.log('AMOUNT (raw)', amount)
 
-    /* Set unit. */
-    const unit = _params.unit
+    /* Set unit (normalized: the UI emits mixed-case units, the conversion
+       table below is uppercase). */
+    const unit = String(_params.unit || '').toUpperCase()
     // console.log('UNIT', unit)
 
     /* Initialize has (a) change (output). */
@@ -122,6 +149,18 @@ const sendCrypto = async ({ dispatch, getters, rootGetters }, _params) => {
         break
     }
 
+    /* Validate (the unit conversion produced) a send amount. */
+    if (!sendAmount) {
+        /* Set error message. */
+        const error = new Error('Unsupported amount unit: ' + unit + '.')
+
+        /* Warn user. */
+        dispatch('displayError', error, { root: true })
+
+        /* Stop (send) execution. */
+        return
+    }
+
     /* Initialize byte count. */
     // FIXME: Calculate the CORRECT byte count.
     let byteCount = 226 // TEMP: This is the size of a "standard" transaction
@@ -142,19 +181,37 @@ const sendCrypto = async ({ dispatch, getters, rootGetters }, _params) => {
     //  the transaction; here we track — and later sign — only those added.)
     const addedInputs = []
 
-    /* Process (available) inputs. */
-    availableInputs.forEach(input => {
-        if (inputsTotal < txAmount) {
-            /* Add input. */
-            addedInputs.push(input)
+    /* Process (available) inputs.
+       NOTE: The (network) fee depends on the FINAL input/output counts, so
+       selection re-validates as inputs are added: the byte count (and the
+       transaction amount) is recalculated after every input, pulling more
+       (available) inputs until the amount + fee is covered. (The original
+       selection ran against the initial hardcoded byte estimate, which could
+       leave the recomputed fee uncovered.) The estimate conservatively
+       assumes a change output (2 outputs); the final re-calculation below
+       uses the actual output count. */
+    let selectionIndex = 0
 
-            /* Add satoshis to total. */
-            inputsTotal += input.satoshis
+    while (selectionIndex < availableInputs.length && inputsTotal < txAmount) {
+        /* Add input. */
+        const input = availableInputs[selectionIndex]
+        addedInputs.push(input)
 
-            /* Increment inputs count. */
-            inputsCount++
-        }
-    })
+        /* Add satoshis to total. */
+        inputsTotal += input.satoshis
+
+        /* Increment inputs count. */
+        inputsCount++
+
+        /* Advance (selection) index. */
+        selectionIndex++
+
+        /* Recalculate byte count (with the growing input count). */
+        byteCount = estimateByteCount(inputsCount, 2)
+
+        /* Set transaction amount. */
+        txAmount = sendAmount + byteCount
+    }
 
     /* Validate tx amount. */
     if (inputsTotal < txAmount) {
@@ -241,7 +298,10 @@ const sendCrypto = async ({ dispatch, getters, rootGetters }, _params) => {
     // console.log('RAW (signed tx)', rawTx)
 
     /* Broadcast the (signed) transaction. */
-    cluster.broadcast(rawTx).then((result) => {
+    // NOTE: The broadcast promise is RETURNED so the caller (eg. the Send
+    //       view) can drive its (send) state machine; every failure path
+    //       warns the user first, then re-throws for the caller.
+    return cluster.broadcast(rawTx).then((result) => {
         console.log('TX RESULT', result) // eslint-disable-line no-console
 
         /* Update accounts (pool). */
@@ -266,21 +326,21 @@ const sendCrypto = async ({ dispatch, getters, rootGetters }, _params) => {
         console.log('TX ERROR', _error) // eslint-disable-line no-console
 
         /* Validate (insufficient fee) error. */
-        if (_error.message.indexOf('insufficient priority') !== -1) {
-            /* Set error message. */
-            const error = new Error('Transaction rejected due to low network fees. ' +
+        if ((_error.message || '').indexOf('insufficient priority') !== -1) {
+            /* Replace with a friendlier error message. */
+            _error = new Error('Transaction rejected due to low network fees. ' +
                 'Please reduce the send amount.')
-            // console.error(error) // eslint-disable-line no-console
-
-            /* Warn user. */
-            dispatch('displayError', error, { root: true })
-        } else {
-            /* Warn user. */
-            dispatch('displayError', _error, { root: true })
         }
+
+        /* Propagate the failure (the trailing catch warns the user + rejects
+           so the caller can reset its UI state). */
+        throw _error
     }).catch((_error) => {
         /* Warn user. */
         dispatch('displayError', _error, { root: true })
+
+        /* Propagate the failure (callers reset their UI state on rejection). */
+        throw _error
     })
 }
 

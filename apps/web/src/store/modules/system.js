@@ -58,8 +58,20 @@ const state = {
 
 /* Getters. */
 const getters = {
-    getDarkMode(state) {
-        return state.dm
+    /*
+     * Get Dark Mode
+     *
+     * NOTE: The dark-mode flag lives in the (persisted) PROFILE flags
+     *       (`profile.f.dm` — set via Settings' toggle and initProfile's
+     *       defaults); the system module never had a `dm` field, so the
+     *       previous `state.dm` read always returned `undefined`.
+     */
+    getDarkMode(state, getters, rootState, rootGetters) {
+        /* Retrieve (profile) flags. */
+        const flags = rootGetters['profile/getFlags']
+
+        /* Return (dark-mode) flag. */
+        return !!(flags && flags.dm)
     },
 }
 
