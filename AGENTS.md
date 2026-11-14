@@ -484,13 +484,65 @@ rounds 7–11 + the sigcheck/sigsweep scripts' methodology). This is a
 wallet-ecosystem bug, NOT a dapp bug. The user will contact wallet support
 the week of 2026-11-17; candidate fixes: upstream report (evidence pack
 ready in NOTES), Selene wallet, or a Paytaca/Cashonize fix.
+
+**CORRECTION (2026-11-15, session 20): the round-16 root-cause statement
+("P2PKH consensus requires ECDSA/DER") is WRONG.** Schnorr signatures ARE
+consensus-valid in plain OP_CHECKSIG on BCH (enabled by the 2019-05
+upgrade; still in the current VMs — libauth CHANGELOG:255 +
+`instruction-sets/common/crypto.js` opCheckSig's 64-byte branch, used by
+bch-2023 and inherited by bch-2025). Verified empirically: the app's OWN
+signer (`crypto.js` signP2pkhInput, Schnorr + SIGHASH_ALL|FORKID) verified
+TRUE in `createVirtualMachineBCH2023(true)` (vm.verify = true) — so the
+"proven on-chain via a live chipnet broadcast" AGENTS claim is consistent.
+Consequence: the Cashonize/Paytaca NULLFAIL must be a PREIMAGE/CONTEXT
+mismatch (the wallet signs bytes that differ from the broadcast tx's
+sighash preimage), not an invalid algorithm. Before filing the upstream
+report, field-diff the wallet's returned signedTransaction hex against the
+dapp's unsigned bytes (inputs order/count/sequence, locktime, version,
+values) — the sigcheck/sigsweep methodology already covers this.
+
+## Screen/function review COMPLETE (2026-11-15, session 20) — P0/P1 fixed + verified
+
+Full review found the app silently bricked since the Vue 3 migration:
+- **ALL `<Button>` clicks were dead** (commit 3914c66): `emits: ['click']`
+  declared but never emitted → filtered from attrs fallthrough → all 34
+  call sites inert (incl. Setup's create-wallet). Removed + regression test.
+- **Vue 3 ignores `beforeDestroy`** (5 files): Splash's 3s timer hijacked
+  routes after in-app navigation (the old "modal invisible" race), Send's
+  camera and Receive's Fulcrum subscriptions never cleaned up → renamed
+  `beforeUnmount` everywhere.
+- **Send was dead beyond the buttons**: lowercase `unit: 'bits'` never
+  matched sendCrypto's uppercase table (every send → "Send amount is too
+  small"); the Amount unit dropdown never propagated; `currentBalance`
+  guard referenced a nonexistent computed; `sendState` was never driven
+  (spinner/done unreachable); invalid receiver failed silently mid-send;
+  the fee FIXME (selection vs recomputed fee) was honored.
+- History fiat was $0.00 for every tx (marketPrice never fetched); dark
+  mode was unreachable (toggle had no handler AND getDarkMode read a
+  nonexistent `system.state.dm` — now persisted in `profile.f.dm`);
+  destroy() leaked pool.sealed/leaves (now reset via pool/resetPool).
+- Verified: apecsdev VM — 129/129 tests + clean vite build + bundle lacks
+  the emits declaration; blackhost VPS — headless-Chrome click-through
+  (splash → create wallet → switcher → dashboard → send → dark-mode toggle
+  → receive → WC deep-link modal; zero functional pageerrors). Commit
+  `160e850` (not yet pushed at session end — push auto-deploys to prod).
+- Remaining (review P2 list): Concierge Lobby/Earn/Spend are legacy
+  placeholders (Earn has an uncleared setInterval; Spend's paste flow
+  references a nonexistent showConcierge); Transaction.vue explorer link
+  still explorer.bitcoin.com; Popup/Transaction global `document.onkeydown`
+  clobbering; dead actions activateAccounts/activateInputs (throw if ever
+  dispatched); Setup `?scan=` → nonexistent 'pay' route; Settings currency
+  selector + notifications toggle + SeedVault backup are inert (no backup
+  path exists anywhere in the app — product decision needed); WC debug
+  instrumentation still live. AGENTS.md route list missing `/connect`
+  redirect + `/wallets/:walletId?` (Wallet.vue) — docs only.
 - Debug instrumentation is LIVE in the WC flow (funded-UTXO set, unsigned
   hex, signed hex + hash console logs) — remove once the wallet signing is
   fixed. Any new code reading a binding must sit BELOW its declaration (two
   separate self-referential TDZ bugs bit this flow; both prod-only).
-- Next session (user's agenda): **review ALL screens and functions —
-  verify everything works as promised.** The visual-baseline harness + the
-  overlap auditor + the contrast auditor remain the QA gates.
+- The screen/function review agenda is COMPLETE (see the section above);
+  the visual-baseline harness + the overlap auditor + the contrast auditor
+  remain the QA gates for future UI work.
 
 ## Conventions & Rules for Agents
 
