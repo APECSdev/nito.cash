@@ -75,17 +75,36 @@ export class FulcrumCluster {
         this._connected = false
     }
 
-    /**
-     * Broadcast a request to every server and return the first result backed
-     * by at least `quorum` identical responses. Rejects if no quorum agrees.
-     */
-    async request(method, ...params) {
-        const settled = await Promise.allSettled(this.clients.map(async (client) => {
+    /* Per-client dispatch; ElectrumClient resolves with `Error | result`,
+       normalized to a throw. */
+    async _dispatch(method, params) {
+        return Promise.allSettled(this.clients.map(async (client) => {
             const result = await client.request(method, ...params)
-            /* ElectrumClient resolves with `Error | result`; normalize to a throw. */
             if (result instanceof Error) throw result
             return result
         }))
+    }
+
+    /**
+     * Broadcast a request to every server and return the first result backed
+     * by at least `quorum` identical responses. Rejects if no quorum agrees.
+     *
+     * Self-healing: sockets drop when the tab is backgrounded (the electrum
+     * client does NOT auto-connect on request — it throws "Unable to send
+     * request to a disconnected server"), so every dispatch is preceded by an
+     * idempotent `connect()` sweep, and a request where NOTHING answered gets
+     * one full reconnect-and-retry before failing.
+     */
+    async request(method, ...params) {
+        await Promise.allSettled(this.clients.map((client) => client.connect()))
+
+        let settled = await this._dispatch(method, params)
+
+        const fulfilledCount = () => settled.filter((s) => s.status === 'fulfilled').length
+        if (fulfilledCount() === 0) {
+            await Promise.allSettled(this.clients.map((client) => client.connect()))
+            settled = await this._dispatch(method, params)
+        }
 
         /* Tally identical (serialized) results across servers; keep server errors. */
         const tally = new Map()
