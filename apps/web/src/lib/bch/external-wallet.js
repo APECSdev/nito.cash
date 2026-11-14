@@ -206,6 +206,28 @@ export async function parseRecipientAddress(address, prefix = 'bitcoincash') {
     return { lockingBytecode: lock.bytecode, type: decoded.type }
 }
 
+/* Cashonize's signer parses the request with its OWN extended-JSON decoder
+   (parseExtendedJson), which only recognizes TAGGED strings:
+   `<Uint8Array: 0x<hex>>` for byte fields and `<bigint: Nn>` for values.
+   Bare hex strings survive its parse as plain strings, so the signature gets
+   computed over string-as-bytes → CHECKSIG fails at the node →
+   "Signature must be zero for failed CHECK(MULTI)SIG operation" (NULLFAIL).
+   The wire form therefore tags every byte field. */
+export function bytesToWire(value) {
+    return `<Uint8Array: 0x${binToHex(value)}>`
+}
+
+export function sourceOutputToWire(so) {
+    return {
+        outpointTransactionHash: bytesToWire(so.outpointTransactionHash),
+        outpointIndex: so.outpointIndex,
+        unlockingBytecode: bytesToWire(so.unlockingBytecode),
+        sequenceNumber: so.sequenceNumber,
+        valueSatoshis: `<bigint: ${so.valueSatoshis}n>`,
+        lockingBytecode: bytesToWire(so.lockingBytecode),
+    }
+}
+
 /* txid of a SIGNED transaction hex (double SHA-256, byte-reversed) — used
    when a wallet answers the sign request without signedTransactionHash. */
 export function signedTxidFromHex(hex) {

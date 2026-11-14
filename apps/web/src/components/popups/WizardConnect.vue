@@ -125,10 +125,11 @@
 import { ref, watch } from 'vue'
 import { decodeHdPublicKey } from '@bitauth/libauth'
 import { useWizardConnect, AlphanumericQRCode } from '@paytaca/wizardconnect-vue'
-/* Official relay-safe converters: the relay transports messages as plain
-   JSON, so the sign request must carry hex strings and tagged bigints —
-   never raw BigInt/Uint8Array ("Do not know how to serialize a BigInt"). */
-import { sourceOutputToRelay, transactionToHex } from '@wizardconnect/core/hdwalletv1-serialize'
+/* The relay transports messages as plain JSON, so the sign request must be
+   JSON-safe — never raw BigInt/Uint8Array ("Do not know how to serialize a
+   BigInt"). The tx goes as HEX (the Transaction | string union); source
+   outputs use the TAGGED extended-JSON wire form (see external-wallet.js). */
+import { transactionToHex } from '@wizardconnect/core/hdwalletv1-serialize'
 
 import Animation from '@/components/Animation'
 import { getCluster } from '@/lib/bch/provider'
@@ -141,6 +142,7 @@ import {
     parseRecipientAddress,
     selectCoins,
     signedTxidFromHex,
+    sourceOutputToWire,
 } from '@/lib/bch/external-wallet'
 
 /* Default recipient — the builder's tip address (verified p2pkh). */
@@ -373,7 +375,7 @@ export default {
                                 built.transaction.version,
                                 built.transaction.locktime,
                             ),
-                            sourceOutputs: sourceOutputs.map(sourceOutputToRelay),
+                            sourceOutputs: sourceOutputs.map(sourceOutputToWire),
                             broadcast: true,
                             userPrompt: 'Nito Cash — send BCH',
                         },

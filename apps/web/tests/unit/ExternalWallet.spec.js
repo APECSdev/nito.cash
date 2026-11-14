@@ -1,5 +1,6 @@
 import { describe, it, expect, vi } from 'vitest'
 import {
+    sourceOutputToWire,
     signedTxidFromHex,
     parseBchToSats,
     parseRecipientAddress,
@@ -102,7 +103,7 @@ describe('external-wallet pay helpers', () => {
         expect(a0.startsWith('bitcoincash:q')).toBe(true)
     })
 
-    it('sign-request relay payload is JSON-safe (no BigInt/Uint8Array leak)', async () => {
+    it('sign-request wire payload: JSON-safe AND decoded correctly by Cashonize\'s parser', async () => {
         const core = await import('@wizardconnect/core/hdwalletv1-serialize')
         const src = {
             outpointTransactionHash: new Uint8Array(32).fill(1),
@@ -122,7 +123,7 @@ describe('external-wallet pay helpers', () => {
         const payload = {
             transaction: {
                 transaction: core.transactionToHex(built.transaction.inputs, built.transaction.outputs, built.transaction.version, built.transaction.locktime),
-                sourceOutputs: [src].map(core.sourceOutputToRelay),
+                sourceOutputs: [src].map(sourceOutputToWire),
                 broadcast: true,
                 userPrompt: 'Nito Cash — send BCH',
             },
@@ -133,11 +134,38 @@ describe('external-wallet pay helpers', () => {
         expect(json).toContain('"<bigint: 100000n>"')
         expect(json).toContain('"broadcast":true')
         /* Cashonize's zod schema: sequenceNumber REQUIRED on every source
-           output — sourceOutputToRelay must not drop it. */
+           output — the wire form must not drop it. */
         expect(payload.transaction.sourceOutputs[0].sequenceNumber).toBe(4294967295)
         expect(json).toContain('"sequenceNumber":4294967295')
         /* Round-trips as plain JSON without BigInt crashes. */
         expect(() => JSON.parse(json)).not.toThrow()
+
+        /* THE DECISIVE CHECK: parse the wire JSON with Cashonize's OWN
+           parseExtendedJson (verbatim from their wallet) — byte fields MUST
+           come back as Uint8Array and values as BigInt, otherwise their
+           signer computes the signature over string-as-bytes and the node
+           rejects it with NULLFAIL. */
+        const parseExtendedJson = (jsonString) => {
+            const uint8ArrayRegex = /^<Uint8Array: 0x(?<hex>[0-9a-f]*)>$/u
+            const bigIntRegex = /^<bigint: (?<bigint>[0-9]*)n>$/
+            return JSON.parse(jsonString, (_key, value) => {
+                if (typeof value === 'string') {
+                    const m1 = value.match(bigIntRegex)
+                    if (m1) return BigInt(m1[1])
+                    const m2 = value.match(uint8ArrayRegex)
+                    if (m2) return new Uint8Array(m2[1] === '' ? [] : m2[1].match(/.{2}/g).map((b) => parseInt(b, 16)))
+                }
+                return value
+            })
+        }
+        const parsed = parseExtendedJson(json)
+        const so = parsed.transaction.sourceOutputs[0]
+        expect(so.outpointTransactionHash).toBeInstanceOf(Uint8Array)
+        expect(so.outpointTransactionHash.length).toBe(32)
+        expect(so.valueSatoshis).toBe(100000n)
+        expect(so.lockingBytecode).toBeInstanceOf(Uint8Array)
+        expect(so.lockingBytecode.length).toBe(25)
+        expect(so.sequenceNumber).toBe(4294967295)
 
         /* Multi-input case: the first inputPaths element must be the input's
            POSITION (0, 1, …) — Cashonize's refine rejects duplicates. */
