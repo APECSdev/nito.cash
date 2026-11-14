@@ -122,7 +122,7 @@
    xpub + quorum-verified UTXOs; the wallet signs (and broadcasts) it.
    The QR + Connection URI support BOTH phone scans and desktop wallets
    that paste the URI (e.g. Cashonize). */
-import { ref, watch } from 'vue'
+import { ref, watch, onBeforeUnmount } from 'vue'
 import { decodeHdPublicKey } from '@bitauth/libauth'
 import { useWizardConnect, AlphanumericQRCode } from '@paytaca/wizardconnect-vue'
 /* The relay transports messages as plain JSON, so the sign request must be
@@ -246,6 +246,30 @@ export default {
             }
         }, { immediate: true })
 
+        /* The @wizardconnect core disconnects the relay whenever the tab is
+           HIDDEN (its own visibilitychange handler) — which kills the sign
+           request mid-publish exactly when the user switches to the wallet
+           tab to approve, and drops the wallet's signed response on arrival
+           ("No pending request for sequence"). Block the core's visibility
+           handlers while a session is live: our capture-phase listener runs
+           before their bubble-phase ones regardless of registration order,
+           and stopImmediatePropagation prevents them entirely. Nothing else
+           in this app listens to visibilitychange. */
+        const blockRelayVisibilityHandler = (event) => {
+            event.stopImmediatePropagation()
+        }
+        watch(wc.state, (state) => {
+            if (state === 'connecting' || state === 'connected') {
+                document.addEventListener('visibilitychange', blockRelayVisibilityHandler, true)
+            } else {
+                document.removeEventListener('visibilitychange', blockRelayVisibilityHandler, true)
+            }
+        })
+
+        onBeforeUnmount(() => {
+            document.removeEventListener('visibilitychange', blockRelayVisibilityHandler, true)
+        })
+
         /* When the wallet becomes ready, show the address we will pay from. */
         watch([wc.manager, wc.state], async ([manager, state]) => {
             if (state !== 'connected' || !manager) {
@@ -364,28 +388,41 @@ export default {
 
                 feeDisplay.value = `${Number(feeSats) / 1e8} BCH`
 
-                const response = await manager.signTransaction(
-                    {
-                        transaction: {
-                            /* Relay wire form: the tx as HEX + relay-shaped
-                               source outputs (hex bytes, tagged bigints). */
-                            transaction: transactionToHex(
-                                built.transaction.inputs,
-                                built.transaction.outputs,
-                                built.transaction.version,
-                                built.transaction.locktime,
-                            ),
-                            sourceOutputs: sourceOutputs.map(sourceOutputToWire),
-                            broadcast: true,
-                            userPrompt: 'Nito Cash — send BCH',
-                        },
-                        /* inputPaths[i] = [position of input i in the tx,
-                           path name, address index] — the position must be
-                           per-entry (0, 1, 2, …); hardcoding 0 for every input
-                   fails Cashonize's unique-index refine. */
-                        inputPaths: covered.chosen.map((_, idx) => [idx, pickPathName(manager, 0), nextReceive]),
+                const signRequest = {
+                    transaction: {
+                        /* Relay wire form: the tx as HEX + relay-shaped
+                           source outputs (tagged bytes, tagged bigints). */
+                        transaction: transactionToHex(
+                            built.transaction.inputs,
+                            built.transaction.outputs,
+                            built.transaction.version,
+                            built.transaction.locktime,
+                        ),
+                        sourceOutputs: sourceOutputs.map(sourceOutputToWire),
+                        broadcast: true,
+                        userPrompt: 'Nito Cash — send BCH',
                     },
-                )
+                    /* inputPaths[i] = [position of input i in the tx,
+                       path name, address index] — the position must be
+                       per-entry (0, 1, 2, …); hardcoding 0 for every input
+                   fails Cashonize's unique-index refine. */
+                    inputPaths: covered.chosen.map((_, idx) => [idx, pickPathName(manager, 0), nextReceive]),
+                }
+
+                let response
+                try {
+                    response = await manager.signTransaction(signRequest)
+                } catch (err) {
+                    /* Transient publish race: the relay can drop/reconnect
+                       around a visibility change. One retry with a fresh
+                       sequence (Cashonize simply prompts again). */
+                    if (!/Failed to publish|closed by us/i.test(err?.message ?? '')) {
+                        throw err
+                    }
+                    console.warn('[wizardconnect] sign request publish raced the relay — retrying once')
+                    await new Promise((r) => setTimeout(r, 2500))
+                    response = await manager.signTransaction(signRequest)
+                }
 
                 /* Prefer the wallet's own hash; compute it from the signed
                    tx hex when the wallet answers the bare protocol response
