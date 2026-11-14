@@ -138,6 +138,22 @@ describe('external-wallet pay helpers', () => {
         expect(json).toContain('"sequenceNumber":4294967295')
         /* Round-trips as plain JSON without BigInt crashes. */
         expect(() => JSON.parse(json)).not.toThrow()
+
+        /* Multi-input case: the first inputPaths element must be the input's
+           POSITION (0, 1, …) — Cashonize's refine rejects duplicates. */
+        const built2 = buildPaymentTransaction({
+            sourceOutputs: [
+                { outpointTransactionHash: new Uint8Array(32).fill(1), outpointIndex: 0, unlockingBytecode: new Uint8Array(0), sequenceNumber: 4294967295, valueSatoshis: 60000n, lockingBytecode: new Uint8Array(25).fill(2) },
+                { outpointTransactionHash: new Uint8Array(32).fill(2), outpointIndex: 1, unlockingBytecode: new Uint8Array(0), sequenceNumber: 4294967295, valueSatoshis: 60000n, lockingBytecode: new Uint8Array(25).fill(2) },
+            ],
+            recipientLockingBytecode: new Uint8Array(25).fill(3),
+            changeLockingBytecode: new Uint8Array(25).fill(4),
+            amountSats: 5000n,
+            feeSats: 200n,
+        })
+        expect(built2.transaction.inputs.length).toBe(2)
+        const paths2 = built2.transaction.inputs.map((_, idx) => [idx, 'receive', 0])
+        expect(new Set(paths2.map((p) => p[0])).size).toBe(paths2.length)
     })
 
     it('signedTxidFromHex — double sha256 reversed (known txid)', () => {

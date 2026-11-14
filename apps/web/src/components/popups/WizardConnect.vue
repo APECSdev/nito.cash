@@ -377,7 +377,11 @@ export default {
                             broadcast: true,
                             userPrompt: 'Nito Cash — send BCH',
                         },
-                        inputPaths: covered.chosen.map(() => [0, pickPathName(manager, 0), nextReceive]),
+                        /* inputPaths[i] = [position of input i in the tx,
+                           path name, address index] — the position must be
+                           per-entry (0, 1, 2, …); hardcoding 0 for every input
+                   fails Cashonize's unique-index refine. */
+                        inputPaths: covered.chosen.map((_, idx) => [idx, pickPathName(manager, 0), nextReceive]),
                     },
                 )
 
