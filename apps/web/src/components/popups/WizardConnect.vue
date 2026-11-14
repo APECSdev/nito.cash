@@ -415,6 +415,10 @@ export default {
 
                 feeDisplay.value = `${Number(feeSats) / 1e8} BCH`
 
+                /* DEBUG: the funded set + the exact unsigned hex, so a failed
+                   broadcast can be diffed against the chain offline. */
+                console.log('[wizardconnect] funded UTXOs:', JSON.stringify(funded.map((u) => ({ pathName: u.pathName, addressIndex: u.addressIndex, txid: u.tx_hash, pos: u.tx_pos, sats: u.value }))))
+                console.log('[wizardconnect] unsigned tx hex:', signRequest.transaction.transaction)
                 const signRequest = {
                     transaction: {
                         /* Relay wire form: the tx as HEX + relay-shaped
@@ -453,6 +457,10 @@ export default {
                     response = await manager.signTransaction(signRequest)
                 }
 
+                /* DEBUG: the wallet's signed tx — decode/diff offline when a
+                   broadcast is rejected by network rules. */
+                console.log('[wizardconnect] signed tx hash:', response.signedTransactionHash)
+                console.log('[wizardconnect] signed tx hex:', response.signedTransaction)
                 /* Prefer the wallet's own hash; compute it from the signed
                    tx hex when the wallet answers the bare protocol response
                    ({ signedTransaction } only). Same bytes ⇒ same txid. */
