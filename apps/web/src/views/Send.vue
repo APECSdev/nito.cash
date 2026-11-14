@@ -484,6 +484,16 @@ export default {
             /* Start scanner. */
             this.startScanner()
         }
+
+        /* Retrieve (scanned) receiver (the Android ZXing `?scan=` flow;
+           called here so it also wins over the loading placeholder). */
+        this.initScanData()
+
+        /* Prefill the receiver from the (concierge) `to` query parameter
+           (eg. the Spend screen's parsed payment details). */
+        if (this.$route.query.to) {
+            this.receiver = String(this.$route.query.to)
+        }
     },
     beforeUnmount() {
         /* Cleanup camera. */

@@ -3,6 +3,7 @@
 
 /* Import modules (getters). */
 import getFlags from './profile/getters/getFlags'
+import getFiatCurrency from './profile/getters/getFiatCurrency'
 import getLocale from './profile/getters/getLocale'
 import getMasterIV from './profile/getters/getMasterIV'
 import getMasterSeed from './profile/getters/getMasterSeed'
@@ -11,12 +12,14 @@ import getNetwork from './profile/getters/getNetwork'
 /* Import modules (actions). */
 import destroyProfile from './profile/actions/destroyProfile'
 import initProfile from './profile/actions/initProfile'
+import updateCurrency from './profile/actions/updateCurrency'
 import updateMasterIV from './profile/actions/updateMasterIV'
 import updateMasterSeed from './profile/actions/updateMasterSeed'
 import updateNetwork from './profile/actions/updateNetwork'
 
 /* Import modules (mutations). */
 import setEmptyProfile from './profile/mutations/setEmptyProfile'
+import setFiatCurrency from './profile/mutations/setFiatCurrency'
 import setFlags from './profile/mutations/setFlags'
 import setLocale from './profile/mutations/setLocale'
 import setMasterIV from './profile/mutations/setMasterIV'
@@ -39,6 +42,14 @@ const state = {
      * (default is english)
      */
     l: null,
+
+    /**
+     * Fiat Currency
+     *
+     * The user's selected fiat currency (market prices + balance displays).
+     * (default is USD — see getFiatCurrency)
+     */
+    fc: null,
 
     /**
      * Master Initialization Vector
@@ -68,6 +79,7 @@ const state = {
 /* Getters. */
 const getters = {
     getFlags,
+    getFiatCurrency,
     getLocale,
     getMasterIV,
     getMasterSeed,
@@ -78,6 +90,7 @@ const getters = {
 const actions = {
     destroyProfile,
     initProfile,
+    updateCurrency,
     updateMasterIV,
     updateMasterSeed,
     updateNetwork,
@@ -86,6 +99,7 @@ const actions = {
 /* Mutations. */
 const mutations = {
     setEmptyProfile,
+    setFiatCurrency,
     setFlags,
     setLocale,
     setMasterIV, // WARNING: This is a high risk attack vector.

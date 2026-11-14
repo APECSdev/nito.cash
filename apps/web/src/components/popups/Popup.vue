@@ -28,8 +28,21 @@ export default {
         },
     },
     created: function () {
-        /* Setup escape key press. */
-        document.onkeydown = evt => {
+        /* Setup escape key press.
+           NOTE: Added as a LISTENER (removed on unmount) — the previous
+           `document.onkeydown =` ASSIGNMENT clobbered (and was clobbered
+           by) every other popup's global escape handler. */
+        document.addEventListener('keydown', this.onKeydown)
+    },
+    beforeUnmount() {
+        /* Remove (escape) key handler. */
+        document.removeEventListener('keydown', this.onKeydown)
+    },
+    methods: {
+        /**
+         * On (document) Keydown
+         */
+        onKeydown(evt) {
             /* Capture window event. */
             evt = evt || window.event
 
@@ -38,7 +51,7 @@ export default {
                 /* Set flag. */
                 this.activeFlag = null
             }
-        }
+        },
     },
 }
 </script>

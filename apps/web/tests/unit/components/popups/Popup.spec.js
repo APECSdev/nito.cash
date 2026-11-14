@@ -41,21 +41,29 @@ describe('popups/Popup.vue', () => {
     })
 
     it('escape key press does not throw (prop mutation is a guarded no-op)', () => {
-        /* Preserve any existing handler so we don't leak a stale one into
-           later mounts (Popup assigns document.onkeydown in created()). */
-        const previous = document.onkeydown
-
         const wrapper = shallowMount(Popup, { props: { active: true } })
 
-        /* Simulate the escape key via this instance's own handler.
+        /* Simulate the escape key via this instance's own handler (Popup adds
+           a `keydown` LISTENER on created and removes it on unmount — the
+           previous `document.onkeydown` ASSIGNMENT clobbered every other
+           popup's global handler).
            NOTE (Vue 3): mutating the (read-only) `active` prop would throw a
            proxy TypeError; Popup now routes the write through a computed setter
            (a no-op), so the handler runs cleanly and visibility is unchanged. */
-        expect(() => document.onkeydown({ keyCode: 27 })).not.toThrow()
+        expect(() => wrapper.vm.onKeydown({ keyCode: 27 })).not.toThrow()
         expect(wrapper.vm.active).toBe(true)
         expect(wrapper.find('.popup').classes()).toContain('active')
+    })
 
-        /* Restore. */
-        document.onkeydown = previous
+    it('removes the escape listener on unmount', () => {
+        const spy = vi.spyOn(document, 'removeEventListener')
+
+        const wrapper = shallowMount(Popup, { props: { active: true } })
+
+        wrapper.unmount()
+
+        expect(spy).toHaveBeenCalledWith('keydown', expect.any(Function))
+
+        spy.mockRestore()
     })
 })

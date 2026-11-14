@@ -18,7 +18,7 @@
 
                     <h5>Transaction Hash</h5>
 
-                    <a :href="'https://explorer.bitcoin.com/bch/tx/' + tx.hash" target="_blank">
+                    <a :href="explorerUrl" target="_blank">
                         {{ tx.hash.slice(0, 10) }} ... {{ tx.hash.slice(-10) }}
                     </a>
 
@@ -44,11 +44,17 @@
 </template>
 
 <script>
+/* Initialize vuex. */
+import { mapGetters } from 'vuex'
+
 /* Import popup manager. */
 import Popup from './Popup'
 
 /* Import components. */
 import { Button } from '@/components'
+
+/* Import the (network-aware) explorer definitions. */
+import { getNetwork } from '@/lib/bch/networks.js'
 
 export default {
     components: {
@@ -65,6 +71,22 @@ export default {
             //
         }
     },
+    computed: {
+        ...mapGetters('profile', [
+            'getNetwork',
+        ]),
+
+        /* Network-aware explorer link (chaingraph.cash per network). */
+        explorerUrl() {
+            /* Validate (transaction). */
+            if (!this.tx) {
+                return ''
+            }
+
+            /* Return (explorer) url. */
+            return getNetwork(this.getNetwork).explorerTx + this.tx.hash
+        },
+    },
     methods: {
         /**
          * Close (Transaction Details)
@@ -72,6 +94,20 @@ export default {
         close() {
             /* Emit to parent. */
             this.$emit('close-details')
+        },
+
+        /**
+         * On (document) Keydown
+         */
+        onKeydown(evt) {
+            /* Capture window event. */
+            evt = evt || window.event
+
+            /* Detect `escape` key. */
+            if (evt.keyCode === 27) {
+                /* Close (transaction details). */
+                this.close()
+            }
         },
 
         /**
@@ -103,17 +139,15 @@ export default {
         },
     },
     created: function () {
-        /* Setup escape key press. */
-        document.onkeydown = evt => {
-            /* Capture window event. */
-            evt = evt || window.event
-
-            /* Detect `escape` key. */
-            if (evt.keyCode === 27) {
-                /* Set flag. */
-                this.close()
-            }
-        }
+        /* Setup escape key press.
+           NOTE: Added as a LISTENER (removed on unmount) — the previous
+           `document.onkeydown =` ASSIGNMENT clobbered (and was clobbered
+           by) every other popup's global escape handler. */
+        document.addEventListener('keydown', this.onKeydown)
+    },
+    beforeUnmount() {
+        /* Remove (escape) key handler. */
+        document.removeEventListener('keydown', this.onKeydown)
     },
     mounted: function () {
         //

@@ -1,5 +1,20 @@
 <template>
     <main class="flex flex-col justify-between flex-1 px-[20px] h-[calc(100vh-58px-65px)] overflow-y-auto [-webkit-overflow-scrolling:touch]">
+        <Concierge
+            :active="showConcierge"
+            v-on:confirm="acceptNote"
+            v-on:cancel="showConcierge = false"
+        >
+            <h3>Accept the recommendation?</h3>
+
+            <p v-if="parsedNote && parsedNote.outputs">
+                <span v-for="(output, index) of parsedNote.outputs" :key="index">
+                    Send {{output.value}} to {{output.address}}<br />
+                </span>
+            </p>
+            <p v-else>No payment details could be parsed from the pasted data.</p>
+        </Concierge>
+
         <header class="p-[15px]">
             Welcome to the SPEND Center!
         </header>
@@ -41,17 +56,20 @@
 import { mapActions, mapGetters } from 'vuex'
 
 /* Import components. */
-import { Button, Footer } from '@/components'
+import { Button, Concierge, Footer } from '@/components'
 
 export default {
     components: {
         Button,
+        Concierge,
         Footer,
     },
     data: () => {
         return {
             note: null,
             hasFunds: true,
+            showConcierge: false,
+            parsedNote: null,
         }
     },
     computed: {
@@ -91,35 +109,66 @@ export default {
         handlePastedNote() {
             /* Wait a bit for pasted data to register. */
             setTimeout(() => {
-                console.log('Pasted Note', this.note)
+                console.log('Pasted Note', this.note) // eslint-disable-line no-console
 
                 /* Retrieve note from the Concierge. */
                 const note = this.getParsedInfo(this.note)
 
-                console.log('NOTE (from Concierge)', note)
+                console.log('NOTE (from Concierge)', note) // eslint-disable-line no-console
 
-                const outputs = note.outputs
-                console.log('NOTE (outputs)', outputs)
+                const outputs = note && note.outputs
+                console.log('NOTE (outputs)', outputs) // eslint-disable-line no-console
 
-                const output = outputs[0]
+                const output = outputs && outputs[0]
 
-                const value = output.value
-                console.log('NOTE (output.value)', value)
+                const value = output && output.value
+                console.log('NOTE (output.value)', value) // eslint-disable-line no-console
 
-                const address = output.address
-                console.log('NOTE (output.address)', address)
+                const address = output && output.address
+                console.log('NOTE (output.address)', address) // eslint-disable-line no-console
 
-                const data = note.data
-                console.log('NOTE (data)', data)
+                const data = note && note.data
+                console.log('NOTE (data)', data) // eslint-disable-line no-console
 
-                const donation = note.donation
-                console.log('NOTE (donation)', donation)
+                const donation = note && note.donation
+                console.log('NOTE (donation)', donation) // eslint-disable-line no-console
 
-                const expires = note.expires
-                console.log('NOTE (expires)', expires)
+                const expires = note && note.expires
+                console.log('NOTE (expires)', expires) // eslint-disable-line no-console
 
+                /* Validate (parsed) note. */
+                if (!output) {
+                    return this.displayError('Could not parse the pasted payment details.')
+                }
+
+                /* Keep the (parsed) note + show the (confirmation) popup. */
+                this.parsedNote = note
                 this.showConcierge = true
             }, 10)
+        },
+
+        /**
+         * Accept (parsed) Note
+         *
+         * Hands the parsed payment details to the Send screen (the receiver
+         * is prefilled via the `to` query parameter).
+         */
+        acceptNote() {
+            /* Hide the (confirmation) popup. */
+            this.showConcierge = false
+
+            /* Retrieve (primary) output. */
+            const output = this.parsedNote && this.parsedNote.outputs
+                ? this.parsedNote.outputs[0]
+                : null
+
+            /* Validate (primary) output. */
+            if (!output || !output.address) {
+                return this.displayError('No payment address in the pasted details.')
+            }
+
+            /* Load the Send screen (prefilled receiver). */
+            this.$router.push({ path: 'send', query: { to: output.address } })
         },
 
     },

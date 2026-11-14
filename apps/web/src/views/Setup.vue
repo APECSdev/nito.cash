@@ -124,8 +124,9 @@ export default {
 
                     // FIXME: Validate bitcoin cash address
 
-                    /* Redirect to payment. */
-                    this.$router.replace('pay')
+                    /* Redirect to payment (the Send screen prefills the
+                       receiver from the same `?scan=` query). */
+                    this.$router.replace('send')
 
                     return true
                 }

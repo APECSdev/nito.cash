@@ -92,6 +92,10 @@ export default {
             'getTicker',
         ]),
 
+        ...mapGetters('profile', [
+            'getFiatCurrency',
+        ]),
+
         ...mapGetters('wallets', [
             'getHistory',
         ]),
@@ -228,7 +232,7 @@ export default {
         /* Retrieve the market price (the fiat column is calculated against
            it; on failure the formatted fiat gracefully degrades to zero). */
         try {
-            this.marketPrice = await this.getTicker('BCH', 'USD')
+            this.marketPrice = await this.getTicker('BCH', this.getFiatCurrency)
         } catch (err) {
             console.error(err) // eslint-disable-line no-console
         }

@@ -58,6 +58,10 @@ export default {
             'getTicker',
         ]),
 
+        ...mapGetters('profile', [
+            'getFiatCurrency',
+        ]),
+
         // NOTE: We use `selectedUnit` to avoid mutating the parent's (unit) prop.
         activeUnit: function () {
             return this.selectedUnit ? this.selectedUnit : this.unit
@@ -157,8 +161,8 @@ export default {
         },
     },
     created: async function () {
-        /* Retrieve market value. */
-        this.marketValue = await this.getTicker('BCH', 'USD')
+        /* Retrieve market value (in the user's selected fiat currency). */
+        this.marketValue = await this.getTicker('BCH', this.getFiatCurrency)
         console.log('MARKET VALUE', this.marketValue)
     },
     beforeUnmount() {

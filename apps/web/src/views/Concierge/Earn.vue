@@ -135,9 +135,15 @@ export default {
 
     },
     created: function () {
-        setInterval(() => {
+        /* Start the (display) interest counter. */
+        this.interestInterval = setInterval(() => {
             this.interestIncrement++
         }, 100)
+    },
+    beforeUnmount() {
+        /* Stop the (display) interest counter (previously it ticked — and
+           leaked — forever, even after leaving the screen). */
+        clearInterval(this.interestInterval)
     },
 }
 </script>

@@ -112,6 +112,11 @@ export default {
 
             /* Set (selected) flag. */
             this.selectedFlag = _country.flag
+
+            /* Notify the parent of the selection.
+               NOTE: The parent's handler receives the full (item) object —
+               `{ label, flag, value }` (`value` is the currency code). */
+            this.$emit('select', _country)
         },
     }
 }

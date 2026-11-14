@@ -22,6 +22,7 @@ import Concierge from './popups/Concierge'
 import WizardConnect from './popups/WizardConnect'
 import Help from './popups/Help'
 import Import from './popups/Import'
+import SeedVault from './popups/SeedVault'
 import Transaction from './popups/Transaction'
 import Warning from './popups/Warning'
 
@@ -47,6 +48,7 @@ export {
     Concierge,
     Help,
     Import,
+    SeedVault,
     Transaction,
     Warning,
 

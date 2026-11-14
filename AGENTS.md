@@ -181,7 +181,9 @@ preflight). It is wired into the CI `deploy` job alongside the web wallet and do
 ### Routes (apps/web/src/router/index.js)
 
 `/` Splash · `/setup` · `/dashboard` · `/send` · `/receive` · `/history` · `/settings` ·
-`/concierge` · `/concierge/spend/advanced`
+`/concierge` · `/concierge/spend/advanced` · `/wallets/:walletId?` (4-wallet
+model; `/connect` redirects to `/dashboard?connect=1` and `/private` to
+`/wallets/nito-cash`)
 
 ## Commands
 
@@ -525,17 +527,27 @@ Full review found the app silently bricked since the Vue 3 migration:
   the emits declaration; blackhost VPS — headless-Chrome click-through
   (splash → create wallet → switcher → dashboard → send → dark-mode toggle
   → receive → WC deep-link modal; zero functional pageerrors). Commit
-  `160e850` (not yet pushed at session end — push auto-deploys to prod).
-- Remaining (review P2 list): Concierge Lobby/Earn/Spend are legacy
-  placeholders (Earn has an uncleared setInterval; Spend's paste flow
-  references a nonexistent showConcierge); Transaction.vue explorer link
-  still explorer.bitcoin.com; Popup/Transaction global `document.onkeydown`
-  clobbering; dead actions activateAccounts/activateInputs (throw if ever
-  dispatched); Setup `?scan=` → nonexistent 'pay' route; Settings currency
-  selector + notifications toggle + SeedVault backup are inert (no backup
-  path exists anywhere in the app — product decision needed); WC debug
-  instrumentation still live. AGENTS.md route list missing `/connect`
-  redirect + `/wallets/:walletId?` (Wallet.vue) — docs only.
+  `160e850`.
+- P2 review items ALSO completed (same session): Earn's interest interval
+  now cleared on unmount; Spend's paste flow completed (parses → Concierge
+  popup shows the parsed outputs → confirm prefills Send via `?to=`);
+  Transaction popup explorer link is network-aware (chaingraph.cash, was
+  hardcoded explorer.bitcoin.com); Popup/Transaction escape handlers are
+  now add/removeEventListener (the `document.onkeydown` assignments
+  clobbered each other); activateAccounts/activateInputs are documented
+  no-ops (they threw on any dispatch); Setup `?scan=` now routes to Send
+  (dead 'pay' route) and Send calls initScanData + prefills `?to=`;
+  **currency selector is functional** (Dropdown now emits `select`,
+  profile.fc persists it, getBalance/History/Amount read it — previously
+  the Dropdown never notified its parent AND getBalance hardcoded 'USD');
+  **notifications toggle is functional** (persisted flag `f.bn`, requests
+  browser permission on enable, openConn spawns a browser notification on
+  incoming payments while the tab is hidden; "restart Spark" copy fixed);
+  **real backup path exists** — Settings → Wallet → Create SeedVault opens
+  a popup with the wallet's 24-word BIP39 recovery phrase (copy button).
+- Verified (final): apecsdev — 130/130 tests + clean build; blackhost —
+  extended headless-Chrome smoke incl. SeedVault popup, currency switch
+  to EUR, notifications toggle; zero pageerrors. Pushed → CI deploys.
 - Debug instrumentation is LIVE in the WC flow (funded-UTXO set, unsigned
   hex, signed hex + hash console logs) — remove once the wallet signing is
   fixed. Any new code reading a binding must sit BELOW its declaration (two

@@ -63,6 +63,19 @@ const handleIncomingPayment = async (_dispatch, _rootGetters, _address) => {
     /* Dispatch notification. */
     _dispatch('displayNotification', notifMsg, { root: true })
 
+    /* Spawn a (browser) notification, when enabled via Settings (the `bn`
+       profile flag). NOTE: This surfaces payments while the tab is HIDDEN;
+       the in-app toast above only shows while it is visible. */
+    const flags = _rootGetters['profile/getFlags']
+
+    if (flags && flags.bn && typeof Notification !== 'undefined' && Notification.permission === 'granted') {
+        try {
+            new Notification('Nito Cash', { body: notifMsg })
+        } catch (err) {
+            console.error(err) // eslint-disable-line no-console
+        }
+    }
+
     /* Increment receiving wallet (index). */
     _dispatch('wallets/nextAccount', 'BCH', { root: true })
 

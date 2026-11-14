@@ -11,6 +11,11 @@ import {
     deriveChainAddress,
 } from '@/lib/bch/external-wallet'
 
+/* NOTE: imported STATICALLY (the in-test dynamic import occasionally blew
+   the 5s test timeout under parallel load — the deep @wizardconnect core
+   chain is slow to cold-load). */
+import * as core from '@wizardconnect/core/hdwalletv1-serialize'
+
 /* The official hackathon donation address — a real mainnet p2pkh recipient. */
 const RECIPIENT = 'bitcoincash:qpv4n2kyy6w8n50n3xx4ty8etxekksuqnu44erzapf'
 
@@ -104,7 +109,6 @@ describe('external-wallet pay helpers', () => {
     })
 
     it('sign-request wire payload: JSON-safe AND decoded correctly by Cashonize\'s parser', async () => {
-        const core = await import('@wizardconnect/core/hdwalletv1-serialize')
         const src = {
             outpointTransactionHash: new Uint8Array(32).fill(1),
             outpointIndex: 0,
@@ -182,7 +186,7 @@ describe('external-wallet pay helpers', () => {
         expect(built2.transaction.inputs.length).toBe(2)
         const paths2 = built2.transaction.inputs.map((_, idx) => [idx, 'receive', 0])
         expect(new Set(paths2.map((p) => p[0])).size).toBe(paths2.length)
-    })
+    }, 30_000)
 
     it('signedTxidFromHex — double sha256 reversed (known txid)', () => {
         /* the handcrafted funding tx: txid = double-sha256 of its bytes, reversed */

@@ -1,8 +1,15 @@
 /* Import test utilities. */
+import { createPinia, setActivePinia } from 'pinia'
+import piniaPersist from 'pinia-plugin-persistedstate'
 import { shallowMount } from '@vue/test-utils'
+import { beforeEach } from 'vitest'
 
 /* Import component. */
 import Transaction from '@/components/popups/Transaction.vue'
+
+/* Import the store facade bootstrap (the popup maps profile getters — the
+   facade must exist in this file's realm before mounting). */
+import { useStore, StoreCompatPlugin, ensureStoreFacade } from '@/store'
 
 /* Initialize a transaction fixture. */
 const tx = {
@@ -17,6 +24,18 @@ const tx = {
 
 /* Describe test. */
 describe('popups/Transaction.vue', () => {
+    beforeEach(() => {
+        /* Fresh Pinia + facade (same pattern as pool-store.spec.js): the
+           facade is cached on globalThis; a re-ensure against a new store
+           in this isolated file realm is fine. */
+        const pinia = createPinia()
+        pinia._a = {}
+        pinia.use(StoreCompatPlugin)
+        pinia.use(piniaPersist)
+        setActivePinia(pinia)
+        ensureStoreFacade(useStore())
+    })
+
     it('is a registered component', () => {
         const wrapper = shallowMount(Transaction, { props: { active: true, tx }, global: { stubs: { Popup: false, svgicon: true } } })
 
@@ -36,7 +55,10 @@ describe('popups/Transaction.vue', () => {
 
         expect(link.text()).toContain('0123456789')
         expect(link.text()).toContain('...')
-        expect(link.attributes('href')).toBe(`https://explorer.bitcoin.com/bch/tx/${tx.hash}`)
+
+        /* Network-aware explorer (defaults to mainnet → chaingraph.cash; the
+           legacy link was hardcoded to explorer.bitcoin.com). */
+        expect(link.attributes('href')).toBe(`https://chaingraph.cash/tx/${tx.hash}`)
     })
 
     it('shows the received label for an incoming, persisted tx', () => {

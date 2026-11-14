@@ -45,8 +45,10 @@ const initProfile = async ({ state, commit }) => {
      *
      * - Darm mode (dm)
      * - Unconfirmed transactions (ut)
+     * - Browser notifications (bn)
      */
     const defaultFlags = {
+        bn: false,
         dm: false,
         ut: true,
     }

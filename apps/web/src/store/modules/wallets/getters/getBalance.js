@@ -67,17 +67,21 @@ const getBalance = (state, getters, rootState, rootGetters) => async (_wallet, _
             })
         }
 
+        /* Set (fiat) currency — the USER'S selection (Settings), which
+           defaults to 'USD'; the (legacy) `_currency` argument is kept for
+           call-site compatibility but the persisted selection wins. */
+        const currency = rootGetters['profile/getFiatCurrency'] || _currency
+
         /* Retrieve market price. */
         const marketPrice =
-            await rootGetters['blockchain/getTicker'](_wallet, _currency)
-        console.info(`Market price (${_currency})`, marketPrice) // eslint-disable-line no-console
+            await rootGetters['blockchain/getTicker'](_wallet, currency)
+        console.info(`Market price (${currency})`, marketPrice) // eslint-disable-line no-console
 
         /* Validate market price. */
         if (marketPrice) {
             /* Format balance (for display). */
-            // TODO: Support additional currencies.
             const formattedBalance =
-                rootGetters['utils/getFormattedValue'](balance, marketPrice, 'USD')
+                rootGetters['utils/getFormattedValue'](balance, marketPrice, currency)
 
             /* Return (formatted) balance. */
             return formattedBalance

@@ -12,6 +12,11 @@
             </p>
         </Warning>
 
+        <SeedVault
+            :active="showExport"
+            v-on:close-seed-vault="showExport = false"
+        />
+
         <Modal :label="$t('settings-view.title')" secondary>
             <Tabs :tabs="tabs" :tab="tab" v-on:tab-change="updateTab" />
 
@@ -25,10 +30,10 @@
 
                     <!-- FIXME: `countries[0]` assumes the wrong index for (default) country. -->
                     <Dropdown
-                        :onSelect="changeCurrency"
                         :flag="cc.code(fiatCurrency).countries[0]"
                         :value="cc.code(fiatCurrency).currency"
-                        :items="currencies" />
+                        :items="currencies"
+                        @select="changeCurrency" />
 
                     <hr />
 
@@ -46,12 +51,12 @@
                     <label class="inline">
                         <span>Notifications</span>
                         <span>
-                            <Toggle :disabled="disabledNotifications" :on="showNotifications" />
+                            <Toggle :disabled="disabledNotifications" :on="showNotifications" @toggle="toggleNotifications" />
                         </span>
                     </label>
 
-                    <p v-if="disabledNotifications">Notifications are blocked by your browser. Enable them in the browser settings and restart Spark.</p>
-                    <p v-else>Show new and confirmed payment notifications</p>
+                    <p v-if="disabledNotifications">Notifications are blocked by your browser. Enable them in the browser settings and restart Nito Cash.</p>
+                    <p v-else>Show new and confirmed payment notifications (also outside the app, while the tab is hidden)</p>
 
                     <hr />
 
@@ -75,8 +80,8 @@
                             <div>
                                 <h6 class="dark">BACK UP WITH SEEDVAULT</h6>
                                 <p>
-                                    You can backup this wallet by exporting a seedvault. The exported SeedVault can then be imported into
-                                    Trinity wallet.
+                                    You can backup this wallet by exporting its SeedVault — the wallet's BIP39 recovery
+                                    phrase. It can be imported into any BIP39-compatible wallet.
                                 </p>
 
                             </div>
@@ -120,7 +125,7 @@ import { mapActions, mapGetters } from 'vuex'
 import cc from 'currency-codes'
 
 /* Import components. */
-import { Button, Dropdown, Footer, Modal, Tabs, Toggle, Warning } from '@/components'
+import { Button, Dropdown, Footer, Modal, SeedVault, Tabs, Toggle, Warning } from '@/components'
 
 /* Import icons. */
 import '@/compiled-icons/alarm'
@@ -132,6 +137,7 @@ export default {
         Dropdown,
         Footer,
         Modal,
+        SeedVault,
         Tabs,
         Toggle,
         Warning,
@@ -156,6 +162,7 @@ export default {
         ]),
 
         ...mapGetters('profile', [
+            'getFiatCurrency',
             'getFlags',
             'getNetwork',
         ]),
@@ -214,6 +221,7 @@ export default {
         ...mapActions('profile', [
             'destroyProfile',
             'initProfile',
+            'updateCurrency',
             'updateNetwork',
         ]),
 
@@ -249,9 +257,70 @@ export default {
             return result
         },
 
-        changeCurrency(_currency) {
-            console.log('CHANGE CURRENCY', _currency)
-            // fiatCurrency.set(_currency)
+        /**
+         * Change Currency
+         *
+         * NOTE: The Dropdown emits the full (item) object — `{ label, flag,
+         *       value }` (`value` is the currency code) — via its `select`
+         *       event (the previous `:onSelect` attr was never functional:
+         *       the Dropdown never notified its parent).
+         */
+        changeCurrency(_item) {
+            console.log('CHANGE CURRENCY', _item) // eslint-disable-line no-console
+
+            /* Retrieve (selected) currency code. */
+            const currency = _item && _item.value ? _item.value : _item
+
+            /* Persist the (selected) fiat currency (market prices + balance
+               displays switch to it). */
+            this.updateCurrency(currency)
+
+            /* Update (local) display value. */
+            this.fiatCurrency = currency
+
+            /* Notify user. */
+            this.displayNotification('Currency updated to ' + currency)
+        },
+
+        /**
+         * Toggle Notifications
+         *
+         * Persisted in the profile flags (`f.bn`). Enabling requests the
+         * (browser) Notification permission first (browsers require a user
+         * gesture); the (browser) notification itself is spawned from the
+         * blockchain openConn incoming-payment handler.
+         */
+        async toggleNotifications(_enabled) {
+            /* Validate (browser) support. */
+            if (typeof Notification === 'undefined') {
+                return this.displayError('Notifications are not supported by this browser.')
+            }
+
+            /* Request permission (required by browsers on first enable). */
+            if (_enabled && Notification.permission === 'default') {
+                const permission = await Notification.requestPermission()
+
+                if (permission !== 'granted') {
+                    return this.displayError('Notifications permission was not granted.')
+                }
+            }
+
+            /* Validate (still) permitted. */
+            if (_enabled && Notification.permission === 'denied') {
+                return this.displayError('Notifications are blocked by your browser. Enable them in the browser settings.')
+            }
+
+            /* Retrieve (current) flags. */
+            const flags = this.getFlags || {}
+
+            /* Persist the (new) flags (preserving the other flags). */
+            this.$store.commit('profile/setFlags', {
+                ...flags,
+                bn: _enabled,
+            })
+
+            /* Update (local) display state. */
+            this.showNotifications = _enabled
         },
 
         /**
@@ -303,7 +372,9 @@ export default {
         },
 
         async backup() {
-            this.displayError('This feature is coming soon')
+            /* Open the SeedVault popup (displays the wallet's BIP39
+               recovery phrase). */
+            this.showExport = true
         },
 
         async destroy() {
@@ -349,16 +420,19 @@ export default {
         /* Initialize currency codes. */
         this.cc = cc
 
-        // this.disabledNotifications = typeof Notification !== 'function' || Notification.permission === 'denied'
-        this.disabledNotifications = false
+        /* Notifications: disabled when the (browser) Notification API is
+           unavailable or blocked. */
+        this.disabledNotifications = (typeof Notification === 'undefined') ||
+            Notification.permission === 'denied'
 
         // FIXME: Add Vuex for state management.
         console.log('DARK MODE', this.getDarkMode)
 
-        this.fiatCurrency = 'USD'
+        /* Reflect the persisted (fiat) currency selection. */
+        this.fiatCurrency = this.getFiatCurrency
 
-        // FIXME: We need to detect the user's compatibility.
-        this.showNotifications = false
+        /* Reflect the persisted profile flag (`f.bn`). */
+        this.showNotifications = !!(this.getFlags && this.getFlags.bn)
     },
     mounted: function () {
         //
