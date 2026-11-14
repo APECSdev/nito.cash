@@ -28,6 +28,7 @@
     "@scure/base": "^2.4.0",
     "@scure/bip32": "^2.4.0",
     "@scure/bip39": "^2.4.0",
+    "@wizardconnect/core": "0.2.5",
     "buffer": "^6.0.3",
     "circomlibjs": "^0.1.7",
     "currency-codes": "2.1.0",

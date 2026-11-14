@@ -125,6 +125,10 @@
 import { ref, watch } from 'vue'
 import { decodeHdPublicKey } from '@bitauth/libauth'
 import { useWizardConnect, AlphanumericQRCode } from '@paytaca/wizardconnect-vue'
+/* Official relay-safe converters: the relay transports messages as plain
+   JSON, so the sign request must carry hex strings and tagged bigints —
+   never raw BigInt/Uint8Array ("Do not know how to serialize a BigInt"). */
+import { sourceOutputToRelay, transactionToHex } from '@wizardconnect/core/hdwalletv1-serialize'
 
 import Animation from '@/components/Animation'
 import { getCluster } from '@/lib/bch/provider'
@@ -361,8 +365,15 @@ export default {
                 const response = await manager.signTransaction(
                     {
                         transaction: {
-                            transaction: built.transaction,
-                            sourceOutputs,
+                            /* Relay wire form: the tx as HEX + relay-shaped
+                               source outputs (hex bytes, tagged bigints). */
+                            transaction: transactionToHex(
+                                built.transaction.inputs,
+                                built.transaction.outputs,
+                                built.transaction.version,
+                                built.transaction.locktime,
+                            ),
+                            sourceOutputs: sourceOutputs.map(sourceOutputToRelay),
                             broadcast: true,
                             userPrompt: 'Nito Cash — send BCH',
                         },

@@ -102,6 +102,39 @@ describe('external-wallet pay helpers', () => {
         expect(a0.startsWith('bitcoincash:q')).toBe(true)
     })
 
+    it('sign-request relay payload is JSON-safe (no BigInt/Uint8Array leak)', async () => {
+        const core = await import('@wizardconnect/core/hdwalletv1-serialize')
+        const src = {
+            outpointTransactionHash: new Uint8Array(32).fill(1),
+            outpointIndex: 0,
+            unlockingBytecode: new Uint8Array(0),
+            valueSatoshis: 100000n,
+            lockingBytecode: new Uint8Array(25).fill(2),
+        }
+        const built = buildPaymentTransaction({
+            sourceOutputs: [src],
+            recipientLockingBytecode: new Uint8Array(25).fill(3),
+            changeLockingBytecode: new Uint8Array(25).fill(4),
+            amountSats: 5000n,
+            feeSats: 200n,
+        })
+        const payload = {
+            transaction: {
+                transaction: core.transactionToHex(built.transaction.inputs, built.transaction.outputs, built.transaction.version, built.transaction.locktime),
+                sourceOutputs: [src].map(core.sourceOutputToRelay),
+                broadcast: true,
+                userPrompt: 'Nito Cash — send BCH',
+            },
+            inputPaths: [[0, 'receive', 0]],
+        }
+        /* This is the exact call the relay makes — it threw before the fix. */
+        const json = JSON.stringify(payload)
+        expect(json).toContain('"<bigint: 100000n>"')
+        expect(json).toContain('"broadcast":true')
+        /* Round-trips as plain JSON without BigInt crashes. */
+        expect(() => JSON.parse(json)).not.toThrow()
+    })
+
     it('signedTxidFromHex — double sha256 reversed (known txid)', () => {
         /* the handcrafted funding tx: txid = double-sha256 of its bytes, reversed */
         const id = signedTxidFromHex(fundingTx())

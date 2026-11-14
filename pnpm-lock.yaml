@@ -48,6 +48,9 @@ importers:
       '@scure/bip39':
         specifier: ^2.4.0
         version: 2.4.0
+      '@wizardconnect/core':
+        specifier: 0.2.5
+        version: 0.2.5
       buffer:
         specifier: ^6.0.3
         version: 6.0.3
