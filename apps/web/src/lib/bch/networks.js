@@ -57,9 +57,16 @@ const networks = {
         ],
         /* Minimum agreeing servers required to accept a response. */
         quorum: 2,
-        /* CashToken categories tracked by the wallet (by symbol). Mainnet PUSD
-           (ParyonUSD) is mainnet-only but not yet wired; add its category here. */
-        tokens: {},
+        /* CashToken categories tracked by the wallet (by symbol). Fulcrum's
+           token_data.category is the BE (display) form of the category.
+           Mainnet PUSD (ParyonUSD) — the category declared by the issuer
+           (see pusd-shielded-pool COVENANT-DESIGN.md / the retired docs
+           on-chain-anatomy page: "category 0x2469acc5…2544, issued by
+           ParyonUSD"). This is what the "Naked Cash" transparent PUSD
+           balance reads (getTokenBalance). */
+        tokens: {
+            PUSD: '2469acc5afa4b10cb5b5c04afb89c3a3ffd61c5da9c01e26d00951cae2a02544',
+        },
     },
 
     chipnet: {
@@ -80,11 +87,15 @@ const networks = {
             { host: 'chipnet.imaginary.cash', port: 50004 },
         ],
         quorum: 2,
-        /* CashToken categories tracked by the wallet (by symbol). The chipnet
-           PUSD is a stand-in for mainnet PUSD; its category is the token's
-           genesis outpoint txid (see pusd-shielded-pool/CHIPNET.md). */
+        /* CashToken categories tracked by the wallet (by symbol). Fulcrum's
+           token_data.category is the BE (display) form of the category.
+           Chipnet PUSD is a stand-in for mainnet PUSD — the LIVE pool
+           category (self-minted with the TX-P3/G3/B3 deployment; see
+           pusd-shielded-pool/CHIPNET.md). NOTE: the earlier faucet-minted
+           token (category 479aeebabc…, genesis 4257dbfb…, block 328616)
+           is SUPERSEDED — the deployed pool does not enforce it. */
         tokens: {
-            PUSD: '479aeebabc682ddb90a3671bffd2a0bd918737de13f19a92231ed36a8580cc11',
+            PUSD: '8c73ff150fbc5d1599d2de187c3382c5926cc5c9c2621cdc2cac1fc14cd93144',
         },
     },
 }
