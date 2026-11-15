@@ -66,7 +66,7 @@
             </section>
 
             <!-- Quick actions -->
-            <section class="grid grid-cols-2 gap-[10px] mt-[12px] pb-[18px]">
+            <section class="grid grid-cols-2 gap-[12px] mt-[14px] pb-[18px]">
                 <button @click="openWizardConnect" class="tile tile-accent col-span-2">
                     <span class="tile-icon">⚡</span>
                     <span class="tile-label">Connect external wallet</span>
@@ -231,8 +231,8 @@ export default {
 <style scoped>
 /* Balance card: brand gradient (theme-safe in light + dark). */
 .balance-card {
-    background: linear-gradient(155deg, var(--primary) 0%, #1b3f8f 130%);
-    box-shadow: 0 18px 40px -18px rgba(20, 60, 160, 0.55);
+    background: linear-gradient(140deg, #2f66e0 0%, #16337a 58%, #0a1020 140%);
+    box-shadow: 0 20px 44px -18px rgba(15, 50, 130, 0.6);
 }
 
 .card-glow {
@@ -240,7 +240,7 @@ export default {
     inset: -40% -20% auto auto;
     width: 260px;
     height: 260px;
-    background: radial-gradient(circle, rgba(76, 195, 255, 0.5) 0%, transparent 70%);
+    background: radial-gradient(circle, rgba(56, 189, 248, 0.5) 0%, transparent 70%);
     filter: blur(30px);
     pointer-events: none;
 }
@@ -276,7 +276,7 @@ export default {
     gap: 2px;
     background: var(--box-bg);
     border: 1px solid var(--input-border);
-    border-radius: 14px;
+    border-radius: 16px;
     padding: 12px 14px;
     cursor: pointer;
     text-align: left;
@@ -296,8 +296,8 @@ export default {
     /* Fixed deep-navy CTA (branded, like Splash): the translucent trinary/
        secondary wash measured 3.3-4.1:1 against var(--fg) labels in BOTH
        themes. White on this gradient measures ~8:1. */
-    background: linear-gradient(120deg, #14417e, #0b1c3f);
-    border-color: rgba(76, 195, 255, 0.55);
+    background: linear-gradient(120deg, #2f66e0, #123a8f);
+    border-color: rgba(56, 189, 248, 0.5);
 }
 
 .tile-accent .tile-label {

@@ -1,7 +1,7 @@
 <template>
     <!-- Fixed branded navy canvas: the light text stack below stays >=10:1
        against it in BOTH themes (bg-primary flips too light in dark mode). -->
-    <main class="relative flex flex-col items-center min-h-full bg-[#0b1c3f] text-primary-fg px-0 pb-[36px] overflow-x-hidden">
+    <main class="relative flex flex-col items-center min-h-full bg-[#0a1020] text-primary-fg px-0 pb-[36px] overflow-x-hidden">
         <BlazeBanner />
 
         <!-- Decorative background: soft radial glows (pure CSS, GPU-cheap). -->
@@ -112,7 +112,7 @@ export default {
     height: 340px;
     left: -120px;
     top: 10%;
-    background: radial-gradient(circle, #4cc3ff 0%, transparent 70%);
+    background: radial-gradient(circle, #38bdf8 0%, transparent 70%);
     /* Opacity kept low: the glow sits BEHIND the hero text stack — at 0.35 it
        lightened the effective background under the tagline to ~3.7:1. */
     opacity: 0.2;

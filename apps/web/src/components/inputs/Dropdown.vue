@@ -8,7 +8,7 @@
         <p class="font-semibold opacity-50 leading-[13px]">{{activeCountry}}</p>
 
         <nav
-            class="absolute top-[56px] left-0 w-full max-h-[260px] overflow-y-scroll bg-input-bg shadow-[0px_4px_30px_rgba(0,0,0,0.25)] rounded-[7px] transition-opacity duration-100 ease-[cubic-bezier(0.4,0,0.2,1)] z-[2]"
+            class="absolute top-[56px] left-0 w-full max-h-[260px] overflow-y-scroll bg-input-bg shadow-[0px_4px_30px_rgba(0,0,0,0.25)] rounded-[12px] transition-opacity duration-100 ease-[cubic-bezier(0.4,0,0.2,1)] z-[2]"
             :class="dropdown ? 'active opacity-100 pointer-events-all' : 'opacity-0 pointer-events-none'"
         >
             <button

@@ -56,10 +56,10 @@
                 $0.00<span class="text-[rgba(30,30,255,0.6)]">00000000</span>
             </div>
 
-            <footer>
+            <Footer>
                 <Button @click.native="addFunds" label="Add Funds" double secondary />
                 <Button @click.native="withdrawFunds" label="Withdraw Funds" double secondary :disabled="!isInvested" />
-            </footer>
+            </Footer>
         </div>
 
         <div><hr class="block w-[calc(100%+40px)] h-[1px] mt-[5px] mb-[5px] ml-[-20px] bg-hr" /></div>

@@ -121,7 +121,8 @@ await new Promise(r => server.listen(PORT, '127.0.0.1', r))
 fs.mkdirSync(OUT, { recursive: true })
 
 const browser = await puppeteer.launch({
-    executablePath: '/usr/bin/google-chrome',
+    /* CHROME_BIN override (VMs / CI ship chrome-headless-shell elsewhere). */
+    executablePath: process.env.CHROME_BIN || '/usr/bin/google-chrome',
     headless: 'new',
     args: ['--no-sandbox','--disable-setuid-sandbox','--disable-dev-shm-usage','--force-color-profile=srgb','--hide-scrollbars'],
 })
@@ -163,6 +164,24 @@ await page.evaluateOnNewDocument(() => {
 
 /* Navigate DIRECTLY to a route and screenshot it (never via `/` + hash swap). */
 async function shoot(routeName, hash, theme, file) {
+    /* REDESIGN: dark mode is REAL now — the persisted profile flag (`f.dm`)
+       drives BOTH the `.app.dark` interior token block (bound in App.vue's
+       isDarkMode computed) AND the body wallpaper class (the isDarkMode
+       watcher, immediate). The old approach (toggle body class on the live
+       page) would now show a light interior behind a dark wallpaper.
+       IMPORTANT: the flags persist as a MSGPACK BUFFER (profile/setFlags
+       mutation encodes), so hand-writing localStorage JSON produces a
+       malformed profile — the seed MUST go through the app's own store:
+       boot once, commit profile/setFlags via the facade, then re-boot into
+       the real route (the hydration + initProfile early-return preserve it). */
+    await page.goto(`http://127.0.0.1:${PORT}/#/history`, { waitUntil: 'load', timeout: 30000 })
+    await page.waitForFunction(() => window.__nito_store_facade__, { timeout: 10000 })
+    await page.evaluate((t) => {
+        const facade = window.__nito_store_facade__
+        const flags = facade.getters['profile/getFlags'] || { bn: false, ut: true }
+        facade.commit('profile/setFlags', { ...flags, dm: t === 'dark' })
+    }, theme)
+
     if (SEED_ROUTES.has(routeName)) {
         /* Seed routes: load a benign route (no Splash redirect timer), seed the
            wallet + mock blockchain, then navigate IN-PAGE (hash swap) so the
@@ -174,9 +193,6 @@ async function shoot(routeName, hash, theme, file) {
     } else {
         await page.goto(`http://127.0.0.1:${PORT}/${hash}`, { waitUntil: 'load', timeout: 30000 })
     }
-    await page.evaluate((t) => {
-        document.body.classList.toggle('dark', t === 'dark')
-    }, theme)
     /* Switch to a non-default Concierge tab (Earn/Spend) before settling. */
     if (TAB_CLICK[routeName]) {
         await page.evaluate((tabName) => {

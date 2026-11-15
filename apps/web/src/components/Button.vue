@@ -56,7 +56,21 @@ export default {
          * relationship that cannot be expressed per-instance in utilities).
          */
         buttonClasses: function () {
-            const c = ['block', 'w-full', 'font-bold']
+            /* Modern base: pill, semibold, gentle lift + halo on hover,
+               visible focus ring, pressed scale. (Marker classes for the
+               variants still live in `classObject`.) */
+            const c = [
+                'block',
+                'w-full',
+                'font-semibold',
+                'tracking-[0.01em]',
+                'transition-[transform,box-shadow,filter,opacity]',
+                'duration-150',
+                'ease-out',
+                'active:scale-[0.985]',
+                'focus-visible:ring-2',
+                'focus-visible:ring-ring',
+            ]
 
             /* Background + foreground (mutually exclusive variants). */
             if (this.blank) {
@@ -78,12 +92,26 @@ export default {
                 c.push('text-[14px]', 'h-[54px]', 'short:h-[48px]')
             }
 
-            /* Border-radius (the double's second-button override is scoped CSS). */
-            if (this.double) {
-                c.push('rounded-[30px_0_0_30px]')
+            /* Elevation (per variant, so the halo color matches the surface). */
+            if (this.blank || this.disabled) {
+                /* Flat — no halo for outline/disabled states. */
+            } else if (this.secondary) {
+                c.push('shadow-[0_10px_26px_-12px_rgba(255,197,85,0.65)]')
+            } else if (this.warning) {
+                c.push('shadow-[0_10px_26px_-12px_rgba(211,63,73,0.6)]')
             } else {
-                c.push('rounded-[30px]')
+                c.push('shadow-[0_10px_26px_-12px_rgba(47,102,224,0.55)]')
             }
+
+            if (!this.disabled && !this.loading) {
+                c.push('hover:-translate-y-[1px]', 'hover:brightness-110')
+            }
+
+            /* Border-radius. NOTE: `double` is now a fully-rounded pill too —
+               the old flush-halves join (0-radius inner corners + a 1px
+               --bg divider, “buttons touching”) read as cramped; the pair
+               now gets its spacing from the Footer gap (below). */
+            c.push('rounded-[30px]')
 
             /* State. */
             if (this.loading) c.push('pointer-events-none')
@@ -100,17 +128,13 @@ export default {
  * Phase D: the base button and every variant (`secondary`, `warning`, `small`,
  * `loading`, `disabled`, `blank`, the `max-height:600px` height override and
  * the `:hover` states) are converted to Tailwind utilities in the
- * `buttonClasses` computed above. The `double` base radius is a utility too.
+ * `buttonClasses` computed above.
  *
- * ONLY the `button.double + button.double` ADJACENT-SIBLING override remains
- * as scoped CSS: a button cannot know from its own props whether another
- * `double` button immediately precedes it, so this relationship genuinely
- * requires a CSS sibling selector. Being unlayered scoped CSS it correctly
- * overrides the (layered) `rounded-[30px_0_0_30px]` utility on the SECOND of
- * two adjacent `double` buttons — exactly the original behaviour.
+ * REDESIGN: the old `button.double + button.double` adjacent-sibling join
+ * (flush halves with a 0-radius inner corner + 1px divider — the “buttons
+ * touching” effect) is GONE. Both pair members are now fully-rounded pills;
+ * their spacing comes from the Footer's flex gap, and the pair still splits
+ * the row evenly because each member keeps `w-full` (flex-shrink halves
+ * them around the gap).
  */
-button.double + button.double {
-    border-radius: 0 30px 30px 0;
-    border-left: 1px solid var(--bg);
-}
 </style>

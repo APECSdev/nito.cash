@@ -1,8 +1,8 @@
 <template>
     <footer
         :class="tooltip
-            ? 'tooltip block w-full m-0 text-[12px] bg-box-bg rounded-t-[20px] p-5 short:p-4'
-            : 'flex w-full p-5 short:p-4'"
+            ? 'tooltip block w-full m-0 text-[12px] bg-box-bg border-t border-hr rounded-t-[20px] p-5 short:p-4'
+            : 'flex w-full gap-[10px] p-5 short:p-4'"
     >
         <slot />
     </footer>

@@ -6,7 +6,7 @@
 
         <div
             v-show="open"
-            class="w-[272px] md:w-[300px] rounded-[14px] border border-white/15 bg-[#0b1c3f]/95 text-white shadow-[0_12px_32px_rgba(0,0,0,0.4)] backdrop-blur-md p-[12px]"
+            class="w-[272px] md:w-[300px] rounded-[14px] border border-white/15 bg-[#0a1020]/92 text-white shadow-[0_12px_32px_rgba(0,0,0,0.4)] backdrop-blur-md p-[12px]"
         >
             <div class="text-[11px] leading-[16px] font-semibold tracking-[0.08em] uppercase text-[#9fd8ff]">
                 ★ BCH BLAZE 2026
@@ -50,7 +50,7 @@
 
         <button
             @click="open = !open"
-            class="rounded-full border border-white/15 bg-[#0b1c3f]/95 text-white text-[11px] leading-[16px] font-semibold px-[10px] py-[5px] shadow-[0_6px_18px_rgba(0,0,0,0.35)] cursor-pointer"
+            class="rounded-full border border-white/15 bg-[#0a1020]/92 text-white text-[11px] leading-[16px] font-semibold px-[10px] py-[5px] shadow-[0_6px_18px_rgba(0,0,0,0.35)] cursor-pointer"
         >
             ★ BLAZE 2026 {{ open ? '▾' : '▴' }}
         </button>

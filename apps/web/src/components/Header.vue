@@ -69,10 +69,26 @@ export default {
 </script>
 
 <style scoped>
+/* REDESIGN: the old primary-gradient banner is replaced by a minimal,
+   translucent, blurred bar with a hairline divider. Height stays 65px
+   (Modal's slot calc(100% - 65px) and several views depend on it). */
 header {
     display: flex;
     position: relative;
     width: 100%;
+    background: var(--header-bg);
+    -webkit-backdrop-filter: blur(14px) saturate(1.4);
+    backdrop-filter: blur(14px) saturate(1.4);
+}
+
+header::after {
+    content: '';
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    height: 1px;
+    background: var(--hr);
 }
 
 button:first-of-type {
@@ -80,21 +96,30 @@ button:first-of-type {
     align-items: center;
     width: 100%;
     height: 65px;
-    background: linear-gradient(120deg, var(--primary) 0%, #1b3f8f 140%);
-    color: var(--primary-fg);
+    background: none;
+    color: var(--fg);
     padding: 0 20px;
-    font-size: 17px;
+    font-size: 16px;
     font-weight: 600;
     letter-spacing: 0.03em;
 }
 
+/* Theme-aware icons: CSS `fill` beats the SVGs' presentation attributes
+   (the inline help/close glyphs hardcode #FFF; the compiled back icon
+   defaults to black) — both now follow the button color. */
+header button svg,
+header button :deep(svg *) {
+    fill: currentColor;
+}
+
 button.right {
     position: absolute;
-    top: 5px;
+    top: 2px;
     right: 0px;
     width: 61px;
-    height: 60px;
+    height: 61px;
     background: none;
+    color: var(--fg);
 }
 
 button span {

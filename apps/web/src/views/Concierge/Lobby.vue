@@ -4,10 +4,10 @@
             Welcome to the Concierge Lobby!
         </header>
 
-        <footer>
+        <Footer>
             <Button @click.native="coming" label="Open Chat" double secondary :disabled="!hasPrivilege" />
             <Button @click.native="coming" label="Today's Deals" double secondary :disabled="!hasPrivilege" />
-        </footer>
+        </Footer>
 
         <Footer>
             what should we put here??

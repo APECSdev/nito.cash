@@ -5,7 +5,7 @@
         <div class="w-full max-w-[560px] flex-1 flex flex-col items-center justify-center px-[20px] py-[28px]">
             <!-- Hero mark (animated Rocketman Lottie — same artwork as Splash) -->
             <div class="relative h-[180px] w-[180px]">
-                <div class="absolute inset-0 rounded-full bg-[#4cc3ff]/20 blur-2xl" aria-hidden="true"></div>
+                <div class="absolute inset-0 rounded-full bg-[#38bdf8]/20 blur-2xl" aria-hidden="true"></div>
                 <Animation type="rocketman" />
             </div>
 
@@ -196,7 +196,7 @@ export default {
 /* Onboarding card surface: fixed dark gradient (independent of the light/dark
    theme so the white text is ALWAYS readable). */
 .setup-card {
-    background: linear-gradient(170deg, #1a2233 0%, #0d111a 100%);
+    background: linear-gradient(170deg, #121b30 0%, #0a1020 100%);
 }
 
 /* Scoped child-root rule: styles the svgicon's root <svg> (a child component's

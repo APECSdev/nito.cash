@@ -17,7 +17,7 @@
         </button>
 
         <nav
-            class="absolute top-[48px] right-0 bg-input-bg shadow-[0px_4px_30px_rgba(0,0,0,0.25)] rounded-[3px] transition-opacity duration-100 ease-[cubic-bezier(0.4,0,0.2,1)]"
+            class="absolute top-[48px] right-0 bg-input-bg shadow-[0px_4px_30px_rgba(0,0,0,0.25)] rounded-[12px] transition-opacity duration-100 ease-[cubic-bezier(0.4,0,0.2,1)]"
             :class="dropdown ? 'active opacity-100 pointer-events-all' : 'opacity-0 pointer-events-none'">
             <button
                 v-for="item of units"

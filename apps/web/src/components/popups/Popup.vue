@@ -70,7 +70,10 @@ export default {
     max-height: var(--max-height);
     transform: translate(-50%, -50%);
     overflow: hidden;
+    /* Modern scrim: dim + blur the content behind the popup. */
     background: var(--popup-bg);
+    -webkit-backdrop-filter: blur(10px) saturate(1.2);
+    backdrop-filter: blur(10px) saturate(1.2);
     z-index: 3;
     pointer-events: none;
     transition: opacity 0.2s cubic-bezier(0.4, 0, 0.2, 1);

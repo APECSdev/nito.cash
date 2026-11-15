@@ -79,6 +79,12 @@
     --color-pending-header: var(--pending-header);
     --color-pending-dark: var(--pending-dark);
 
+    /* Chrome (modern shell — translucent header, tab rail, focus ring). */
+    --color-header-bg: var(--header-bg);
+    --color-tab-bg: var(--tab-bg);
+    --color-frame-border: var(--frame-border);
+    --color-ring: var(--ring);
+
     /* Layout sizing (referenced as spacing/dimension utilities). */
     --spacing-max-width: var(--max-width);
     --spacing-max-height: var(--max-height);
@@ -178,7 +184,7 @@ footer.tooltip {
         margin-bottom: 18px;
         padding: 0 14px;
         background: var(--input-bg);
-        border-radius: 7px;
+        border-radius: 12px;
         border: 1px solid var(--input-border);
         font-family: 'Poppins', sans-serif;
         -webkit-appearance: none;
@@ -187,7 +193,7 @@ footer.tooltip {
         width: 100%;
         height: 52px;
         resize: none;
-        transition: border-color 0.12s cubic-bezier(0.4, 0, 0.2, 1);
+        transition: border-color 0.15s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.15s cubic-bezier(0.4, 0, 0.2, 1);
     }
 
     .input-base::-ms-clear {
@@ -198,6 +204,8 @@ footer.tooltip {
 
     .input-base:focus {
         border-color: var(--input-active);
+        /* Modern focus treatment: soft token-colored halo. */
+        box-shadow: 0 0 0 3px var(--ring);
     }
 
     .input-base::placeholder {

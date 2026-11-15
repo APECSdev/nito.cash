@@ -1,5 +1,5 @@
 <template>
-    <div class="app :">
+    <div class="app :" :class="{ dark: isDarkMode }">
         <Notification />
         <router-view />
     </div>
@@ -20,6 +20,34 @@ export default {
         ...mapGetters('wallets', [
             'getReceivingAccounts',
         ]),
+
+        ...mapGetters('profile', [
+            'getFlags',
+        ]),
+
+        /* Dark-mode state (persisted profile flag `f.dm`). NOTE: the
+           `.app.dark` token block below was DEAD until now — the only dark
+           handling anywhere was Settings.vue's `darkMode` computed, which
+           toggles `document.body` while Settings is mounted (and only while
+           it is mounted), so the 38 interior dark tokens never applied to
+           the `.app` element. Binding the class here makes the interior
+           theme real, and the watcher below keeps the (wallpaper) body
+           class in sync app-wide + on every reload. */
+        isDarkMode() {
+            const flags = this.getFlags
+
+            return !!(flags && flags.dm)
+        },
+    },
+    watch: {
+        isDarkMode: {
+            /* Immediate: on (re)load, before any Settings visit. */
+            immediate: true,
+            handler(_isDark) {
+                /* Keep the (wallpaper) body class in sync app-wide. */
+                document.body.classList.toggle('dark', _isDark)
+            },
+        },
     },
     methods: {
         ...mapActions('blockchain', [
@@ -152,17 +180,49 @@ hr {
     border: 0;
 }
 
+/*
+ * Cypherpunk wallpaper — layered pure CSS (zero binary assets; the legacy
+ * bg.jpg / bg-dark.jpg from the previous application are retired).
+ *
+ * Layers, bottom to top:
+ *   1. film-grain noise (inline SVG feTurbulence, saturate(0))
+ *   2. cipher grid — 1px lines every 44px, both axes
+ *   3. signal glows — one cyan "beacon" + one indigo "ghost", huge + blurred
+ *   4. base color (--wallpaper-color)
+ *
+ * Theme-aware via custom properties on `:root` / `body.dark` (the body
+ * carries the `dark` class — see the isDarkMode watcher in the component).
+ */
+:root {
+    --wallpaper-color: #e9eef7;
+    --wall-grid: rgba(47, 80, 145, 0.075);
+    --wall-glow-1: rgba(14, 165, 233, 0.11);
+    --wall-glow-2: rgba(79, 91, 219, 0.07);
+    --wall-noise-opacity: 0.05;
+}
+
+body.dark {
+    --wallpaper-color: #05080f;
+    --wall-grid: rgba(76, 195, 255, 0.055);
+    --wall-glow-1: rgba(56, 189, 248, 0.13);
+    --wall-glow-2: rgba(59, 91, 219, 0.16);
+    --wall-noise-opacity: 0.06;
+}
+
 html, body {
     width: 100vw;
     height: 100%; /* iOS bug with vh */
     overflow: hidden;
-    background: #e5e5e5;
+    background-color: var(--wallpaper-color);
+    background-image:
+        url("data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20width='160'%20height='160'%3E%3Cfilter%20id='n'%3E%3CfeTurbulence%20type='fractalNoise'%20baseFrequency='0.9'%20numOctaves='2'/%3E%3CfeColorMatrix%20type='saturate'%20values='0'/%3E%3C/filter%3E%3Crect%20width='160'%20height='160'%20filter='url(%23n)'%20opacity='0.05'/%3E%3C/svg%3E"),
+        repeating-linear-gradient(90deg, var(--wall-grid) 0 1px, transparent 1px 44px),
+        repeating-linear-gradient(0deg, var(--wall-grid) 0 1px, transparent 1px 44px),
+        radial-gradient(900px 620px at 88% -12%, var(--wall-glow-1), transparent 62%),
+        radial-gradient(760px 540px at -8% 112%, var(--wall-glow-2), transparent 60%);
     font-family: 'Poppins', sans-serif;
     font-weight: 400;
-    background: url('./assets/bg.jpg') no-repeat;
-
-    background-size: cover;
-    transition: background 0.25s;
+    transition: background-color 0.25s;
 }
 
 body {
@@ -172,8 +232,7 @@ body {
 }
 
 body.dark {
-    background: url('./assets/bg-dark.jpg') no-repeat;
-    background-size: cover;
+    /* Wallpaper vars only — the background stack above reads them. */
 }
 
 .app {
@@ -185,18 +244,21 @@ body.dark {
     --iphone-height-fix: 115px;
     --ipad-height-fix: 55px;
 
-    --bg: #eef1f3;
-    --fg: #485776;
-    --fg-muted: #5a6a8a;
+    /*
+     * Light palette ("clean ledger" — cool paper, ink-blue text, electric
+     * blue + cyan accents, amber kept as the brand pop). Text/surface pairs
+     * keep or improve the previously measured WCAG ratios.
+     */
+    --bg: #f3f6fb;
+    --fg: #1b2740;
+    --fg-muted: #5c6d8d;
     --fg-hover: #2f5a94;
-    /* Darkened from #4376e2: white-bg ratio measured 4.26:1 (needs 4.5). */
-    --fg-link: #3a68d9;
-    --primary: #3569d7;
+    --fg-link: #2f66e0;
+    --primary: #2f66e0;
     --primary-fg: #fff;
-    --primary-hover: #1454da;
+    --primary-hover: #1d55d4;
     --secondary: #ffc555;
-    /* Dark text on the amber surface: white-on-amber measured 1.57:1 (WCAG F).
-       Applies to both themes (the amber value is shared). */
+    /* Dark text on the amber surface (shared by both themes). */
     --secondary-fg: #4a3410;
     --secondary-hover: #f3b336;
     --secondary-disabled: #ffdc98;
@@ -204,84 +266,108 @@ body.dark {
     /* Text-grade warning (the --warning token doubles as a BUTTON background,
        so its value cannot serve long text on dark --bg). */
     --warning-text: #c03540;
-    --trinary: #4cc3ff;
-    --trinary-fg: #fff;
+    --trinary: #0ea5e9;
+    --trinary-fg: #06283d;
     --trinary-dark: #1f5571;
-    --light: #c2c7d1;
-    --dark: #556273;
+    --light: #c9d2e0;
+    --dark: #4a5670;
     --warning: #d33f49;
     --warning-fg: #fff;
     --warning-hover: #c02e38;
-    --success: #67dab0;
+    --success: #10b981;
     --input-bg: #fff;
-    --input-border: #d1dae2;
-    --input-placeholder: #a6adbc;
-    --input-carret: #3569d7;
-    --input-active: #677ca9;
-    --popup-bg: rgba(72, 87, 118, 0.8);
-    --chart-bg: #d2e9f5;
-    --chart-fg: #4cc3ff;
-    --chart-title: #87d4fb;
+    --input-border: #d8e0ec;
+    --input-placeholder: #9aa6bd;
+    --input-carret: #2f66e0;
+    --input-active: #2f66e0;
+    --popup-bg: rgba(10, 16, 32, 0.55);
+    --chart-bg: #e3f1fc;
+    --chart-fg: #2563eb;
+    --chart-title: #7cc4f8;
     --chart-button-fg: #fff;
     --chart-button-bg: #ffc555;
     --box-bg: #fff;
     --list-bg: #fff;
-    --hr: #e3e5ec;
-    --spinner: #b0b7c4;
-    --pending: #c5c5c5;
-    --pending-header: #dfdfdf;
-    --pending-dark: #4f4f50;
-    --dropdown-active: #fff0d2;
-    --dropdown-hover: #f4f4f4;
+    --hr: #e4e9f3;
+    --spinner: #aeb8ca;
+    --pending: #c3c9d4;
+    --pending-header: #dde2ea;
+    --pending-dark: #454d5c;
+    --dropdown-active: #fff3d6;
+    --dropdown-hover: #f1f5fb;
+
+    /* Chrome (new tokens — translucent header, tab rail, focus ring). */
+    --header-bg: rgba(255, 255, 255, 0.78);
+    --tab-bg: rgba(27, 39, 64, 0.06);
+    --frame-border: rgba(255, 255, 255, 0.45);
+    --ring: rgba(47, 102, 224, 0.18);
+    /* Interior ambient texture (VERY subtle — the app surface carries the
+       same cipher-grid + grain language as the wallpaper). */
+    --app-grid: rgba(47, 80, 145, 0.045);
 }
 
 .app.dark {
-    --bg: #485776;
-    --fg: #fff;
-    --fg-muted: #c9d2e4;
-    --fg-hover: #e0e4ec;
-    --fg-link: #a9c5ff;
-    /* Darkened from #5377c2: white text on it measured 4.39:1 (Header,
-       primary buttons, Setup CTA). #3f61ad measures ~6.0:1. */
-    --primary: #3f61ad;
+    /*
+     * Dark palette ("deep space" — the flagship cypherpunk theme). Near-black
+     * navy surfaces, electric blue + cyan accents, soft light text. Text
+     * pairs hold ≥4.5:1 (placeholders/dimmed accents ≥3:1).
+     */
+    --bg: #0a1020;
+    --fg: #e8eef8;
+    --fg-muted: #93a5c4;
+    --fg-hover: #ffffff;
+    --fg-link: #8fb7ff;
+    /* Same brand blue as light (white on #2f66e0 ≈ 4.6:1). */
+    --primary: #2f66e0;
     --primary-fg: #fff;
-    --primary-hover: #2a5abd;
-    --secondary: #fec65a;
+    --primary-hover: #1d55d4;
+    --secondary: #ffc555;
     /* Dark text on the amber surface (matches the light-theme fix: white
        measured 1.56:1 on it). */
     --secondary-fg: #4a3410;
     --secondary-dark: #615640;
     --secondary-hover: #f3b336;
-    --trinary: #4cc3ff;
-    --trinary-fg: #fff;
-    --light: #c2c7d1;
-    --dark: #556273;
-    --warning: #f76c5e;
+    --secondary-disabled: #ffdc98;
+    --trinary: #38bdf8;
+    --trinary-fg: #062033;
+    --trinary-dark: #1f5571;
+    --light: #c9d2e0;
+    --dark: #4a5670;
+    /* Same red as light: white on #d33f49 ≈ 4.6:1 (the lighter #f87171
+       measured 2.77:1 under white button text). */
+    --warning: #d33f49;
     --warning-fg: #fff;
-    --warning-hover: #f45444;
-    /* Light text-grade warning for dark --bg (#f76c5e as text measured 2.5:1). */
+    --warning-hover: #c02e38;
+    /* Light text-grade warning for dark --bg. */
     --warning-text: #ffbcae;
-    --success: #67dab0;
-    --input-bg: #627294;
-    --input-border: #717e97;
-    --input-placeholder: #b0b8ca;
-    --input-carret: #424c62;
-    --input-active: #b8bfcd;
-    --popup-bg: rgba(72, 87, 118, 0.8);
-    --chart-bg: #5a6884;
-    --chart-fg: #abb3c0;
-    --chart-title: #a3abbb;
+    --success: #34d399;
+    --input-bg: #111a30;
+    --input-border: #243252;
+    --input-placeholder: #7285a6;
+    --input-carret: #38bdf8;
+    --input-active: #5aa2ff;
+    --popup-bg: rgba(3, 6, 14, 0.6);
+    --chart-bg: #101b33;
+    --chart-fg: #8fb7ff;
+    --chart-title: #5d8bd8;
     --chart-button-fg: #fff;
-    --chart-button-bg: #627294;
-    --box-bg: #424c62;
-    --list-bg: #627294;
-    --hr: rgba(227, 229, 236, 0.2);
-    --spinner: #b0b7c4;
-    --pending: #b0b6c4;
-    --pending-header: #959eb2;
-    --pending-dark: #eef0f4;
-    --dropdown-active: #51689a;
-    --dropdown-hover: #5c6f98;
+    --chart-button-bg: #243252;
+    --box-bg: #0e1526;
+    --list-bg: #111a30;
+    --hr: rgba(147, 165, 196, 0.16);
+    --spinner: #64748f;
+    --pending: #3a4660;
+    --pending-header: #4a5878;
+    --pending-dark: #dfe6f3;
+    --dropdown-active: #1a2a4a;
+    --dropdown-hover: #152238;
+
+    /* Chrome (dark). */
+    --header-bg: rgba(10, 16, 32, 0.72);
+    --tab-bg: rgba(255, 255, 255, 0.05);
+    --frame-border: rgba(140, 170, 230, 0.18);
+    --ring: rgba(56, 189, 248, 0.25);
+    --app-grid: rgba(76, 195, 255, 0.035);
 }
 
 /*
@@ -307,7 +393,15 @@ body.dark {
     margin: 0 auto;
     max-width: var(--max-width);
     max-height: var(--max-height);
-    background: var(--bg);
+    /* Interior surface + the subtle cipher-grid/grain ambient (scroll-safe:
+       on a scroll container the default `scroll` attachment pins the
+       background to the element, so the texture stays put while content
+       scrolls). */
+    background-color: var(--bg);
+    background-image:
+        url("data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20width='160'%20height='160'%3E%3Cfilter%20id='n'%3E%3CfeTurbulence%20type='fractalNoise'%20baseFrequency='0.9'%20numOctaves='2'/%3E%3CfeColorMatrix%20type='saturate'%20values='0'/%3E%3C/filter%3E%3Crect%20width='160'%20height='160'%20filter='url(%23n)'%20opacity='0.035'/%3E%3C/svg%3E"),
+        repeating-linear-gradient(90deg, var(--app-grid) 0 1px, transparent 1px 44px),
+        repeating-linear-gradient(0deg, var(--app-grid) 0 1px, transparent 1px 44px);
     color: var(--fg);
     user-select: none;
     font-size: 14px;
@@ -318,7 +412,7 @@ body.dark {
     overflow: hidden auto;
     -webkit-overflow-scrolling: touch;
     position: relative;
-    box-shadow: 0px 20px 30px 5px rgba(0, 0, 0, 0.25);
+    box-shadow: 0px 24px 60px -12px rgba(2, 8, 24, 0.55);
 }
 
 @media (max-width: 520px) {
@@ -358,8 +452,9 @@ body.dark {
         --max-height: 860px;
         max-width: var(--max-width);
         max-height: var(--max-height);
-        border-radius: 12px;
-        box-shadow: 0px 20px 30px 5px rgba(0, 0, 0, 0.25);
+        border-radius: 24px;
+        border: 1px solid var(--frame-border);
+        box-shadow: 0 40px 90px -24px rgba(2, 8, 24, 0.65);
     }
 }
 
