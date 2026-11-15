@@ -231,6 +231,15 @@ body {
     justify-content: center;
 }
 
+/* The mount node sits BETWEEN body and the .app shell; without an explicit
+   height it is auto-sized, which made `.app`'s own `height: 100%` resolve
+   against nothing (the shell then collapsed to its content height once the
+   old fixed 425x680 phone-frame caps were lifted — full-bleed phones
+   showed wallpaper strips below a ~418px-tall app). */
+#app {
+    height: 100%;
+}
+
 body.dark {
     /* Wallpaper vars only — the background stack above reads them. */
 }
@@ -391,6 +400,16 @@ body.dark {
     width: 100vw;
     height: 100%; /* iOS bug with vh */
     margin: 0 auto;
+    /* Full-bleed shell on PHONE + TABLET (the user-facing app should fill
+       the viewport — "only a very small amount of the background, if
+       anything at all"). The old 425x680 "phone frame" left wallpaper
+       strips above/below (phones are 800+ px tall) and floating margins
+       on 520–767px devices; the old @media (max-width:520px) override
+       targeted a bare `app` ELEMENT selector (there is no <app> element —
+       the root is a div.app), so it never applied and phones ran with the
+       425/680 caps. Desktop (>=1024px) re-caps to a centered frame below. */
+    --max-width: 100vw;
+    --max-height: 100%;
     max-width: var(--max-width);
     max-height: var(--max-height);
     /* Interior surface + the subtle cipher-grid/grain ambient (scroll-safe:
@@ -404,8 +423,8 @@ body.dark {
         repeating-linear-gradient(0deg, var(--app-grid) 0 1px, transparent 1px 44px);
     color: var(--fg);
     user-select: none;
-    font-size: 14px;
-    line-height: 19px;
+    font-size: 15px;
+    line-height: 21px;
     /* Vertical scroll lives INSIDE the app frame (html/body stay overflow
        hidden): content taller than the frame (short phones, long lists) is
        reachable instead of clipped. Horizontal stays contained. */
@@ -419,30 +438,18 @@ body.dark {
     html, body {
         background: transparent;
     }
-    app {
-        max-width: 100vw;
-        max-height: 100%; /* iOS bug with vh */
-        background: none;
-    }
+    /* NOTE: the old inner `app { ... }` rule here targeted a bare `app`
+       ELEMENT selector and never matched anything (the root is div.app);
+       the base .app rule above is now full-bleed, covering phones too. */
 }
 
 /* Responsive shell — Tablet & Desktop.
-   NOTE: breakpoints layer on top of the base `.app` rule (which caps the
-   phone frame at --max-width/--max-height). Mobile-first: the smallest
-   screens keep the base 425px cap; wider screens progressively open up.
+   NOTE: the BASE .app rule is full-bleed (100vw x 100%), which covers
+   phones AND tablets (<=1023px) — the wallpaper stays hidden behind the
+   app. Only the desktop breakpoint re-caps the shell to a centered,
+   elevated "app frame" so the wallpaper stays visible around it.
    `--max-width`/`--max-height` are re-scoped per breakpoint so the popups
-   (Popup.vue et al., which read the same vars) widen along with the shell. */
-
-/* Tablet — full screen width (fills the viewport edge-to-edge). */
-@media only screen and (min-width: 768px) {
-    .app {
-        --max-width: 100vw;
-        --max-height: 100%;
-        max-width: var(--max-width);
-        max-height: var(--max-height); /* iOS bug with vh */
-        box-shadow: none;
-    }
-}
+   (Popup.vue et al., which read the same vars) follow the shell. */
 
 /* Desktop — cap the width so the wallpaper stays visible around a
    centered, elevated "app frame". */
@@ -452,6 +459,9 @@ body.dark {
         --max-height: 860px;
         max-width: var(--max-width);
         max-height: var(--max-height);
+        /* Desktop keeps the original (slightly denser) base type. */
+        font-size: 14px;
+        line-height: 19px;
         border-radius: 24px;
         border: 1px solid var(--frame-border);
         box-shadow: 0 40px 90px -24px rgba(2, 8, 24, 0.65);

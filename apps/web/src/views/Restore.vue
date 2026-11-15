@@ -2,14 +2,14 @@
     <!-- Same onboarding-card aesthetic as Setup (fixed dark surface, readable
          in BOTH themes). -->
     <main class="flex-1 flex flex-col items-center justify-center h-full px-0 overflow-y-auto">
-        <div class="w-full max-w-[560px] flex-1 flex flex-col items-center justify-center px-[20px] py-[28px]">
-            <div class="w-full rounded-2xl border border-white/10 shadow-[0_18px_50px_-12px_rgba(20,40,80,0.45)] p-[22px] md:p-[28px] entrance connect-card">
+        <div class="w-full max-w-[560px] md:max-w-[720px] flex-1 flex flex-col items-center justify-center px-[12px] py-[28px] md:px-[24px]">
+            <div class="w-full rounded-2xl border border-white/10 shadow-[0_18px_50px_-12px_rgba(20,40,80,0.45)] p-[22px] md:p-[36px] entrance connect-card">
                 <div class="flex items-center gap-[12px]">
                     <span class="inline-flex h-[38px] w-[38px] items-center justify-center rounded-full bg-secondary text-[#4a3410] text-[20px] font-semibold shrink-0">🔑</span>
-                    <h2 class="text-[22px] md:text-[24px] font-semibold text-white">Connect with Seed Phrase</h2>
+                    <h2 class="text-[22px] md:text-[28px] font-semibold text-white">Connect with Seed Phrase</h2>
                 </div>
 
-                <p class="text-[15px] leading-[22px] mt-[14px] text-white/95">
+                <p class="text-[15px] leading-[22px] md:text-[17px] md:leading-[25px] mt-[14px] text-white/95">
                     Enter the BIP39 recovery phrase of the wallet you want to connect.
                     Phrases from the nito SeedVault and from other BIP39-compatible
                     wallets are both supported.

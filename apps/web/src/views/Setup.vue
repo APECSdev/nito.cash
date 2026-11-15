@@ -2,7 +2,7 @@
     <main class="flex-1 flex flex-col items-center justify-between h-full short:pt-[40px] px-0 overflow-y-auto">
         <BlazeBanner />
 
-        <div class="w-full max-w-[560px] flex-1 flex flex-col items-center justify-center px-[20px] py-[28px]">
+        <div class="w-full max-w-[560px] md:max-w-[720px] flex-1 flex flex-col items-center justify-center px-[12px] py-[28px] md:px-[24px]">
             <!-- Hero mark (animated Rocketman Lottie — same artwork as Splash) -->
             <div class="relative h-[180px] w-[180px]">
                 <div class="absolute inset-0 rounded-full bg-[#38bdf8]/20 blur-2xl" aria-hidden="true"></div>
@@ -10,18 +10,18 @@
             </div>
 
             <!-- Onboarding card (dark surface: readable in light AND dark theme) -->
-            <div class="w-full mt-[20px] rounded-2xl border border-white/10 shadow-[0_18px_50px_-12px_rgba(20,40,80,0.45)] p-[22px] md:p-[28px] entrance setup-card">
+            <div class="w-full mt-[20px] rounded-2xl border border-white/10 shadow-[0_18px_50px_-12px_rgba(20,40,80,0.45)] p-[22px] md:p-[36px] entrance setup-card">
                 <div class="flex items-center gap-[12px]">
                     <span class="inline-flex h-[38px] w-[38px] items-center justify-center rounded-full bg-secondary text-[#4a3410] text-[20px] font-semibold shrink-0">!</span>
-                    <h2 class="text-[22px] md:text-[24px] font-semibold text-white">Before you start</h2>
+                    <h2 class="text-[22px] md:text-[28px] font-semibold text-white">Before you start</h2>
                 </div>
 
-                <p class="text-[15px] leading-[22px] mt-[14px] text-white/95">
+                <p class="text-[15px] leading-[22px] md:text-[17px] md:leading-[25px] mt-[14px] text-white/95">
                     Nito.cash is a low-security wallet built for the <strong class="font-semibold">CONVENIENCE</strong>
                     and <strong class="font-semibold">EDUCATION</strong> of newcomers to the Wonderful World of Crypto.
                 </p>
 
-                <p class="text-[15px] leading-[22px] mt-[10px] text-white/95">
+                <p class="text-[15px] leading-[22px] md:text-[17px] md:leading-[25px] mt-[10px] text-white/95">
                     We highly recommend that you <strong class="font-semibold">ONLY</strong> send &amp; receive
                     small amounts of crypto(currency).
                 </p>
@@ -41,19 +41,9 @@
                 <div class="mt-[20px] flex flex-col gap-[12px]">
                     <Button @click.native="create" label="Create a NEW wallet" />
 
-                    <button
-                        @click="$router.push('restore')"
-                        class="text-[15px] text-fg-link underline underline-offset-4 bg-transparent hover:text-white transition-colors"
-                    >
-                        …or connect an existing wallet with its Seed Phrase
-                    </button>
+                    <Button @click.native="$router.push('restore')" label="Connect an existing wallet with its Seed Phrase" blank />
 
-                    <button
-                        @click="$router.push('connect')"
-                        class="text-[15px] text-fg-link underline underline-offset-4 bg-transparent hover:text-white transition-colors"
-                    >
-                        …or connect an external wallet (WizardConnect)
-                    </button>
+                    <Button @click.native="$router.push('connect')" label="Connect an external wallet (WizardConnect)" blank />
                 </div>
             </div>
         </div>

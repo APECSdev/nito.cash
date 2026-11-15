@@ -84,12 +84,14 @@ export default {
                 c.push('bg-primary', 'text-primary-fg', 'hover:bg-primary-hover')
             }
 
-            /* Font-size + height (`small` always 45px/13px, else 54px/14px with
-               the max-height:600px -> 48px override via the `short` variant). */
+            /* Font-size + height (`small` always 45px/13px, else 58px/15px with
+               the max-height:600px -> 52px override via the `short` variant).
+               (Enlarged from 54px/14px — the full-bleed phone/tablet shell
+               made the CTAs read small on modern devices.) */
             if (this.small) {
                 c.push('text-[13px]', 'h-[45px]')
             } else {
-                c.push('text-[14px]', 'h-[54px]', 'short:h-[48px]')
+                c.push('text-[15px]', 'h-[58px]', 'short:h-[52px]')
             }
 
             /* Elevation (per variant, so the halo color matches the surface). */
