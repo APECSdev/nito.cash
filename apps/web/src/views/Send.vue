@@ -1,18 +1,10 @@
 <template>
+    <!-- NOTE: A legacy "Accept the recommendation?" Concierge popup used to
+         render here. It was DEAD CODE: `showConcierge` was initialized false
+         and never set true (its only writer was the popup's own `accept`
+         handler, whose "Import has been completed" text revealed it as a
+         leftover from the retired import flow). Removed 2026-11-15. -->
     <main>
-        <Concierge
-            :class="{ active: showConcierge }"
-            v-on:confirm="accept"
-            v-on:cancel="showConcierge = false"
-        >
-            <h3>Accept the recommendation?</h3>
-
-            <p>
-                Your transaction history will be cleared.
-                If you have not backed up, you will permanently lose the tokens in your wallet.
-            </p>
-        </Concierge>
-
         <Modal :label="$t('send-view.title')" :hideHeader="sendState !== 'idle'">
             <div v-if="sendState === 'sending'">
                 <!-- height is calc(100% - 94px): iOS bug with vh -->
@@ -113,7 +105,6 @@ import {
     Amount,
     Animation,
     Button,
-    Concierge,
     Footer,
     Modal,
     Spinner
@@ -132,7 +123,6 @@ export default {
         Amount,
         Animation,
         Button,
-        Concierge,
         Footer,
         Modal,
         Spinner,
@@ -159,7 +149,6 @@ export default {
             paymentLink: '',
 
             sendState: null,
-            showConcierge: false,
         }
     },
     computed: {
@@ -212,7 +201,6 @@ export default {
     methods: {
         ...mapActions([
             'displayError',
-            'displayNotification',
         ]),
 
         ...mapActions('wallets', [
@@ -411,34 +399,6 @@ export default {
                 console.error(err) // eslint-disable-line no-console
 
                 this.cameraError = true
-
-                /* Bugsnag alert. */
-                throw new Error(err)
-            }
-        },
-
-        async accept() {
-            try {
-                console.log('IMPORTING ???')
-
-                /* Request (total) wallet destruction. */
-                // this.destroyWallet()
-
-                /* Set flag. */
-                this.showConcierge = false
-
-                /* Display notification. */
-                this.displayNotification('Import has been completed')
-
-                /* Load setup. */
-                // setTimeout(() => {
-                //     this.$router.replace('setup')
-                // }, 3000)
-            } catch (err) {
-                console.error(err) // eslint-disable-line no-console
-
-                /* Display error. */
-                this.displayError(err.message ? err.message.split(';')[0] : err)
 
                 /* Bugsnag alert. */
                 throw new Error(err)

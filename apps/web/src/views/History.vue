@@ -45,7 +45,10 @@
 
                         <small>{{tx.value.fiat}}</small>
 
-                        <time>{{ formatDate(tx.timestamp, 'time') }}</time>
+                        <!-- Fulcrum provides NO timestamp for unconfirmed
+                             (mempool) transactions; render nothing rather
+                             than a bogus "12:00:00 AM" (epoch). -->
+                        <time v-if="tx.timestamp">{{ formatDate(tx.timestamp, 'time') }}</time>
                     </article>
                 </div>
             </div>
@@ -188,16 +191,22 @@ export default {
                         )
                     )
 
-            /* Sort filtered. */
-            filtered.sort((a, b) => b.timestamp - a.timestamp)
+            /* Sort filtered. NOTE: unconfirmed txs have NO timestamp (null);
+               bare subtraction produces NaN and an implementation-defined
+               order — treat null as +Infinity so pending items sort FIRST
+               (they are the most recent activity). */
+            filtered.sort((a, b) => (b.timestamp || Infinity) - (a.timestamp || Infinity))
 
             /* Initialize current day. */
             let currentDay = null
 
             /* Return filtered (transactions). */
             return filtered.map(item => {
-                /* Initialize transaction day. */
-                const txDay = item.timestamp - (item.timestamp % (24 * 60 * 60))
+                /* Initialize transaction day (null for unconfirmed txs —
+                   no timestamp — so no date header is rendered for them). */
+                const txDay = item.timestamp
+                    ? item.timestamp - (item.timestamp % (24 * 60 * 60))
+                    : null
 
                 /* Sets the (display) day (null if already set for the "current" day). */
                 const day = txDay !== currentDay ? txDay : null
