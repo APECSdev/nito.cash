@@ -27,6 +27,30 @@ export const ElectrumMethods = {
     subscribeHeaders: 'blockchain.headers.subscribe',
 }
 
+/*
+ * Quorum comparison key for a (verbose) transaction response.
+ *
+ * The consensus-meaningful content of a transaction is its raw form (hex /
+ * vin / vout / version / locktime). The verbose wrapper ALSO carries DERIVED
+ * state — `confirmations`, `time`, `blocktime`, `height` — which changes at
+ * block boundaries: while a transaction is confirming, two servers can
+ * legitimately disagree on `confirmations` (0 vs 1), splitting the quorum on
+ * an otherwise byte-identical answer (observed live on chipnet). Comparing
+ * only the tx CONTENT keeps the quorum model meaningful (two servers must
+ * still agree on the actual transaction) while tolerating consensus-state
+ * volatility.
+ */
+const txContentKey = (value) => JSON.stringify({
+    hash: value.hash,
+    hex: value.hex,
+    locktime: value.locktime,
+    size: value.size,
+    txid: value.txid,
+    version: value.version,
+    vin: value.vin,
+    vout: value.vout,
+})
+
 /**
  * A quorum-verified connection to one network's cluster of Fulcrum servers.
  */
@@ -107,25 +131,50 @@ export class FulcrumCluster {
         }
 
         /* Tally identical (serialized) results across servers; keep server errors. */
-        const tally = new Map()
-        const errors = []
-        for (const s of settled) {
-            if (s.status !== 'fulfilled') {
-                errors.push(s.reason instanceof Error ? s.reason.message : String(s.reason))
-                continue
+        const tallyOf = (round) => {
+            const tally = new Map()
+            const errors = []
+            for (const s of round) {
+                if (s.status !== 'fulfilled') {
+                    errors.push(s.reason instanceof Error ? s.reason.message : String(s.reason))
+                    continue
+                }
+                /* Verbose tx responses compare on tx CONTENT (see
+                   txContentKey — volatile derived fields excluded). */
+                const key = (method === ElectrumMethods.getTransaction && s.value && typeof s.value === 'object')
+                    ? txContentKey(s.value)
+                    : JSON.stringify(s.value)
+                const entry = tally.get(key) || { count: 0, value: s.value }
+                entry.count += 1
+                tally.set(key, entry)
             }
-            const key = JSON.stringify(s.value)
-            const entry = tally.get(key) || { count: 0, value: s.value }
-            entry.count += 1
-            tally.set(key, entry)
+            return { tally, errors }
         }
 
-        for (const { count, value } of tally.values()) {
+        for (const { count, value } of tallyOf(settled).tally.values()) {
             if (count >= this.quorum) return value
         }
 
-        const reached = Math.max(0, ...[...tally.values()].map((t) => t.count))
-        const why = errors.length ? ` — server errors: ${[...new Set(errors)].join(' | ')}` : ''
+        /* Quorum shortfall with SOME fulfilled responses — retry once. A
+           single (transient) slow server must not fail the whole request
+           (observed live: 1/2 on a verbose tx fetch while BOTH servers
+           returned byte-identical JSON when asked directly). Re-asking ALL
+           servers keeps the identical-results quorum model intact; re-
+           broadcasting the same raw tx is consensus-idempotent (same txid). */
+        await Promise.allSettled(this.clients.map((client) => client.connect()))
+        const retrySettled = await this._dispatch(method, params)
+
+        for (const { count, value } of tallyOf(retrySettled).tally.values()) {
+            if (count >= this.quorum) return value
+        }
+
+        /* Pick the better round for the error report. */
+        const first = tallyOf(settled)
+        const second = tallyOf(retrySettled)
+        const bestOf = (round) => Math.max(0, ...[...round.tally.values()].map((t) => t.count))
+        const report = bestOf(second) > bestOf(first) ? second : first
+        const reached = bestOf(report)
+        const why = report.errors.length ? ` — server errors: ${[...new Set(report.errors)].join(' | ')}` : ''
         throw new Error(
             `Fulcrum[${this.networkId}]: no quorum for ${method} (best ${reached}/${this.quorum})${why}`,
         )

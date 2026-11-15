@@ -44,7 +44,10 @@ const sendCrypto = async ({ dispatch, getters, rootGetters }, _params) => {
         dispatch('displayError', error, { root: true })
 
         /* Stop (send) execution. */
-        return
+        /* Throw (AFTER the warning) so the caller's rejection handler runs — a
+           resolved action made the Send view show the \"complete\" state on
+           FAILED sends. */
+        throw error
     }
 
     /* Set send amount. */
@@ -68,7 +71,10 @@ const sendCrypto = async ({ dispatch, getters, rootGetters }, _params) => {
         dispatch('displayError', error, { root: true })
 
         /* Stop (send) execution. */
-        return
+        /* Throw (AFTER the warning) so the caller's rejection handler runs — a
+           resolved action made the Send view show the \"complete\" state on
+           FAILED sends. */
+        throw error
     }
 
     /* Initialize HD node. */
@@ -127,7 +133,10 @@ const sendCrypto = async ({ dispatch, getters, rootGetters }, _params) => {
         dispatch('displayError', error, { root: true })
 
         /* Stop (send) execution. */
-        return
+        /* Throw (AFTER the warning) so the caller's rejection handler runs — a
+           resolved action made the Send view show the \"complete\" state on
+           FAILED sends. */
+        throw error
     }
 
     /* Initialize send amount. */
@@ -158,7 +167,10 @@ const sendCrypto = async ({ dispatch, getters, rootGetters }, _params) => {
         dispatch('displayError', error, { root: true })
 
         /* Stop (send) execution. */
-        return
+        /* Throw (AFTER the warning) so the caller's rejection handler runs — a
+           resolved action made the Send view show the \"complete\" state on
+           FAILED sends. */
+        throw error
     }
 
     /* Initialize byte count. */
@@ -225,7 +237,10 @@ const sendCrypto = async ({ dispatch, getters, rootGetters }, _params) => {
         dispatch('displayError', error, { root: true })
 
         /* Stop (send) execution. */
-        return
+        /* Throw (AFTER the warning) so the caller's rejection handler runs — a
+           resolved action made the Send view show the \"complete\" state on
+           FAILED sends. */
+        throw error
     }
 
     /* Validate send amount. */
@@ -239,7 +254,10 @@ const sendCrypto = async ({ dispatch, getters, rootGetters }, _params) => {
         dispatch('displayError', error, { root: true })
 
         /* Stop (send) execution. */
-        return
+        /* Throw (AFTER the warning) so the caller's rejection handler runs — a
+           resolved action made the Send view show the \"complete\" state on
+           FAILED sends. */
+        throw error
     }
 
     /* Build the transaction outputs. */

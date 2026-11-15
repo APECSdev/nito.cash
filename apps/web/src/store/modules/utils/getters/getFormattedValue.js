@@ -14,8 +14,16 @@ const getFormattedValue = () => (_satoshis, _marketPrice, _currency) => {
 
     let unit = 'sats'
 
-    let fiat = ((_satoshis / 100000000) * (_marketPrice / 100.0))
-    fiat = numeral(fiat).format('$0,0.00[00]') + ' ' + _currency
+    /* Without a market price there is NO fiat conversion — return null (the
+       callers render an empty fiat line) rather than a misleading "$0.00".
+       (A failed CoinGecko ticker previously made getBalance return null
+       entirely, zeroing the Send guard on a FUNDED wallet.) */
+    let fiat = _marketPrice
+        ? ((_satoshis / 100000000) * (_marketPrice / 100.0))
+        : null
+    fiat = _marketPrice
+        ? numeral(fiat).format('$0,0.00[00]') + ' ' + _currency
+        : null
 
     // const fiat = !_marketPrice
     //     ? '-'

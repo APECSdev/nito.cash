@@ -81,10 +81,14 @@ const getHistory = async (state, getters, rootState, rootGetters) => {
 
             /* Initialize (received / spent) values (satoshis). */
             let valueReceived = 0
-            let valueSpent = 0
+            /* NOTE: the semicolon is REQUIRED — the next statement begins
+               with `(`, so without it ASI parses `0 (details.vout || [])`
+               as a call and crashes with "0 is not a function" on the FIRST
+               real transaction (History rendered permanently empty). */
+            let valueSpent = 0;
 
             /* Search outputs (sum payments to OUR addresses). */
-            (details.vout || []).forEach(output => {
+            ;(details.vout || []).forEach(output => {
                 const outAddrs = (output.scriptPubKey && output.scriptPubKey.addresses) || []
 
                 /* Validate (matching) transaction. */

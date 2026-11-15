@@ -86,8 +86,15 @@ const getBalance = (state, getters, rootState, rootGetters) => async (_wallet, _
             /* Return (formatted) balance. */
             return formattedBalance
         } else {
-            /* Return (empty) balance. */
-            return null
+            /* Ticker unavailable — return the balance WITHOUT fiat (fiat:
+               null) instead of null: a failed CoinGecko call must not zero
+               the wallet display or block the Send guard on a funded
+               wallet (observed live on chipnet). */
+            const unformattedBalance =
+                rootGetters['utils/getFormattedValue'](balance, null, currency)
+
+            /* Return (formatted, fiat-less) balance. */
+            return unformattedBalance
         }
     } catch (err) {
         console.error(err) // eslint-disable-line no-console

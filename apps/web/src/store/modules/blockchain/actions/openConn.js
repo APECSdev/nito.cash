@@ -6,6 +6,11 @@ import { getCluster } from '@/lib/bch/provider.js'
  *  confirmation, so we de-duplicate to avoid double alerts.) */
 const _seenTxs = new Set()
 
+/* The active subscription callback (captured by openConn and reused when the
+ * address pool rotates, so payments to the NEW receiving address are also
+ * detected — see handleIncomingPayment). */
+let _activeSubscriptionCallback = null
+
 /**
  * Handle Incoming Payment
  *
@@ -89,6 +94,24 @@ const handleIncomingPayment = async (_dispatch, _rootGetters, _address) => {
     /* Update account inputs. */
     _dispatch('wallets/updateInputs', updateInputs, { root: true })
 
+    /* Re-subscribe the (rotated) address pool. NOTE: without this, the
+       address the user is DISPLAYING after the rotation (the one they just
+       copied and shared!) is not watched — payments to it go unnoticed
+       until Receive is re-opened (observed live on chipnet). The provider's
+       subscribeAddresses is idempotent (its subscription Map replaces
+       entries), so re-subscribing the whole pool is safe. */
+    try {
+        const refreshedAddresses = (_rootGetters['wallets/getAddresses']('BCH') || [])
+            .map(account => account.address)
+
+        if (refreshedAddresses.length && _activeSubscriptionCallback) {
+            const refreshedCluster = await getCluster(network)
+            await refreshedCluster.subscribeAddresses(refreshedAddresses, _activeSubscriptionCallback)
+        }
+    } catch (err) {
+        console.error(err) // eslint-disable-line no-console
+    }
+
     try {
         /* Initialize media. */
         const media = new Audio(require('@/media/coins.wav'))
@@ -131,11 +154,13 @@ const openConn = async ({ dispatch, rootGetters }) => {
     /* Subscribe to (wallet) address status changes. */
     // NOTE: This replaces `conn.listen('transactions', ...)`; Fulcrum pushes a
     //       per-address notification instead of streaming every transaction.
-    await cluster.subscribeAddresses(addresses, (address) => {
+    _activeSubscriptionCallback = (address) => {
         /* Handle the (incoming) payment (async; log any failure). */
         handleIncomingPayment(dispatch, rootGetters, address)
             .catch(err => console.error(err)) // eslint-disable-line no-console
-    })
+    }
+
+    await cluster.subscribeAddresses(addresses, _activeSubscriptionCallback)
 
     console.info(`Blockchain: subscribed to ${addresses.length} address(es) on ${network}!`) // eslint-disable-line no-console
 }
