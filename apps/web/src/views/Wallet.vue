@@ -23,7 +23,9 @@
 
             <!-- ==================== NITO CASH (shielded stablecoins) ==================== -->
             <div v-if="wallet.id === 'nito-cash'">
-                <div class="text-[15px] font-semibold text-warning-text text-center">
+                <!-- Chipnet-only banner (the view also runs on MAINNET, where
+                     real BCH is held — the banner must NOT render there). -->
+                <div v-if="getNetwork === 'chipnet'" class="text-[15px] font-semibold text-warning-text text-center">
                     Chipnet development preview — no real value
                 </div>
 

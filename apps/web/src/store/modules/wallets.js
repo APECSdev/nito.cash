@@ -20,6 +20,7 @@ import createWallet from './wallets/actions/createWallet'
 import destroyWallet from './wallets/actions/destroyWallet'
 import initWallet from './wallets/actions/initWallet'
 import nextAccount from './wallets/actions/nextAccount'
+import restoreWallet from './wallets/actions/restoreWallet'
 import sendCrypto from './wallets/actions/sendCrypto'
 import updateAccounts from './wallets/actions/updateAccounts'
 import updateInputs from './wallets/actions/updateInputs'
@@ -89,6 +90,7 @@ const actions = {
     destroyWallet,
     initWallet,
     nextAccount,
+    restoreWallet,
     sendCrypto,
     updateAccounts,
     updateInputs,

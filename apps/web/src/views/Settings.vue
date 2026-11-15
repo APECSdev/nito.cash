@@ -92,6 +92,26 @@
                             label="Create SeedVault" />
                     </section>
 
+                    <section>
+                        <article>
+                            <svgicon icon="carnival" width="54" height="54" :fill="false" :original="true"></svgicon>
+
+                            <div>
+                                <h6 class="dark">CONNECT A DIFFERENT WALLET</h6>
+                                <p>
+                                    Connect an existing wallet to this app using its BIP39 seed phrase
+                                    (12–24 words). Connecting REPLACES the wallet currently in this app —
+                                    back it up first.
+                                </p>
+
+                            </div>
+                        </article>
+
+                        <Button
+                            @click.native="$router.push('restore')"
+                            label="Connect with Seed Phrase" />
+                    </section>
+
                     <Footer tooltip>
                         <article>
                             <svgicon icon="alarm" width="54" height="54" :fill="false" :original="true"></svgicon>

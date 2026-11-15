@@ -19,7 +19,11 @@
  * compressed pubkey -> hash160 -> P2PKH CashAddress.
  */
 import { HDKey } from '@scure/bip32'
-import { entropyToMnemonic, mnemonicToSeedSync } from '@scure/bip39'
+import {
+    entropyToMnemonic,
+    mnemonicToEntropy,
+    mnemonicToSeedSync,
+} from '@scure/bip39'
 import { wordlist } from '@scure/bip39/wordlists/english.js'
 import {
     publicKeyToP2pkhCashAddress,
@@ -64,6 +68,40 @@ export function randomHex(numBytes) {
 /* entropy hex -> BIP39 mnemonic (english wordlist) */
 export function mnemonicFromEntropy(entropyHex) {
     return entropyToMnemonic(hexToBytes(entropyHex), wordlist)
+}
+
+/**
+ * BIP39 mnemonic -> entropy hex (the INVERSE of mnemonicFromEntropy).
+ *
+ * Used by the "Connect with Seed Phrase" restore flow: a phrase typed or
+ * pasted by the user is validated (BIP39 checksum) and converted back to
+ * the master entropy that the wallet derives from.
+ *
+ * Accepts 12/15/18/21/24-word english phrases in ANY case/whitespace
+ * (nito SeedVault phrases and other standard BIP39 wallets both work —
+ * the entropy round-trip is lossless and the BIP39 seed depends only on
+ * the mnemonic string, not on the entropy length).
+ *
+ * THROWS (with a user-presentable message) on a wrong word count or an
+ * invalid BIP39 checksum.
+ */
+export function entropyFromMnemonic(_mnemonic) {
+    /* Normalize: trim + lowercase + collapse (all) whitespace. */
+    const mnemonic = String(_mnemonic || '')
+        .trim()
+        .toLowerCase()
+        .replace(/\s+/g, ' ')
+
+    /* Validate (word) count. */
+    const words = mnemonic.split(' ').filter(Boolean)
+    if (![12, 15, 18, 21, 24].includes(words.length)) {
+        throw new Error(
+            `Seed phrase must be 12, 15, 18, 21 or 24 words (got ${words.length})`
+        )
+    }
+
+    /* BIP39 checksum validation + entropy extraction. */
+    return bytesToHex(mnemonicToEntropy(mnemonic, wordlist))
 }
 
 /* BIP39 mnemonic -> 64-byte seed (empty passphrase, matching bitbox default) */

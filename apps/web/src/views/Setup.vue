@@ -42,10 +42,17 @@
                     <Button @click.native="create" label="Create a NEW wallet" />
 
                     <button
+                        @click="$router.push('restore')"
+                        class="text-[15px] text-fg-link underline underline-offset-4 bg-transparent hover:text-white transition-colors"
+                    >
+                        …or connect an existing wallet with its Seed Phrase
+                    </button>
+
+                    <button
                         @click="$router.push('connect')"
                         class="text-[15px] text-fg-link underline underline-offset-4 bg-transparent hover:text-white transition-colors"
                     >
-                        …or connect an existing wallet (WizardConnect)
+                        …or connect an external wallet (WizardConnect)
                     </button>
                 </div>
             </div>

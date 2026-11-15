@@ -13,6 +13,9 @@ import History from '@/views/History'
 
 import Receive from '@/views/Receive'
 
+/* Seed-phrase wallet (re)connection. */
+import Restore from '@/views/Restore'
+
 import Send from '@/views/Send'
 
 import Settings from '@/views/Settings'
@@ -61,6 +64,9 @@ const routes = [{
 }, {
     path: '/settings',
     component: Settings
+}, {
+    path: '/restore',
+    component: Restore
 }, {
     path: '/setup',
     component: Setup
