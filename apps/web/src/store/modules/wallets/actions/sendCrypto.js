@@ -96,6 +96,15 @@ const sendCrypto = async ({ dispatch, getters, rootGetters }, _params) => {
     /* Initialize the Fulcrum cluster (for the active network). */
     const cluster = await getCluster(rootGetters['profile/getNetwork'])
 
+    /* Set the account base — getDerivationPath returns the branch-0 base
+       (`m/44'/145'/0'/0` = purpose'/coin'/account'/change); slice(0, 4)
+       keeps `m/44'/145'/0'` (dropping the change level — NOT the account
+       level, which slice(0, 3) would and which derives a different
+       wallet). DISCOVERED branch-1 (foreign change chain) entries sign
+       from `${accountBase}/1/${index}`. The path is carried PER INPUT
+       (getSignedInput derives the key from it). */
+    const accountBase = getters.getDerivationPath('BCH').split('/').slice(0, 4).join('/')
+
     /* Retrieve (account) unspent outputs (UTXOs) — one query per address. */
     for (const account of accounts) {
         // FIXME: Add support for multiple unspents for one account address.
@@ -106,8 +115,10 @@ const sendCrypto = async ({ dispatch, getters, rootGetters }, _params) => {
             /* Set (account) address. */
             const address = account.address
 
-            /* Set derivation path. */
-            const path = `${getters.getDerivationPath('BCH')}/${account.index}`
+            /* Set derivation path (branch-aware). */
+            const path = account.branch === 1
+                ? `${accountBase}/1/${account.index}`
+                : `${getters.getDerivationPath('BCH')}/${account.index}`
 
             /* Add account index. */
             accountIndexes.push(account.index)

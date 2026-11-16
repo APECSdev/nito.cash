@@ -113,7 +113,7 @@
                 </div>
 
                 <div class="text-[32px] font-semibold text-fg text-center mt-[8px]">
-                    {{bchBalance}} <small class="text-[16px] font-semibold">BCH</small>
+                    {{bchDisplay}} <small class="text-[16px] font-semibold">BCH</small>
                 </div>
 
                 <!-- SOL balance (derived from the same seed; send lands next) -->
@@ -178,7 +178,7 @@ export default {
         return {
             wallets: WALLETS,
             activeAction: null,
-            bchBalance: 0,
+            bchBalance: null,
             pusdBalanceRaw: null,
             solAddress: '',
             solBalance: null,
@@ -216,6 +216,26 @@ export default {
         /* The transparent PUSD balance, formatted for display (raw base units). */
         pusdBalance() {
             return this.pusdBalanceRaw === null ? '\u2014' : this.pusdBalanceRaw.toLocaleString()
+        },
+
+        /* The Naked Vault BCH display: EXACT BCH with at least 4 decimals,
+           up to 8 (sats-derived values are exact within 8 decimals). The
+           old display showed getFormattedValue's `value` — a bits/mBCH
+           number — under a "BCH" label (wrong units AND truncated to 1
+           decimal). `bchBalance` now holds RAW SATOSHIS. */
+        bchDisplay() {
+            if (this.bchBalance === null) {
+                return '—'
+            }
+
+            const s = (this.bchBalance / 100000000).toFixed(8)
+
+            /* Trim trailing zeros but never below 4 decimals. */
+            let t = s
+            while (t.endsWith('0') && (t.length - t.indexOf('.') - 1) > 4) {
+                t = t.slice(0, -1)
+            }
+            return t
         },
 
         /* A short note under the PUSD balance. */
@@ -268,15 +288,31 @@ export default {
         },
     },
     created: async function () {
-        /* Retrieve the current BCH balance (for Naked Vault). */
-        const balance = await this.getBalance('BCH', 'USD')
-        this.bchBalance = balance ? balance.value : 0
+        /* NOTE: each fetch below is guarded INDEPENDENTLY — one failing
+           call (e.g. a flaky CoinGecko/Solana RPC) must not skip or zero
+           the OTHER balances (a thrown getBalance previously left BOTH
+           the BCH and PUSD displays at their zero/init values). */
+
+        /* Retrieve the current BCH balance (for Naked Vault) — RAW satoshis
+           (the display formats them exactly; see bchDisplay). */
+        try {
+            const balance = await this.getBalance('BCH', 'USD')
+            this.bchBalance = balance ? balance.satoshis : null
+        } catch (err) {
+            console.error('BCH balance fetch failed:', err) // eslint-disable-line no-console
+            this.bchBalance = null
+        }
 
         /* Retrieve the transparent PUSD (CashToken) balance (for Naked Cash),
            if the active network tracks a PUSD category. */
         const category = getTokenCategory(this.getNetwork, 'PUSD')
         if (category) {
-            this.pusdBalanceRaw = await this.getTokenBalance('BCH', category)
+            try {
+                this.pusdBalanceRaw = await this.getTokenBalance('BCH', category)
+            } catch (err) {
+                console.error('PUSD balance fetch failed:', err) // eslint-disable-line no-console
+                this.pusdBalanceRaw = null
+            }
         }
 
         /* Derive the Solana account (same seed) and fetch its balance
@@ -284,7 +320,13 @@ export default {
         if (this.getMasterSeed) {
             const solAccount = solanaAccountFromEntropy(this.getMasterSeed)
             this.solAddress = solAccount.address
-            this.solBalance = await fetchSolBalance(solAccount.address)
+
+            try {
+                this.solBalance = await fetchSolBalance(solAccount.address)
+            } catch (err) {
+                console.error('SOL balance fetch failed:', err) // eslint-disable-line no-console
+                this.solBalance = null
+            }
         }
     },
 }

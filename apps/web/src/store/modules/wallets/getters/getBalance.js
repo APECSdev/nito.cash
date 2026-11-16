@@ -1,5 +1,6 @@
-/* Import crypto helpers (local key/address cryptography). */
-import { derivePath, toCashAddress } from '@/lib/bch/crypto.js'
+/* NOTE: address derivation now lives entirely in getAddresses (which
+   carries branch-0 + discovered branch-1 entries with their addresses);
+   this getter only sums the per-address Fulcrum balances. */
 
 /* Import the Fulcrum (Electrum) data provider. */
 import { getCluster } from '@/lib/bch/provider.js'
@@ -21,27 +22,11 @@ const getBalance = (state, getters, rootState, rootGetters) => async (_wallet, _
     /* Set (active) network. */
     const network = rootGetters['profile/getNetwork']
 
-    /* Initialize account addresses. */
-    const addresses = []
-
-    /* Add all active receiving account (addresses) to pool. */
-    Object.keys(getters.getAccountsByWallet(_wallet)).forEach(index => {
-        /* Initialize HD node. */
-        const hdNode = getters.getHDNode
-
-        /* Set derivation path. */
-        const path = `${getters.getDerivationPath(_wallet)}/${index}`
-        // console.log('GET BALANCE (path)', path)
-
-        /* Initialize child node. */
-        const childNode = derivePath(hdNode, path)
-
-        const address = toCashAddress(childNode, network)
-        // console.log('GET WALLET BALANCE (receiving address)', address)
-
-        /* Add to all receiving (pool). */
-        addresses.push(address)
-    })
+    /* Collect ALL account addresses (branch 0 receiving + DISCOVERED
+       branch 1 change chain — getAddresses carries `address` per entry, so
+       no per-index path rebuild is needed here; a restored wallet's
+       foreign change funds MUST be scanned too). */
+    const addresses = (getters.getAddresses(_wallet) || []).map((a) => a.address)
     console.log('GET WALLET BALANCE (all accounts)', addresses)
 
     try {
@@ -72,10 +57,18 @@ const getBalance = (state, getters, rootState, rootGetters) => async (_wallet, _
            call-site compatibility but the persisted selection wins. */
         const currency = rootGetters['profile/getFiatCurrency'] || _currency
 
-        /* Retrieve market price. */
-        const marketPrice =
-            await rootGetters['blockchain/getTicker'](_wallet, currency)
-        console.info(`Market price (${currency})`, marketPrice) // eslint-disable-line no-console
+        /* Retrieve market price. NOTE: a FAILED ticker fetch must not fail
+           the whole balance — the wallet's BCH total is known regardless of
+           the fiat price (a thrown CoinGecko error previously propagated
+           out of getBalance and zeroed view-level balances). */
+        let marketPrice = null
+        try {
+            marketPrice =
+                await rootGetters['blockchain/getTicker'](_wallet, currency)
+            console.info(`Market price (${currency})`, marketPrice) // eslint-disable-line no-console
+        } catch (tickerErr) {
+            console.error('Ticker unavailable:', tickerErr) // eslint-disable-line no-console
+        }
 
         /* Validate market price. */
         if (marketPrice) {

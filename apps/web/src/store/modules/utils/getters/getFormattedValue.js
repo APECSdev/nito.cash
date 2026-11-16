@@ -52,15 +52,29 @@ const getFormattedValue = () => (_satoshis, _marketPrice, _currency) => {
         break
     }
 
-    /* Rounded value (based on decimal value). */
-    // TODO: Run more display tests to decide if we're keeping the rounding.
-    //       2-decimal places is ideal for "primary" displays.
-    //       4-decimal places is acceptable for "secondary" displays.
-    const rounded = Math.round(value * 10) / 10 +
-        (Math.round(value * 10) / 10 === value ? '' : '+')
+    /* Exact-decimal display: at least 4 decimals, up to 8 (sats-derived
+       values are exact within 8 decimals — bits carry 2, mBCH 5, BCH 8).
+       Trailing zeros are trimmed only DOWN TO 4 decimals. (The old
+       1-decimal round + "+" marker hid the precision the wallet actually
+       has — user-requested change: "show at least 4 decimals, up to 8,
+       if available".) */
+    const exactDecimals = (v) => {
+        const s = (Number.isFinite(v) ? v : 0).toFixed(8)
 
-    /* Return (formatted) value. */
+        /* Trim trailing zeros but never below 4 decimals. */
+        let t = s
+        while (t.endsWith('0') && (t.length - t.indexOf('.') - 1) > 4) {
+            t = t.slice(0, -1)
+        }
+        return t
+    }
+    const rounded = exactDecimals(value)
+
+    /* Return (formatted) value. NOTE: `satoshis` is the RAW satoshi amount
+       (exact, unit-independent) so views that need a precise, unit-safe
+       number (e.g. the Naked Vault BCH display) can format it themselves. */
     return {
+        satoshis: _satoshis,
         value,
         rounded,
         unit,

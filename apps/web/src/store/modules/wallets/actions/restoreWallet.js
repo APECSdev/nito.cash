@@ -1,18 +1,11 @@
-/* Import crypto helpers (mnemonic -> master entropy + HD derivation). */
-import { entropyFromMnemonic, derivePath, toCashAddress } from '@/lib/bch/crypto.js'
+/* Import crypto helpers (mnemonic -> master entropy). */
+import { entropyFromMnemonic } from '@/lib/bch/crypto.js'
+
+/* Import the shared discovery scan (BIP44-style gap scan). */
+import { scanBranch } from '@/lib/bch/discovery.js'
 
 /* Import the Fulcrum (Electrum) data provider. */
 import { getCluster } from '@/lib/bch/provider.js'
-
-/*
- * Account (index) discovery bounds — BIP44-style gap scan over the
- * RECEIVING chain. NOTE: nito uses a SINGLE chain — "change" addresses
- * are the NEXT index on the same chain (see getChangeAddress, which
- * appends index + 1 to the pool) — so scanning branch 0 covers both
- * received funds and (nito-native) change.
- */
-const DISCOVERY_BATCH = 10        // indexes probed per batch
-const DISCOVERY_MAX_BATCHES = 20  // hard bound: at most 200 indexes probed
 
 /**
  * Restore Wallet
@@ -27,20 +20,23 @@ const DISCOVERY_MAX_BATCHES = 20  // hard bound: at most 200 indexes probed
  *   1. mnemonic -> (validated) master entropy hex — THROWS on an invalid
  *      phrase (wrong word count / bad checksum) BEFORE anything changes.
  *   2. Set the restored master seed (profile).
- *   3. DISCOVER used receiving indexes (see below).
- *   4. Commit the discovered accounts model. Address derivation, balances
- *      and history re-derive reactively from the restored seed (the
- *      getAddresses / getHDNode getters read the master seed directly),
- *      and Receive's openConn subscribes the fresh pool when it mounts.
+ *   3. DISCOVER used indexes on BOTH chains (receiving branch 0 + the
+ *      BIP44-standard change branch 1 — see discovery.js).
+ *   4. Commit the discovered accounts model + change indexes. Address
+ *      derivation, balances and history re-derive reactively from the
+ *      restored seed (the getAddresses / getHDNode getters read the
+ *      master seed directly), and Receive's openConn subscribes the
+ *      fresh pool when it mounts.
  *
  * Discovery (why balances were 0 after restore — observed live):
  *   getBalance / getTokenBalance scan ONLY the addresses in the accounts
  *   model, and a fresh model covers index 0 ONLY. A wallet with history
  *   holds funds at WHATEVER indexes it used — so a restored wallet showed
- *   no BCH / no PUSD. The scan below probes the receiving chain in
- *   batches (via `blockchain.address.get_history`) and activates every
- *   index up to the last USED one (+1 = the next fresh receive address),
- *   stopping at the first fully-empty batch (the gap limit).
+ *   no BCH / no PUSD. The scan below probes the receiving chain (branch 0)
+ *   AND the BIP44 change chain (branch 1 — where FOREIGN wallets like
+ *   Cashonize/Paytaca keep their change; nito's own change is the next
+ *   branch-0 index) and activates every index up to the last USED one
+ *   (+1), stopping at the first fully-empty batch.
  *
  * NOTE: this REPLACES the wallet currently in the app (same semantic as
  *       "Burn your wallet" + a new wallet, but with a known seed). Also
@@ -56,52 +52,30 @@ const restoreWallet = async ({ getters, rootGetters, commit, dispatch }, _mnemon
        against the NEW seed (the facade getters close over live state). */
     await dispatch('profile/updateMasterSeed', entropy, { root: true })
 
-    /* ----- Discover used receiving indexes ----- */
+    /* ----- Discover used indexes (BOTH chains) ----- */
     const network = rootGetters['profile/getNetwork']
     const hdNode = getters.getHDNode
-    const pathBase = getters.getDerivationPath('BCH')
+    const pathBase = getters.getDerivationPath('BCH').split('/').slice(0, 4).join('/')
     const cluster = await getCluster(network)
 
-    /* Highest index with ANY history (send or receive); -1 = none used. */
-    let lastUsed = -1
+    /* NOTE: slice(0, 4) keeps `m/44'/145'/0'` (purpose'/coin'/account') —
+       NOT slice(0, 3), which would DROP the account level and derive a
+       completely different wallet (caught live: every balance rendered 0
+       because the pool derived to wrong addresses). */
 
-    for (let batch = 0; batch < DISCOVERY_MAX_BATCHES; batch++) {
-        /* Probe one batch of indexes (in parallel). */
-        const start = batch * DISCOVERY_BATCH
-
-        const probes = []
-        for (let i = start; i < start + DISCOVERY_BATCH; i++) {
-            const address = toCashAddress(derivePath(hdNode, `${pathBase}/${i}`), network)
-
-            /* A FAILED probe is treated as "unused" (same as an empty
-               history): a single flaky response must not abort the scan. */
-            probes.push(cluster.getHistory(address).catch(() => []))
-        }
-        const histories = await Promise.all(probes)
-
-        /* Track the highest used index within this batch. */
-        histories.forEach((history, offset) => {
-            if (Array.isArray(history) && history.length > 0) {
-                lastUsed = start + offset
-            }
-        })
-
-        /* Gap limit: an ENTIRE batch without any usage ends the scan. */
-        if (histories.every((history) => !Array.isArray(history) || history.length === 0)) {
-            break
-        }
-    }
+    const lastUsed0 = await scanBranch({ hdNode, pathBase, branch: 0, network, cluster })
+    const lastUsed1 = await scanBranch({ hdNode, pathBase, branch: 1, network, cluster })
 
     /* ----- Build the discovered accounts model -----
-       BCH: indexes 0..(lastUsed + 1) — the +1 keeps ONE fresh (unused)
-            receive address at the end of the pool, as a used wallet would
-            have. ETH/SLP keep the createWallet defaults (index 0). */
+       BCH: branch-0 indexes 0..(lastUsed0 + 1) — the +1 keeps ONE fresh
+            (unused) receive address at the end of the pool, as a used
+            wallet would have. ETH/SLP keep the createWallet defaults. */
     const accountsModel = {
         BCH: {},
         ETH: { 0: { s: 'a' } },
         SLP: { 0: { s: 'a', u: {} } },
     }
-    for (let i = 0; i <= lastUsed + 1; i++) {
+    for (let i = 0; i <= lastUsed0 + 1; i++) {
         accountsModel.BCH[i] = { s: 'a', u: {} }
     }
 
@@ -111,6 +85,15 @@ const restoreWallet = async ({ getters, rootGetters, commit, dispatch }, _mnemon
     /* Commit the DISCOVERED accounts (a superset of createWallet's
        index-0-only model). */
     commit('setAccounts', accountsModel)
+
+    /* Commit the DISCOVERED branch-1 (change chain) indexes: 0..(lastUsed1 + 1)
+       — the +1 covers the next foreign change index. (nito's own change
+       allocation stays on branch 0 — see getChangeAddress.) */
+    const changeIndexes = []
+    for (let i = 0; i <= lastUsed1 + 1; i++) {
+        changeIndexes.push(i)
+    }
+    commit('setChangeIndexes', { BCH: changeIndexes })
 
     /* Return the restored (master) entropy. */
     return entropy

@@ -1,6 +1,7 @@
 /* Import modules (getters). */
 import getAccounts from './wallets/getters/getAccounts'
 import getAccountsByWallet from './wallets/getters/getAccountsByWallet'
+import getChangeIndexes from './wallets/getters/getChangeIndexes'
 import getAddress from './wallets/getters/getAddress'
 import getAddresses from './wallets/getters/getAddresses'
 import getBalance from './wallets/getters/getBalance'
@@ -27,6 +28,7 @@ import updateInputs from './wallets/actions/updateInputs'
 
 /* Import modules (mutations). */
 import setAccounts from './wallets/mutations/setAccounts'
+import setChangeIndexes from './wallets/mutations/setChangeIndexes'
 import setEmptyWallet from './wallets/mutations/setEmptyWallet'
 import setImportedSeeds from './wallets/mutations/setImportedSeeds'
 import setMetadata from './wallets/mutations/setMetadata'
@@ -42,6 +44,18 @@ const state = {
      *     3. Locked (l)
      */
     a: null,
+
+    /**
+     * Change (Chain) Indexes
+     *
+     * DISCOVERED branch-1 (BIP44 change chain) indexes per wallet —
+     * msgpack-encoded `{ BCH: [indexes] }`. Foreign (BIP44-standard)
+     * wallets keep their change on branch 1 while nito's own change is
+     * the next branch-0 index (see getChangeAddress); restored wallets
+     * need the change chain scanned to see foreign change funds.
+     * Populated by restoreWallet's discovery scan.
+     */
+    c: null,
 
     /**
      * Imported Seeds
@@ -69,6 +83,7 @@ const state = {
 const getters = {
     getAccounts,
     getAccountsByWallet,
+    getChangeIndexes,
     getAddress,
     getAddresses,
     getBalance,
@@ -99,6 +114,7 @@ const actions = {
 /* Mutations. */
 const mutations = {
     setAccounts,
+    setChangeIndexes,
     setEmptyWallet,
     setImportedSeeds,
     setMetadata,

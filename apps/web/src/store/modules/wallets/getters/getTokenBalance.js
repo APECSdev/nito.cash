@@ -1,5 +1,6 @@
-/* Import crypto helpers (local key/address cryptography). */
-import { derivePath, toCashAddress } from '@/lib/bch/crypto.js'
+/* NOTE: address derivation now lives entirely in getAddresses (which
+   carries branch-0 + discovered branch-1 entries with their addresses);
+   this getter only sums token-bearing UTXOs across them. */
 
 /* Import the Fulcrum (Electrum) data provider. */
 import { getCluster } from '@/lib/bch/provider.js'
@@ -24,23 +25,10 @@ const getTokenBalance = (state, getters, rootState, rootGetters) => async (_wall
     /* Set (active) network. */
     const network = rootGetters['profile/getNetwork']
 
-    /* Initialize account addresses. */
-    const addresses = []
-
-    /* Add all active receiving account (addresses) to pool. */
-    Object.keys(getters.getAccountsByWallet(_wallet)).forEach(index => {
-        /* Initialize HD node. */
-        const hdNode = getters.getHDNode
-
-        /* Set derivation path. */
-        const path = `${getters.getDerivationPath(_wallet)}/${index}`
-
-        /* Initialize child node. */
-        const childNode = derivePath(hdNode, path)
-
-        /* Add (receiving) address to pool. */
-        addresses.push(toCashAddress(childNode, network))
-    })
+    /* Collect ALL account addresses (branch 0 receiving + DISCOVERED
+       branch 1 change chain — a restored wallet's foreign change may hold
+       the tokens). getAddresses carries the address per entry. */
+    const addresses = (getters.getAddresses(_wallet) || []).map((a) => a.address)
 
     try {
         /* Retrieve (ALL) account(s) token-bearing UTXOs (quorum-verified). */
@@ -64,8 +52,10 @@ const getTokenBalance = (state, getters, rootState, rootGetters) => async (_wall
     } catch (err) {
         console.error(err) // eslint-disable-line no-console
 
-        /* Return (empty) balance. */
-        return 0n
+        /* Return null on error — the view renders an em-dash rather than a
+           misleading 0 (a network hiccup must not LOOK like a spent
+           balance). */
+        return null
     }
 }
 
