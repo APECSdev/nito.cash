@@ -106,8 +106,10 @@ export default {
             /* Display notification. */
             this.displayNotification('Wallet connected')
 
-            /* Continue to the default wallet (Nito Cash). */
-            this.$router.replace('/wallets/nito-cash')
+            /* Continue to the DASHBOARD (home: total balance + actions).
+               The wallet screens are modals over it, so landing on one
+               directly leaves no dashboard underneath. */
+            this.$router.replace('/dashboard')
         },
     },
 }

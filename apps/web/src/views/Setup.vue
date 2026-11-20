@@ -96,10 +96,13 @@ export default {
             /* Create new wallet. */
             this.createWallet()
 
-            /* Continue to the default wallet. */
+            /* Continue to the DASHBOARD (the app's home screen: total
+               balance + Send/Receive/History/Concierge). The per-wallet
+               screens are MODALS over it — landing on one directly leaves
+               the user with no dashboard underneath (reported bug: the
+               homepage redirected to `#/wallets/nito-cash`). */
             setTimeout(() => {
-                /* Redirect to the default wallet (Nito Cash). */
-                this.$router.replace('/wallets/nito-cash')
+                this.$router.replace('/dashboard')
             }, 1000)
         },
 
@@ -173,8 +176,10 @@ export default {
 
         /* Validate wallet accounts. */
         if (this.getAccountsByWallet('BCH')) {
-            /* Redirect to the default wallet (Nito Cash). */
-            return this.$router.replace('/wallets/nito-cash')
+            /* Existing wallet: go to the DASHBOARD (home), NOT to a wallet
+               modal. (Reported bug: loading nito.cash/#/ redirected to
+               nito.cash/#/wallets/nito-cash instead of #/dashboard.) */
+            return this.$router.replace('/dashboard')
         }
     },
 }

@@ -62,7 +62,13 @@ export default {
 
         loadDashboard() {
             // FIXME: Use the current state to determine close target.
-            this.$router.replace('dashboard')
+            /* ABSOLUTE path is REQUIRED: vue-router resolves a bare
+               relative path by REPLACING the last segment, so from
+               `/wallets/nito-cash` the old `'dashboard'` became
+               `/wallets/dashboard` — which matches `/wallets/:walletId?`
+               as a wallet id and falls back to the default wallet, making
+               this back button look dead. */
+            this.$router.replace('/dashboard')
         },
     }
 }
