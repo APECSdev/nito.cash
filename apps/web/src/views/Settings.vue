@@ -17,6 +17,13 @@
             v-on:close-seed-vault="showExport = false"
         />
 
+        <!-- Passkey assistant: save / restore the SeedVault phrase with a
+             passkey (WebAuthn PRF-encrypted). -->
+        <Passkey
+            :active="showPasskey"
+            v-on:close-passkey="showPasskey = false"
+        />
+
         <Modal :label="$t('settings-view.title')" secondary>
             <Tabs :tabs="tabs" :tab="tab" v-on:tab-change="updateTab" />
 
@@ -94,6 +101,25 @@
 
                     <section>
                         <article>
+                            <svgicon icon="alarm" width="54" height="54" :fill="false" :original="true"></svgicon>
+
+                            <div>
+                                <h6 class="dark">PASSKEY ASSISTANT</h6>
+                                <p>
+                                    Save the wallet's recovery phrase to a passkey. The phrase is encrypted
+                                    with a key derived from your passkey (WebAuthn PRF extension) — the key
+                                    never leaves your authenticator and nothing is sent to a server.
+                                </p>
+                            </div>
+                        </article>
+
+                        <Button
+                            @click.native="showPasskey = true"
+                            label="Open Passkey assistant" />
+                    </section>
+
+                    <section>
+                        <article>
                             <svgicon icon="carnival" width="54" height="54" :fill="false" :original="true"></svgicon>
 
                             <div>
@@ -145,7 +171,7 @@ import { mapActions, mapGetters } from 'vuex'
 import cc from 'currency-codes'
 
 /* Import components. */
-import { Button, Dropdown, Footer, Modal, SeedVault, Tabs, Toggle, Warning } from '@/components'
+import { Button, Dropdown, Footer, Modal, Passkey, SeedVault, Tabs, Toggle, Warning } from '@/components'
 
 /* Import icons. */
 import '@/compiled-icons/alarm'
@@ -157,6 +183,7 @@ export default {
         Dropdown,
         Footer,
         Modal,
+        Passkey,
         SeedVault,
         Tabs,
         Toggle,
@@ -173,6 +200,7 @@ export default {
             tabs: ['Basic', 'Wallet'],
             showWarning: false,
             showExport: false,
+            showPasskey: false,
             disabledNotifications: null,
         }
     },

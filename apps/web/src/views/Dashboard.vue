@@ -74,7 +74,7 @@
                 <button @click="openWizardConnect" class="tile tile-accent col-span-2">
                     <span class="tile-icon">⚡</span>
                     <span class="tile-label">Connect a 3rd-party wallet</span>
-                    <span class="tile-sub">WizardConnect | WalletConnect</span>
+                    <span class="tile-sub">WizardConnect | CashConnect</span>
                 </button>
 
                 <button @click="loadHistory" class="tile">
