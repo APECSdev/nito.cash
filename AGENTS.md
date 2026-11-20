@@ -25,7 +25,7 @@ backend server — the app runs entirely in the browser and talks to the BCH net
 | Routing        | `vue-router@4.6.4` (hash mode)              | `createWebHashHistory` — same `#/...` URLs.        |
 | i18n           | `vue-i18n@11.4.14` (`legacy: true`)         | Locales in `src/i18n/`.                            |
 | Icons          | Global `<svgicon>` plugin (`src/plugins/svgicon.js`) + `src/compiled-icons/` | Replaces `vue-svgicon`; generated files re-pointed via `compiled-icons/register.js`. |
-| Errors         | `@bugsnag/js@9` + `@bugsnag/plugin-vue@9`   | v9 API (`Bugsnag.start` + `app.use(getPlugin('vue'))`). |
+| Errors         | `@sentry/vue@11`                            | GlitchTip (Sentry-protocol) — `src/plugins/glitchtip.js`; tracing at 1%, `attachProps: false` (wallet privacy), BrowserSession integration filtered out. |
 | Node polyfill  | `vite-plugin-node-polyfills` + `buffer`     | webpack 4 auto-polyfilled `Buffer`/`process`; Vite needs this for Ledger (+ any Node builtins in blockchain deps). |
 | Ledger (HW)    | `@ledgerhq/hw-app-btc@11.6.0`, `@ledgerhq/hw-transport-webusb@6.35.0` | See "Ledger Integration" below. |
 | Testing        | **Vitest** `@5.0.4` + `@vue/test-utils@2.5.1` + jsdom | 41 suites / 373 tests; coverage gate **90% lines** (see `vitest.config.js` + `codecov.yml`). Jest + `@vue/cli-plugin-unit-jest` REMOVED (Phase C). |
@@ -337,8 +337,8 @@ C (Vitest), and E (legacy removal) are **done and live**. Phase D is in progress
 section below).
 
 - **Phase B (done) — runtime flip + Vite as the production build.** `vue@3.5.43`,
-  `vue-router@4.6.4` (`createWebHashHistory`), `vue-i18n@11.4.14` (`legacy: true`), Bugsnag v9
-  (`Bugsnag.start` + `app.use(getPlugin('vue'))`). `vue-svgicon` replaced by
+  `vue-router@4.6.4` (`createWebHashHistory`), `vue-i18n@11.4.14` (`legacy: true`), error
+  reporting via `@sentry/vue` -> GlitchTip (`Sentry.init({ app })`, see `src/plugins/glitchtip.js`). `vue-svgicon` replaced by
   `src/plugins/svgicon.js` (global `<svgicon>`) + `src/compiled-icons/register.js` shim
   (generated `compiled-icons/*.js` re-point at the shim; the `<svgicon>` call sites are
   unchanged). `vite.config.js`: `@vitejs/plugin-vue` + `vite-plugin-node-polyfills`
@@ -565,5 +565,5 @@ Full review found the app silently bricked since the Vue 3 migration:
 - **Don't hand-edit generated/lock files** (`pnpm-lock.yaml`, `src/compiled-icons/*`).
 - **Relative base path** — the app is built for static hosting; keep the relative base so it can
   be served from any sub-path (relevant to the Vite `base: './'` config during migration).
-- **Secrets** — the Bugsnag API key lives in `src/plugins/bugsnag.js`; treat it as a client-side
-  (public) key but don't rotate/expose it unnecessarily.
+- **Secrets** — the GlitchTip DSN lives in `src/plugins/glitchtip.js`; a Sentry/GlitchTip DSN is a
+  client-side (public) event-submission identifier — don't rotate/expose it unnecessarily.

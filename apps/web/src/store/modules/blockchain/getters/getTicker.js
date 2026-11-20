@@ -25,7 +25,7 @@ const getTicker = () => async (_wallet, _currency) => {
     } catch (err) {
         console.error(err) // eslint-disable-line no-console
 
-        /* Bugsnag alert. */
+        /* GlitchTip alert. */
         throw new Error(err)
     }
 }

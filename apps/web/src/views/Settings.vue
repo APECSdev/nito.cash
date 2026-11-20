@@ -458,7 +458,7 @@ export default {
                 /* Display error. */
                 this.displayError(err.message ? err.message.split(';')[0] : err)
 
-                /* Bugsnag alert. */
+                /* GlitchTip alert. */
                 throw new Error(err)
             }
         },

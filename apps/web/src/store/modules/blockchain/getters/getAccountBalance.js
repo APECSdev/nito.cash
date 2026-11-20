@@ -38,7 +38,7 @@ const getAccountBalance = (state, getters, rootState, rootGetters) => async (_ac
     } catch (err) {
         console.error(err) // eslint-disable-line no-console
 
-        /* Bugsnag alert. */
+        /* GlitchTip alert. */
         throw new Error(err)
     }
 }

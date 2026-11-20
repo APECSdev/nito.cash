@@ -36,8 +36,8 @@ import { i18n } from './plugins/i18n'
 /* Import SVG icon (global <svgicon>) plugin. */
 import SvgIcon from './plugins/svgicon'
 
-/* Import Bugsnag (error-handling). */
-import { useBugsnag } from './plugins/bugsnag'
+/* Import GlitchTip (error + performance reporting, via the Sentry SDK). */
+import { useGlitchTip } from './plugins/glitchtip'
 
 /* Initialize Vue. */
 const app = createApp(App)
@@ -68,8 +68,8 @@ app.use(router)
 app.use(i18n)
 app.use(SvgIcon)
 
-/* Attach Bugsnag's Vue error handler. */
-useBugsnag(app)
+/* Attach GlitchTip's Vue error handler + tracing. */
+useGlitchTip(app)
 
 /* Mount application. */
 app.mount('#app')

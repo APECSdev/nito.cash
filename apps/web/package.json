@@ -17,8 +17,6 @@
   },
   "dependencies": {
     "@bitauth/libauth": "^3.0.0",
-    "@bugsnag/js": "9.1.0",
-    "@bugsnag/plugin-vue": "9.1.0",
     "@electrum-cash/network": "^4.4.8",
     "@ledgerhq/hw-app-btc": "11.6.0",
     "@ledgerhq/hw-transport-webusb": "6.35.0",
@@ -28,6 +26,7 @@
     "@scure/base": "^2.4.0",
     "@scure/bip32": "^2.4.0",
     "@scure/bip39": "^2.4.0",
+    "@sentry/vue": "^11.15.0",
     "@wizardconnect/core": "0.2.5",
     "buffer": "^6.0.3",
     "circomlibjs": "^0.1.7",

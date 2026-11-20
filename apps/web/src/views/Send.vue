@@ -400,7 +400,7 @@ export default {
 
                 this.cameraError = true
 
-                /* Bugsnag alert. */
+                /* GlitchTip alert. */
                 throw new Error(err)
             }
         },
