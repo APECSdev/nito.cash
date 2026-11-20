@@ -28,7 +28,7 @@ backend server — the app runs entirely in the browser and talks to the BCH net
 | Errors         | `@bugsnag/js@9` + `@bugsnag/plugin-vue@9`   | v9 API (`Bugsnag.start` + `app.use(getPlugin('vue'))`). |
 | Node polyfill  | `vite-plugin-node-polyfills` + `buffer`     | webpack 4 auto-polyfilled `Buffer`/`process`; Vite needs this for Ledger (+ any Node builtins in blockchain deps). |
 | Ledger (HW)    | `@ledgerhq/hw-app-btc@11.6.0`, `@ledgerhq/hw-transport-webusb@6.35.0` | See "Ledger Integration" below. |
-| Testing        | **Vitest** `@5.0.4` + `@vue/test-utils@2.5.1` + jsdom | 17 suites / 86 tests. Jest + `@vue/cli-plugin-unit-jest` REMOVED (Phase C). |
+| Testing        | **Vitest** `@5.0.4` + `@vue/test-utils@2.5.1` + jsdom | 41 suites / 373 tests; coverage gate **90% lines** (see `vitest.config.js` + `codecov.yml`). Jest + `@vue/cli-plugin-unit-jest` REMOVED (Phase C). |
 
 Full dependency list lives in `package.json`; the authoritative lockfile is `pnpm-lock.yaml`.
 
@@ -107,7 +107,7 @@ apps/
                         Settings, Concierge/*)
       App.vue  main.js
     svg-icons/          Source SVGs for generate-icons
-    tests/unit/         Vitest unit tests (17 suites / 86 tests)
+    tests/unit/         Vitest unit tests (41 suites / 373 tests)
     vitest.config.js    Vitest config (jsdom, `@` alias, v8 coverage -> coverage/lcov.info)
     package.json  vite.config.js  vitest.config.js  eslint.config.js
   blaze/                @nito.cash/blaze — the BCH BLAZE 2026 submission page (static
@@ -362,8 +362,8 @@ section below).
   `namespaced === true`. Live action/mutation lookup lets tests stub actions through the facade
   (`Import.spec.js` pattern). An idiomatic-Pinia rewrite (dropping the shim) remains optional
   cleanup, not required for correctness.
-- **Phase C (done) — Vitest.** 17 suites / 86 tests on Vitest `@5.0.4` + `@vue/test-utils@2.5.1`
-  (jsdom, `vitest.config.js`); coverage lcov → `apps/web/coverage/lcov.info`. VTU v2
+- **Phase C (done) — Vitest.** 41 suites / 373 tests on Vitest `@5.0.4` + `@vue/test-utils@2.5.1`
+  (jsdom, `vitest.config.js`); coverage (JS + Vue SFCs) lcov → `apps/web/coverage/lcov.info`, 90% line gate. VTU v2
   conventions: `props` (not `propsData`), `exists()`, `global.{plugins,stubs}`,
   `findAllComponents`, `vi.fn/mock`; popup specs un-stub `Popup` via `global.stubs`
   (shallowMount stubs a `Popup` parent and drops its slot).

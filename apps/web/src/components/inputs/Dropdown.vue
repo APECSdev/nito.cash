@@ -65,6 +65,14 @@ export default {
                module map at build time; `?url` yields each flag's asset URL. */
             const flags = import.meta.glob('../../assets/flags/*.svg', { eager: true, query: '?url', import: 'default' })
             /* NOTE: `import.meta.glob` keys are the literal (relative) paths. */
+            /* Guard: the template resolves the ACTIVE flag on every render,
+               and a dropdown mounted WITHOUT a flag prop previously threw
+               (Cannot read properties of undefined (reading 'replace')).
+               An empty source simply renders no flag image. */
+            if (!_country) {
+                return ''
+            }
+
             const flagUrl = (name) => flags[`../../assets/flags/${name}.svg`]
 
             if (_country === 'American Samoa' || _country === 'United States') {

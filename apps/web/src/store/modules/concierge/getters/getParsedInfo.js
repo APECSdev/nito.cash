@@ -22,6 +22,18 @@ const getParsedInfo = () => (_data) => {
 
         _data = JSON.parse(_data.toString())
         console.log('DATA (parsed)', _data)
+
+        /* NOTE: the flag was NEVER set in the original — a clean (unpadded)
+           base64 JSON payload therefore fell through to the null-strip
+           fallback below and returned null. The intent of the
+           "Validate decoded" branch is clearly to skip the fallback once
+           the payload parsed, so the flag is set here. (Null-padded
+           payloads still throw above and take the fallback, unchanged.)
+
+           `info` is likewise only assigned in the fallback branch below, so
+           the parsed object is returned directly here. */
+        info = _data
+        decoded = true
     } catch (err) {
         console.error(err)
     }

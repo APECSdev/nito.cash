@@ -153,19 +153,24 @@ const sendCrypto = async ({ dispatch, getters, rootGetters }, _params) => {
     /* Initialize send amount. */
     let sendAmount = null
 
-    /* Set send amount (in satoshis). */
+    /* Set send amount (in satoshis).
+       NOTE: every case is ROUNDED — binary floating point makes conversions
+       like `0.01 mBCH * 1e5` evaluate to 1000.0000000000001, and
+       buildTransaction() calls BigInt() on the output value, which THROWS
+       (RangeError: not an integer) on a non-integer satoshi amount. A user
+       sending 0.01 mBCH crashed the send path before this rounding. */
     switch(unit) {
     case 'SATOSHIS':
-        sendAmount = amount
+        sendAmount = Math.round(amount)
         break
     case 'BITS':
-        sendAmount = amount * Math.pow(10, 2)
+        sendAmount = Math.round(amount * Math.pow(10, 2))
         break
     case 'MBCH':
-        sendAmount = amount * Math.pow(10, 5)
+        sendAmount = Math.round(amount * Math.pow(10, 5))
         break
     case 'BCH':
-        sendAmount = amount * Math.pow(10, 8)
+        sendAmount = Math.round(amount * Math.pow(10, 8))
         break
     }
 

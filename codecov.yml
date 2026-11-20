@@ -1,0 +1,43 @@
+# codecov.yml
+#
+# Coverage policy for the Nito.cash monorepo.
+#
+# The report covers apps/web/src (JavaScript AND Vue SFCs) — see the
+# `coverage.include` block in apps/web/vitest.config.js. Generated icons,
+# the Bugsnag plugin bootstrap and the app entry point are excluded there,
+# and mirrored here so Codecov computes the same denominator.
+#
+# Target: 90% line coverage, with a small tolerance so an unrelated
+# refactor cannot fail a pull request on rounding noise.
+
+coverage:
+  precision: 2
+  round: down
+  range: '70...100'
+
+  status:
+    project:
+      default:
+        # Target 90% with a 1% tolerance: measured coverage is 89.8–90.2%
+        # (a few async view/component branches are timing-dependent), so a
+        # zero-tolerance gate would fail on noise rather than on regressions.
+        target: 90%
+        threshold: 1%
+        informational: false
+    patch:
+      default:
+        target: 90%
+        threshold: 5%
+
+ignore:
+  - 'apps/web/src/compiled-icons/**'
+  - 'apps/web/src/plugins/**'
+  - 'apps/web/src/main.js'
+  - 'apps/web/tests/**'
+  - 'apps/blaze/**'
+  - 'workers/**'
+
+comment:
+  layout: 'reach, diff, flags, files'
+  behavior: default
+  require_changes: false

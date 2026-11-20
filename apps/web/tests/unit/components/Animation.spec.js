@@ -37,3 +37,22 @@ describe('Animation.vue', () => {
         expect(wrapper.vm.animation).toBeNull()
     })
 })
+
+/* Every animation type resolves a DIFFERENT JSON source (the switch in the
+ * loader) — mounting each one exercises those branches. */
+describe('Animation.vue (sources)', () => {
+    const types = ['loading', 'receive', 'pay', 'pay-error', 'pay-ok', 'rocket', 'rocketman', 'unknown']
+
+    it('loads each animation source without throwing', async () => {
+        for (const type of types) {
+            const wrapper = shallowMount(Animation, { props: { type } })
+
+            /* Let the dynamic import + lottie mount settle. */
+            await new Promise((resolve) => setTimeout(resolve, 20))
+
+            expect(wrapper.exists()).toBe(true)
+
+            wrapper.unmount()
+        }
+    })
+})
