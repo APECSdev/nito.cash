@@ -5,14 +5,21 @@
         <Tabs :tabs="tabs" :tab="tab" v-on:tab-change="updateTab" />
 
         <main class="flex-1 flex-col px-[20px] py-0 h-[calc(100vh-var(--header-height)-var(--tabs-height))] overflow-y-auto [-webkit-overflow-scrolling:touch] before:absolute before:top-[185px] before:left-[35px] before:content-[''] before:w-[2px] before:h-[calc(100vh-165px)] before:bg-list-bg"
-            :class="items.length === 0 ? 'text-center pt-[150px] text-[14px] before:hidden' : 'before:block'">
+            :class="isEmpty || loading ? 'text-center pt-[150px] text-[14px] before:hidden' : 'before:block'">
             <Transaction
                 :txHash="selectedHash"
                 :tx="selected"
                 :active="showDetails"
                 v-on:close-details="showDetails = false" />
 
-            <p v-if="items.length === 0">
+            <!-- Loading state: a long history takes many quorum round-trips;
+                 WITHOUT this the empty-state copy below was shown during the
+                 whole load (reported as "History does not show anything"). -->
+            <p v-if="loading">
+                Loading history…
+            </p>
+
+            <p v-else-if="isEmpty">
                 You haven’t {{ tab === 'Sent' ? 'sent' : 'made' }} any transactions yet
             </p>
 
@@ -81,6 +88,7 @@ export default {
 
             selectedHash: null,
             showDetails: false,
+            loading: true,
             tab: 'All',
             tabs: ['All', 'Sent', 'Received'],
         }
@@ -114,6 +122,12 @@ export default {
         selected() {
             /* Return selected (item). */
             return this.items.find((item) => item.hash === this.selectedHash)
+        },
+
+        /* TRUE only once the load has FINISHED with no items — the
+           empty-state copy must not flash while history is still loading. */
+        isEmpty() {
+            return !this.loading && this.items.length === 0
         },
     },
     methods: {
@@ -247,14 +261,22 @@ export default {
         }
 
         /* Update wallet history. */
-        this.history = await this.getHistory
+        try {
+            this.history = await this.getHistory
+        } catch (err) {
+            /* getHistory no longer throws, but never let a rejected hook
+               leave the spinner running forever. */
+            console.error('HISTORY: load failed', err) // eslint-disable-line no-console
+            this.history = []
+        }
         // console.log('HISTORY', this.history)
 
-        /* Set itmes. */
-        // FIXME: Add a watcher to trigger the item loading.
-        setTimeout(() => {
-            this.setItems(this.history.slice())
-        }, 1000)
+        /* Set items (the data is already resolved — the old 1s timeout only
+           added latency before the list appeared). */
+        this.setItems(this.history.slice())
+
+        /* Loading finished (empty OR populated). */
+        this.loading = false
     },
     mounted: function () {
         //

@@ -20,11 +20,11 @@
 
         <div class="w-full max-w-[680px] w-full mx-auto px-[16px] md:px-[24px] flex-1 flex flex-col">
             <header class="flex items-center justify-between pt-[14px] pb-[6px]">
-                <span class="text-[10px] font-semibold tracking-[0.22em] uppercase text-muted">Wallet</span>
+                <span class="text-[10px] font-semibold tracking-[0.22em] uppercase text-muted">Dashboard</span>
 
                 <div class="flex items-center gap-[14px]">
                     <button @click="openWizardConnect" class="cursor-pointer bg-transparent text-[12px] text-fg underline underline-offset-4 hover:text-primary-fg transition-colors">
-                        Connect wallet
+                        Connect
                     </button>
                     <button @click="loadSettings" class="cursor-pointer bg-transparent hover:opacity-70 transition-opacity">
                         <svgicon icon="cog" width="22" height="22" :fill="false" :original="true"></svgicon>
@@ -39,26 +39,30 @@
                 <div class="relative text-center">
                     <div class="text-[10px] font-semibold tracking-[0.22em] uppercase text-white">Total balance</div>
 
+                    <!-- PRIMARY = the FIAT value (the user's currency, USD by
+                         default); SECONDARY = the BCH amount. Requested:
+                         "start by showing USD, not sats (but i still want to
+                         keep sats, just not the default)". -->
                     <h1 class="relative inline-block mt-[8px] mx-auto text-[44px] md:text-[52px] leading-[40px] font-medium font-['Poppins',sans-serif] text-white">
-                        {{walletBalance?.value}}
-                        <small class="leading-[21px] font-medium text-[16px] absolute top-[2px] left-[calc(100%+4px)]">{{walletBalance?.unit}}</small>
+                        {{fiatAmount}}
+                        <small class="leading-[21px] font-medium text-[16px] absolute top-[2px] left-[calc(100%+4px)]">{{fiatCurrency}}</small>
                     </h1>
 
-                    <h2 class="leading-[21px] font-medium text-[18px] md:text-[20px] short:mb-[16px] text-white/85">{{walletBalance?.fiat}}</h2>
+                    <h2 class="leading-[21px] font-medium text-[18px] md:text-[20px] short:mb-[16px] text-white/85">{{bchAmount}}</h2>
 
                     <div class="w-[186px] h-[3px] mx-auto mt-[12px] mb-[14px] rounded-full bg-white/25" />
 
                     <div class="grid grid-cols-3 gap-[8px]">
                         <div class="stat-tile">
-                            <small>Cash Wallet</small>
-                            <span>{{walletBalance?.fiat}}</span>
-                        </div>
-                        <div class="stat-tile">
                             <small>Nito Wallet</small>
                             <span>$0.00</span>
                         </div>
                         <div class="stat-tile">
-                            <small>Savings Wallet</small>
+                            <small>Cash Wallet</small>
+                            <span>{{walletBalance?.fiat}}</span>
+                        </div>
+                        <div class="stat-tile">
+                            <small>My Treasury</small>
                             <span>$0.00</span>
                         </div>
                     </div>
@@ -69,8 +73,8 @@
             <section class="grid grid-cols-2 gap-[12px] mt-[14px] pb-[18px]">
                 <button @click="openWizardConnect" class="tile tile-accent col-span-2">
                     <span class="tile-icon">⚡</span>
-                    <span class="tile-label">Connect external wallet</span>
-                    <span class="tile-sub">WizardConnect — pay from your own wallet</span>
+                    <span class="tile-label">Connect a 3rd-party wallet</span>
+                    <span class="tile-sub">WizardConnect | WalletConnect</span>
                 </button>
 
                 <button @click="loadHistory" class="tile">
@@ -134,6 +138,34 @@ export default {
             'getAccounts',
             'getBalance',
         ]),
+
+        /* PRIMARY (big) figure: the FIAT amount. utils/getFormattedValue
+           returns `fiat` as "AMOUNT CURRENCY" (e.g. "$0.204 USD"), split
+           here so the currency code renders as the small superscript unit
+           — the same visual pattern the BCH figure used. */
+        fiatAmount() {
+            const fiat = this.walletBalance && this.walletBalance.fiat
+
+            return fiat ? fiat.split(' ')[0] : '—'
+        },
+
+        /* The fiat currency code (e.g. USD). */
+        fiatCurrency() {
+            const fiat = this.walletBalance && this.walletBalance.fiat
+
+            return fiat ? fiat.split(' ').slice(1).join(' ') : ''
+        },
+
+        /* SECONDARY figure: the BCH amount in its auto-scaled unit
+           (sats / bits / mBCH / BCH) — kept visible, just no longer the
+           default primary display. */
+        bchAmount() {
+            if (!this.walletBalance) {
+                return '—'
+            }
+
+            return `${this.walletBalance.value} ${this.walletBalance.unit}`
+        },
     },
     methods: {
         ...mapActions('blockchain', [
