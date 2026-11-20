@@ -39,6 +39,9 @@ export default defineConfig({
         /* Test file locations. */
         include: ['tests/unit/**/*.spec.js'],
 
+        /* Shared setup (jsdom has no camera stack — see the file). */
+        setupFiles: ['./tests/unit/setup.js'],
+
         /* Timeouts: several specs mount whole views and derive HD keys (real
            scrypt/bip32 work) — 5s is tight when 41 files share the CPUs. */
         testTimeout: 20000,

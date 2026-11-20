@@ -8,7 +8,14 @@ import { shallowMount } from '@vue/test-utils'
 import msgpack from 'msgpack-lite'
 
 const { cluster, getClusterMock } = vi.hoisted(() => ({
-    cluster: { getBalance: vi.fn() },
+    cluster: {
+        getBalance: vi.fn(),
+        /* Receive.vue subscribes on mount — the mock must expose it, or the
+           created() hook rejects as an UNHANDLED error (fails CI). */
+        subscribeAddresses: vi.fn(async () => {}),
+        unsubscribeAddresses: vi.fn(async () => {}),
+        getHistory: vi.fn(async () => []),
+    },
     getClusterMock: vi.fn(),
 }))
 
