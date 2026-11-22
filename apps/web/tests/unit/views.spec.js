@@ -15,6 +15,7 @@ const { cluster, getClusterMock } = vi.hoisted(() => {
     const cluster = {
         getBalance: vi.fn(async () => ({ confirmed: 12345, unconfirmed: 0 })),
         getHistory: vi.fn(async () => []),
+        getScripthashHistory: vi.fn(async () => []),
         verboseGetTransaction: vi.fn(async () => ({ txid: 'aa', confirmations: 1, time: 1700000000, vin: [], vout: [] })),
         getUtxos: vi.fn(async () => []),
         getUtxosWithTokens: vi.fn(async () => []),

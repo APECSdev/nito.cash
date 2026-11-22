@@ -25,7 +25,7 @@ import { actionHash, deriveSpendKey, noteCommitment, nullifier, getPoseidon } fr
 import { deriveDeliveryPoint, encryptNote, ownerPubFromDeliveryPoint } from '@/lib/pool/carrier'
 import { decodePoolAction, leToBig, scriptPushes } from '@/lib/pool/decode'
 import { detectReceived, detectSpent, scanPool, scanPoolActions } from '@/lib/pool/scan'
-import { getDefaultPool, getPools, poolAddress, poolLockingBytecode } from '@/lib/pool/registry'
+import { getDefaultPool, getPools, poolAddress, poolScripthash, poolLockingBytecode } from '@/lib/pool/registry'
 
 /* The REAL chipnet registry entry (gate3-demo-pool). */
 const POOL = getDefaultPool('chipnet')
@@ -265,13 +265,15 @@ describe('pool note-detection scan', () => {
             n1: n1C,
         })
 
-        /* The mock cluster: covenant-address history (B at the SAME height
-           as A), raw txs by txid. */
+        /* The mock cluster: covenant SCRIPTHASH history (B at the SAME height
+           as A), raw txs by txid. The scripthash form is what Fulcrum
+           accepts (registry.js poolScripthash — the address form is
+           rejected with "Invalid address"). */
         const txs = { [txidOfA]: chainA, [txidOfB]: chainB, [TXID_C]: chainC }
 
         cluster = {
-            getHistory: async (address) => {
-                cluster.lastAddress = address
+            getScripthashHistory: async (scripthash) => {
+                cluster.lastScripthash = scripthash
 
                 return [
                     { tx_hash: txidOfB, height: 330438 },
@@ -296,6 +298,14 @@ describe('pool note-detection scan', () => {
         expect(new Uint8Array(decoded.bytecode)).toEqual(poolLockingBytecode(POOL))
     })
 
+    it('derives the gate3 SCRIPTHASH (the Fulcrum-queryable form — live-verified)', () => {
+        /* Fulcrum REJECTS the hashType-bit address form with "Invalid
+           address" (verified on mainnet + chipnet 2026-11-22) — the
+           scripthash is the only working query form. This value was
+           verified against the live chipnet servers. */
+        expect(poolScripthash(POOL)).toEqual('438d21423bca86765a2c401823e565b73538bbed5c182763408285408ad21191')
+    })
+
     it('decodes a synthetic action: args, carriers, proven n0/n1', () => {
         const decoded = decodePoolAction(chainB)
 
@@ -312,8 +322,9 @@ describe('pool note-detection scan', () => {
     it('scans the chain: outpoint order (same-block), leaf bases, tip', async () => {
         scanResult = await scanPoolActions({ cluster, pool: POOL, networkId: 'chipnet' })
 
-        /* The covenant address (from the registry) is what was scanned. */
-        expect(cluster.lastAddress).toEqual('bchtest:pd7qc90mms2dmfplkp2qs3hqvksmh4q8deatv3equexranf4z5sgqkpahan65')
+        /* The pool's SCRIPTHASH (from the registry) is what was queried —
+           live-verified gate3 scripthash (2026-11-22). */
+        expect(cluster.lastScripthash).toEqual('438d21423bca86765a2c401823e565b73538bbed5c182763408285408ad21191')
 
         /* Outpoint-chained order — NOT the history's shuffled order. */
         expect(scanResult.actions.map((a) => a.txid)).toEqual([TXID_A, TXID_B, TXID_C])
@@ -397,7 +408,7 @@ describe('pool note-detection scan', () => {
         })
 
         const badCluster = {
-            getHistory: async () => [{ tx_hash: TXID_A, height: 1 }, { tx_hash: TXID_B, height: 2 }],
+            getScripthashHistory: async () => [{ tx_hash: TXID_A, height: 1 }, { tx_hash: TXID_B, height: 2 }],
             getTransaction: async (txid) => ({ [TXID_A]: chainA, [TXID_B]: badB })[txid],
         }
 
@@ -427,7 +438,7 @@ describe('pool note-detection scan', () => {
         })
 
         const badCluster = {
-            getHistory: async () => [{ tx_hash: TXID_A, height: 1 }, { tx_hash: TXID_B, height: 2 }, { tx_hash: TXID_C, height: 3 }],
+            getScripthashHistory: async () => [{ tx_hash: TXID_A, height: 1 }, { tx_hash: TXID_B, height: 2 }, { tx_hash: TXID_C, height: 3 }],
             getTransaction: async (txid) => ({ [TXID_A]: chainA, [TXID_B]: chainB, [TXID_C]: badC })[txid],
         }
 
@@ -525,7 +536,7 @@ describe('pool scan edge + guard paths', () => {
     })
 
     it('scan: empty history -> zero actions, null tip', async () => {
-        const emptyCluster = { getHistory: async () => [], getTransaction: async () => { throw new Error('unused') } }
+        const emptyCluster = { getScripthashHistory: async () => [], getTransaction: async () => { throw new Error('unused') } }
 
         const result = await scanPoolActions({ cluster: emptyCluster, pool: POOL, networkId: 'chipnet' })
 
@@ -550,7 +561,7 @@ describe('pool scan edge + guard paths', () => {
         }
 
         const forkCluster = {
-            getHistory: async () => [{ tx_hash: TXID_A, height: 1 }, { tx_hash: TXID_B, height: 2 }],
+            getScripthashHistory: async () => [{ tx_hash: TXID_A, height: 1 }, { tx_hash: TXID_B, height: 2 }],
             getTransaction: async (txid) => ({ [TXID_A]: mk(11n, DEPLOY_TXID, leHexToBig(POOL.genesisRootLE)), [TXID_B]: mk(22n, DEPLOY_TXID, leHexToBig(POOL.genesisRootLE)) })[txid],
         }
 
@@ -575,7 +586,7 @@ describe('pool scan edge + guard paths', () => {
         const genesisRoot = leHexToBig(POOL.genesisRootLE)
 
         const orphanCluster = {
-            getHistory: async () => [{ tx_hash: TXID_A, height: 1 }, { tx_hash: TXID_B, height: 2 }, { tx_hash: TXID_C, height: 3 }],
+            getScripthashHistory: async () => [{ tx_hash: TXID_A, height: 1 }, { tx_hash: TXID_B, height: 2 }, { tx_hash: TXID_C, height: 3 }],
             getTransaction: async (txid) => ({
                 [TXID_A]: mk(11n, DEPLOY_TXID, genesisRoot),
                 /* B forks off A too (same prevout) -> the chain map keeps
@@ -647,7 +658,7 @@ describe('pool scan edge + guard paths', () => {
         }))
 
         const creationCluster = {
-            getHistory: async () => [{ tx_hash: DEPLOY_TXID, height: 330400 }],
+            getScripthashHistory: async () => [{ tx_hash: DEPLOY_TXID, height: 330400 }],
             getTransaction: async () => creationTx,
         }
 
@@ -677,7 +688,7 @@ describe('pool scan edge + guard paths', () => {
 
         const regressionCluster = {
             /* B spends A's output but claims an EARLIER height. */
-            getHistory: async () => [{ tx_hash: TXID_B, height: 1 }, { tx_hash: TXID_A, height: 2 }],
+            getScripthashHistory: async () => [{ tx_hash: TXID_B, height: 1 }, { tx_hash: TXID_A, height: 2 }],
             getTransaction: async (txid) => ({
                 [TXID_A]: mk(11n, DEPLOY_TXID, genesisRoot),
                 [TXID_B]: mk(22n, TXID_A, 1100007n),

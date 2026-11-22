@@ -382,6 +382,33 @@ sender, receiver, and amount are all masked. Design decisions locked:
   that matches NEITHER networks.js PUSD NOR the superseded `479aee…` faucet token — a fresh pool pins
   the category we actually mint/track). The old pools' balances stay runner-gated forever otherwise
   (their vkey's zkey is the lost worktree's — Groth16 vkey→zkey is one-way; BLOCKER-3-BUILDER.md:49-50).
+  FOLLOW-UP SESSION (2026-11-22, later): RUNNER-KEY RECOVERY + the scripthash fix.
+  · FOUND ON the apecsdev VM (~/zkb — the full runner-layout build env, dated Nov 13): the
+    deployed pools' TRUE keypair — build/pool_final.zkey (97,716,000 B, sha256 4a4e2543…) +
+    build/verification_key.json (= tests/fixtures/pool/deployed-vkey.json, sha256 05250429…),
+    pairing-VERIFIED on the VM (zKey.exportVerificationKey reproduces the vkey byte-for-byte);
+    the Phase-2 entropy is STORED at build/demo-entropy.txt (c490ce06a2f3… — a reproducible
+    demo-solo-1of1). Two independent proofs it is the pools' key: its IC points are EMBEDDED in
+    the deployed on-chain program (LE), and its vk_x for each live (n0, n1) appears byte-exact in
+    the live genesis witnesses (fields 4/5, LE) of BOTH chipnet gate3 f5927a0b and mainnet 4fda8a8b.
+  · ACCEPTANCE (apps/web/scripts/pool-accept.mjs — the byte-comparison gate): FAIL. The key alone
+    does NOT unblock step regeneration: the runner's witness-ENCODING revision (a different MSM
+    build) is NOT on the VM — ~/zkb/groth16_cashscript + ~/zkb/zk-verifier-bench are PUBLIC main
+    (0 ahead / 0 behind) plus a 1-byte OP_5→OP_7 terminal tweak. snarkjs canonical verify rejects
+    the live proof under the recovered key in ALL 28 sign/limb variants (the deployed verifier
+    consumes a TRANSFORMED proof representation — the port's P_minus fields[3]=-a.y convention
+    etc.), and the port's own pairing check fails likewise; the live push-0 is the same 14 fields
+    in NATURAL order LITTLE-ENDIAN vs the port's reordered big-endian layout. walletProverCompatible
+    STAYS FALSE on both pools (two independent gates now: the encoding generator + the unpublished
+    seed-leaf values — seed256.json is NOT on the VM).
+  · FULCRUM BUG FIXED: poolAddress()'s hashType-bit CashAddress form (`bitcoincash::p…`) is
+    REJECTED by Fulcrum ("Invalid address" — verified live on mainnet + chipnet), so the shipped
+    scan + getLivePoolState paths were dead at runtime. All pool history queries now go by
+    SCRIPHASH (provider getScripthashHistory + registry poolScripthash; the live-verified gate3
+    scripthash 438d2142…9119 is asserted in the scan spec).
+  · NO new setup was run: the recovered key supersedes it for the deployed pools (a fresh
+    Phase-2 would fork the lineage AGAIN for no gain); a Phase-2 MPC remains the mainnet trust
+    upgrade, separate from recovery.
   WARNING: the dev-host
   `apps/web/node_modules` is STALE (predates the `@sentry/vue` commit b529e76) — the glitchtip spec fails
   LOCALLY until a frozen reinstall (needs the IPv4-forcing pnpm-11 workaround below); CI installs fresh and

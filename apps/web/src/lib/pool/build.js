@@ -35,7 +35,7 @@
 import { encodeTransactionBCH, hexToBin, binToHex, encodeDataPush, bigIntToVmNumber, sha256, decodeTransaction } from '@bitauth/libauth'
 
 import { addressToLockingBytecode, signP2pkhInput } from '../bch/crypto.js'
-import { poolAddress } from './registry.js'
+import { poolScripthash } from './registry.js'
 import { produceVerifierInputs } from './verifier.js'
 import { DEPLOYED_PROGRAM, STEP_LOCKINGS } from './verifier-program.js'
 import { decodePoolAction } from './decode.js'
@@ -70,8 +70,9 @@ const num = (v) => new Uint8Array(bigIntToVmNumber(BigInt(v)))
  * @returns { txid, height, poolUtxo, stepUtxos, storedRootLE, oldNfHashHex, balance }
  */
 export async function getLivePoolState({ cluster, pool, networkId }) {
-    const address = poolAddress(pool, networkId)
-    const history = (await cluster.getHistory(address)).filter((h) => h.height > 0)
+    /* Queried by SCRIPTHASH: Fulcrum rejects the hashType-bit CashAddress
+       form with "Invalid address" (registry.js poolScripthash). */
+    const history = (await cluster.getScripthashHistory(poolScripthash(pool))).filter((h) => h.height > 0)
     if (history.length === 0) throw new Error('pool build: no history for the pool address')
 
     /* The tip = the highest confirmed entry (ties broken by the scan's chain

@@ -26,7 +26,7 @@
 //     extension ("genesisSubtreeHashes"), needed for SPENDING on non-aligned
 //     trees, not for detection.
 
-import { lockingBytecodeToCashAddress } from '@bitauth/libauth'
+import { binToHex, lockingBytecodeToCashAddress, sha256 } from '@bitauth/libauth'
 
 import { getNetwork } from '../bch/networks.js'
 
@@ -63,7 +63,7 @@ const POOLS = {
                flag gates the end-to-end action flows (lib/pool/actions.js). */
             walletProverCompatible: false,
             setupGrade: 'demo-solo-1of1',
-            notes: 'First mainnet shielded pool op (2026-11-20; PREP dd1e3506…, GENESIS 0a8cb008…, DEPLOY 63ddfdd4…, TRANSFER 4fda8a8b…). NOT production: Gate-7 public ceremony still required; vkey lineage vs the wallet-committed build256 vkey is UNVERIFIED — do not treat as production until verified.',
+            notes: 'First mainnet shielded pool op (2026-11-20; PREP dd1e3506…, GENESIS 0a8cb008…, DEPLOY 63ddfdd4…, TRANSFER 4fda8a8b…). NOT production: Gate-7 public ceremony still required; vkey lineage vs the wallet-committed build256 vkey is UNVERIFIED — do not treat as production until verified. RECOVERY (2026-11-22): the mainnet pool verifies under the same RECOVERED keypair as gate3 (fixture tests/fixtures/pool/deployed-vkey.json — its IC points are embedded in the deployed program and its vk_x appears byte-exact in the live 4fda8a8b witness). Same remaining gate as gate3 — the runner\'s witness-encoding revision — so walletProverCompatible stays false until scripts/pool-accept.mjs passes byte-exact.',
         },
     ],
 
@@ -77,11 +77,12 @@ const POOLS = {
             genesisRootLE: '2c0f533600a77df705b7a23481a16bbc2baa9e9abb6a2943857931faa3f44525',
             genesisLeafCount: 2,
             /* NOT wallet-prover-compatible: the deployed program's vkey
-               matches NEITHER vkey the wallet holds (the correction in notes
-               below). Note DETECTION is unaffected; only shield/transfer/
-               unshield are gated (lib/pool/actions.js). */
+               differs from the wallet-committed one (the correction in notes
+               below) — but that vkey is now RECOVERED (see notes). Note
+               DETECTION is unaffected; the remaining gate is the runner's
+               witness-ENCODING revision (lib/pool/actions.js). */
             walletProverCompatible: false,
-            notes: 'Path-A lifecycle proof pool (deployed 2026-11-01, block 330438; first op SHIELD f5927a0b…). VKEY LINEAGE CORRECTION (2026-11-22, from on-chain witness data): the deployed verifier program does NOT verify against the wallet-committed verification_key.json — the live actions’ genesis witness carries a vk_x that matches NEITHER the committed NOR the earlier vkey for their on-chain (n0, n1), and the deployed step redeems/fragments differ from the current bench main (exec2 fragment 561 B vs 559 B, terminal redeem 4158 B vs 4157 B). The pool was built by a runner worktree whose exact revision is not in the public repo (the documented “layout drift”, handoff §4.4). Until the runner’s build256 vkey + worktree are re-verified, treat this pool as NOT wallet-prover-compatible; the note-detection scan is unaffected (it validates against the on-chain n0/n1, not the vkey).',
+            notes: 'Path-A lifecycle proof pool (deployed 2026-11-01, block 330438; first op SHIELD f5927a0b…). VKEY LINEAGE CORRECTION (2026-11-22, from on-chain witness data): the deployed verifier program does NOT verify against the wallet-committed verification_key.json — the live actions’ genesis witness carries a vk_x that matches NEITHER the committed NOR the earlier vkey for their on-chain (n0, n1), and the deployed step redeems/fragments differ from the current bench main (exec2 fragment 561 B vs 559 B, terminal redeem 4158 B vs 4157 B). The pool was built by a runner worktree whose exact revision is not in the public repo (the documented “layout drift”, handoff §4.4). Until the runner’s build256 vkey + worktree are re-verified, treat this pool as NOT wallet-prover-compatible; the note-detection scan is unaffected (it validates against the on-chain n0/n1, not the vkey). RECOVERY (2026-11-22): the pool\'s TRUE keypair is RECOVERED — the apecsdev VM ~/zkb/pusd-shielded-pool/build/ pair (pool_final.zkey, 97,716,000 B, sha256 4a4e2543…, pairing-VERIFIED on the VM; its vkey is the committed fixture tests/fixtures/pool/deployed-vkey.json, sha256 05250429…; the Phase-2 entropy is STORED at build/demo-entropy.txt = c490ce06a2f3… — a reproducible demo-solo-1of1). Two independent proofs it is the pools\' key: its IC points are EMBEDDED in the deployed program (LE), and its vk_x for each live (n0, n1) appears byte-exact in the live genesis witness (fields 4/5, LE). STILL GATED: the runner\'s witness-ENCODING generator (a different MSM build than the public bench main — the live push-0 is the same 14 fields in NATURAL order LITTLE-ENDIAN vs the port\'s reordered big-endian layout, and the port\'s pairing check rejects the live proof under the recovered key across all sign/limb variants; the ~/zkb worktrees are public main + a 1-byte OP_7 tweak — the runner\'s revision is NOT among them). The acceptance gate: scripts/pool-accept.mjs must report all five verifier inputs BYTE-EXACT before walletProverCompatible flips.',
         },
     ],
 }
@@ -137,6 +138,19 @@ export function poolAddress(pool, networkId) {
     }
 
     return result.address
+}
+
+/*
+ * The pool covenant's ELECTRUM SCRIPTHASH (sha256 of the full locking
+ * bytecode, byte-reversed, hex) — the form Fulcrum actually accepts for
+ * the P2SH32 covenant addresses. The CashAddress form from poolAddress()
+ * carries the hashType bits (`bitcoincash::p…`) which Fulcrum REJECTS with
+ * "Invalid address" (verified live on mainnet + chipnet, 2026-11-22) —
+ * every chain query for pool history MUST go through this scripthash
+ * (provider.js getScripthashHistory).
+ */
+export function poolScripthash(pool) {
+    return binToHex(new Uint8Array(sha256.hash(poolLockingBytecode(pool))).reverse())
 }
 
 /* ---- local byte helpers (no imports beyond libauth) ---- */

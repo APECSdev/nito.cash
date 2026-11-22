@@ -281,7 +281,7 @@ describe('lib/pool/build getLivePoolState (mocked cluster)', () => {
     it('extracts the pool UTXO, step UTXOs and the state commitment off the tip', async () => {
         const raw = tipTxHex({ commitmentHex: STATE_LE, amount: 1000000 })
         const cluster = {
-            getHistory: async () => [{ tx_hash: 'cd'.repeat(32), height: 330600 }, { tx_hash: 'ce'.repeat(32), height: 330500 }],
+            getScripthashHistory: async () => [{ tx_hash: 'cd'.repeat(32), height: 330600 }, { tx_hash: 'ce'.repeat(32), height: 330500 }],
             getTransaction: async (txid) => (txid === 'cd'.repeat(32) ? raw : tipTxHex({ commitmentHex: STATE_LE, amount: 1 })),
         }
 
@@ -298,14 +298,14 @@ describe('lib/pool/build getLivePoolState (mocked cluster)', () => {
     })
 
     it('throws when the covenant address has no history', async () => {
-        const cluster = { getHistory: async () => [], getTransaction: async () => { throw new Error('unused') } }
+        const cluster = { getScripthashHistory: async () => [], getTransaction: async () => { throw new Error('unused') } }
         await expect(getLivePoolState({ cluster, pool: POOL, networkId: 'chipnet' })).rejects.toThrow('no history')
     })
 
     it('throws when the tip does not carry all 5 verifier-step UTXOs', async () => {
         const raw = tipTxHex({ commitmentHex: STATE_LE, amount: 1, extraStepMissing: true })
         const cluster = {
-            getHistory: async () => [{ tx_hash: 'cd'.repeat(32), height: 1 }],
+            getScripthashHistory: async () => [{ tx_hash: 'cd'.repeat(32), height: 1 }],
             getTransaction: async () => raw,
         }
         await expect(getLivePoolState({ cluster, pool: POOL, networkId: 'chipnet' })).rejects.toThrow('5 verifier-step')

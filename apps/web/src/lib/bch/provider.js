@@ -19,6 +19,7 @@ export const ElectrumMethods = {
     getBalance: 'blockchain.address.get_balance',
     getUtxos: 'blockchain.address.listunspent',
     getHistory: 'blockchain.address.get_history',
+    getScripthashHistory: 'blockchain.scripthash.get_history',
     getTransaction: 'blockchain.transaction.get',
     broadcast: 'blockchain.transaction.broadcast',
     estimateFee: 'blockchain.estimatefee',
@@ -195,6 +196,13 @@ export class FulcrumCluster {
 
     /* -> [ { tx_hash, height, fee? } ] */
     getHistory(address) { return this.request(ElectrumMethods.getHistory, address) }
+
+    /* Scripthash-form history query (sha256 of the locking bytecode,
+       byte-reversed, hex) — the ONLY form Fulcrum accepts for hashType-bit
+       CashAddresses (the P2SH32 covenant pools): the `bitcoincash::p…`
+       address form is rejected with "Invalid address" (verified live on
+       mainnet + chipnet, 2026-11-22 — registry.js poolScripthash). */
+    getScripthashHistory(scripthash) { return this.request(ElectrumMethods.getScripthashHistory, scripthash) }
 
     /* -> raw transaction hex (string) */
     getTransaction(txHash) { return this.request(ElectrumMethods.getTransaction, txHash) }

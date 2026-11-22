@@ -33,7 +33,7 @@
 import { actionHash, nullifier } from './notes'
 import { decryptPacket } from './carrier'
 import { decodePoolAction } from './decode'
-import { poolAddress } from './registry'
+import { poolAddress, poolScripthash } from './registry'
 
 /**
  * Scan one pool's full action chain from the network.
@@ -56,10 +56,12 @@ import { poolAddress } from './registry'
  *   outpoint that does not close) — a silently wrong scan is worse than none.
  */
 export async function scanPoolActions({ cluster, pool, networkId }) {
-    /* The covenant address's history IS the action chain. */
+    /* The covenant address's history IS the action chain — queried by
+       SCRIPHASH: Fulcrum rejects the hashType-bit CashAddress form with
+       "Invalid address" (registry.js poolScripthash). */
     const address = poolAddress(pool, networkId)
 
-    const history = await cluster.getHistory(address)
+    const history = await cluster.getScripthashHistory(poolScripthash(pool))
 
     /* Confirmed only (height > 0) — unconfirmed mempool actions are skipped
        (the PoC scans settled state; note counts are chipnet-scale). */
