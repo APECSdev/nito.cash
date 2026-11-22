@@ -31,7 +31,7 @@ import { hdNodeFromEntropy, derivePath, toCashAddress, toPrivateKeyBytes, toPubl
 
 const FIX = fileURLToPath(new URL('../../fixtures/pool/', import.meta.url))
 const EVAL_PROOFS = JSON.parse(readFileSync(`${FIX}/eval-proofs.json`, 'utf8'))
-const VK = JSON.parse(readFileSync('/Workspace/apecsdev/nito.cash/apps/web/public/proving/verification_key.json', 'utf8'))
+const VK = JSON.parse(readFileSync(fileURLToPath(new URL('../../../public/proving/verification_key.json', import.meta.url)), 'utf8'))
 /* The live SHIELD's covenant unlocking + args (extracted from chipnet f5927a0b…). */
 const LIVE = JSON.parse(readFileSync(`${FIX}/gate3-covenant-live.json`, 'utf8'))
 

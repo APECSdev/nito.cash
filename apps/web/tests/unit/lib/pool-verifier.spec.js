@@ -32,7 +32,7 @@ const FIX = fileURLToPath(new URL('../../fixtures/pool/', import.meta.url))
 const VECTORS = JSON.parse(readFileSync(`${FIX}/bench-vectors-steps.json`, 'utf8'))
 const OLD_FIXTURES = JSON.parse(readFileSync(`${FIX}/bench-public-fixtures.json`, 'utf8'))
 const NEW_FIXTURES = JSON.parse(readFileSync(`${FIX}/pusd-public-fixtures.json`, 'utf8'))
-const COMMITTED_VK = JSON.parse(readFileSync('/Workspace/apecsdev/nito.cash/apps/web/public/proving/verification_key.json', 'utf8'))
+const COMMITTED_VK = JSON.parse(readFileSync(fileURLToPath(new URL('../../../public/proving/verification_key.json', import.meta.url)), 'utf8'))
 
 /* push parser (same shape as lib/pool/decode.js scriptPushes). */
 function pushesOf(bcHex) {
