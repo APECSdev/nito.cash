@@ -93,8 +93,11 @@ describe('lib/bch/discovery', () => {
 
         expect(cluster.getHistory).toHaveBeenCalledTimes(DISCOVERY_BATCH * DISCOVERY_MAX_BATCHES)
         expect(last).toBe(DISCOVERY_BATCH * DISCOVERY_MAX_BATCHES - 1)
-    })
+    /* 200 real HD derivations: ~7.3 s alone, >20 s under parallel load (the
+       VM flake from the 2026-11-22 session) — 60 s headroom, zero logic change. */
+    }, 60000)
 })
+
 
 describe('utils/getFormattedValue', () => {
     const format = (sats, price, currency) => getFormattedValue()(sats, price, currency)
