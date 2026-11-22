@@ -28,7 +28,7 @@ backend server — the app runs entirely in the browser and talks to the BCH net
 | Errors         | `@sentry/vue@11`                            | GlitchTip (Sentry-protocol) — `src/plugins/glitchtip.js`; tracing at 1%, `attachProps: false` (wallet privacy), BrowserSession integration filtered out. |
 | Node polyfill  | `vite-plugin-node-polyfills` + `buffer`     | webpack 4 auto-polyfilled `Buffer`/`process`; Vite needs this for Ledger (+ any Node builtins in blockchain deps). |
 | Ledger (HW)    | `@ledgerhq/hw-app-btc@11.6.0`, `@ledgerhq/hw-transport-webusb@6.35.0` | See "Ledger Integration" below. |
-| Testing        | **Vitest** `@5.0.4` + `@vue/test-utils@2.5.1` + jsdom | 45 suites / 424 tests; coverage ratchet **89% lines/statements** hard floor (`vitest.config.js:78-81`), 90% TARGET in `codecov.yml`. Jest + `@vue/cli-plugin-unit-jest` REMOVED (Phase C). |
+| Testing        | **Vitest** `@5.0.4` + `@vue/test-utils@2.5.1` + jsdom | 49 suites / 465 tests; coverage ratchet **89% lines/statements** hard floor (`vitest.config.js:78-81`), 90% TARGET in `codecov.yml` (measured 92.9% after the pool-builder work). Jest + `@vue/cli-plugin-unit-jest` REMOVED (Phase C). |
 
 Full dependency list lives in `package.json`; the authoritative lockfile is `pnpm-lock.yaml`.
 
@@ -341,6 +341,16 @@ sender, receiver, and amount are all masked. Design decisions locked:
   runner's worktree is recovered; the gate3 "same vkey as the wallet-committed" claim is CORRECTED in the
   registry (NOT wallet-prover-compatible until re-verified; note detection unaffected). The byte-comparison
   harness vs the live witness pushes is built and ready as the acceptance test.
+  Blocker-3 CI notes: the bench ground-truth fixtures are COMMITTED at `apps/web/tests/fixtures/pool/`
+  (bench vectors steps, both fixture sets, the eval proofs, the live gate3 covenant fixture — 96 KB;
+  specs resolve them via `import.meta.url`, NEVER absolute paths); the vectors byte-exact test is PINNED to
+  fixture 0 (the generating proof — the 5-fixture sweep saturated CI's 2-core runner enough to trip the
+  timing-marginal DISCOVERY test). Blocker #4 (the NEXT mission): wire `getLivePoolState` + `buildActionTx`
+  + the pool scan into Shield/Transfer/Unshield UI flows (Wallet.vue's disabled buttons) + distribute the
+  proving assets (97 MB zkey via GitHub Release; wasm+vkey paths per prover.js). WARNING: the dev-host
+  `apps/web/node_modules` is STALE (predates the `@sentry/vue` commit b529e76) — the glitchtip spec fails
+  LOCALLY until a frozen reinstall (needs the IPv4-forcing pnpm-11 workaround below); CI installs fresh and
+  is green (6197668, deployed).
   The **local encrypted note store is DONE**
   (`apps/web/src/lib/pool/seal.js`: AES-256-GCM via WebCrypto, key = sha256 of domain-separated
   wallet entropy; `pool.notes` is a runtime-only mirror excluded from persistence via
@@ -727,6 +737,11 @@ Desk = 02 · Earn = 01a + 05 · Spend = 03 + 04.
   app code, passes in isolation and on CI; do not chase it in app sources.
 - `pool-carrier.spec.js` (3 failures on one 2026-11-22 VM sync, passed on CI at `60c92ca`)
   did **NOT recur**: 16/16 in isolation + in the full VM suite on the current tree.
+- CI-only flake (2026-11-22, resolved): the pool-builder's 5-fixture byte-exact sweep (5 × ~4-8 s
+  of noble-curves pairing math) crowded the 2-core CI runner and tripped the DISCOVERY test above.
+  Fixed by PINNING the test to fixture 0 (the verified vectors generator) — commit 6197668, CI green.
+  Keep heavy multi-second crypto tests off full-suite parallel paths; the ~37 KB noble bn254
+  witness computation is the heaviest thing in the suite.
 
 ## Conventions & Rules for Agents
 
