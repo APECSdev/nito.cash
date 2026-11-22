@@ -37,7 +37,6 @@ import { encodeTransactionBCH, hexToBin, binToHex, encodeDataPush, bigIntToVmNum
 import { addressToLockingBytecode, signP2pkhInput } from '../bch/crypto.js'
 import { poolScripthash } from './registry.js'
 import { produceVerifierInputs } from './verifier.js'
-import { DEPLOYED_PROGRAM, STEP_LOCKINGS } from './verifier-program.js'
 import { decodePoolAction } from './decode.js'
 
 const concatBytes = (parts) => {
@@ -96,12 +95,18 @@ export async function getLivePoolState({ cluster, pool, networkId }) {
        lockings are IDENTICAL, so slots are assigned by consuming each matching
        output exactly once (multiplicity-aware; a bare indexOf would collide
        all three execs onto slot 0 and leave sparse holes some()/map() skip). */
+    /* The pool entry pins its OWN verifier program — every action recreates the
+       five step UTXOs with the program THAT action uses (the deployed pools:
+       the found-key program; new Path-A pools: the wallet-committed program). */
+    const stepLockings = pool.stepLockings
+    if (!stepLockings) throw new Error('pool build: registry entry has no stepLockings (its verifier program)')
+
     const stepOuts = new Array(5).fill(undefined)
     const used = new Set()
     for (let slot = 0; slot < 5; slot += 1) {
         for (let i = 0; i < tx.outputs.length; i += 1) {
             if (used.has(i)) continue
-            if (binToHex(tx.outputs[i].lockingBytecode) === STEP_LOCKINGS[slot]) { stepOuts[slot] = i; used.add(i); break }
+            if (binToHex(tx.outputs[i].lockingBytecode) === stepLockings[slot]) { stepOuts[slot] = i; used.add(i); break }
         }
     }
     if (stepOuts.some((i) => i === undefined)) throw new Error('pool build: tip does not carry all 5 verifier-step UTXOs')
@@ -217,8 +222,9 @@ export async function buildActionTx({
     const newBalance = balance + publicValueAbs - 2n * isUnshield * publicValueAbs
     if (newBalance < 0n) throw new Error('pool build: unshield exceeds the pool balance')
 
-    /* ── the verifier inputs (from the wallet's own proof) ── */
-    const verifierUnlockings = produceVerifierInputs({ vk, proof, publicSignals, program: DEPLOYED_PROGRAM })
+    /* ── the verifier inputs (from the wallet's own proof + THIS pool's program) ── */
+    if (!pool.program) throw new Error('pool build: registry entry has no program (its verifier program)')
+    const verifierUnlockings = produceVerifierInputs({ vk, proof, publicSignals, program: pool.program })
 
     /* ── assemble the tx skeleton ── */
     const category = hexToBin(pool.assetCategory)
@@ -276,8 +282,8 @@ export async function buildActionTx({
         })
     }
 
-    /* the five verifier-step UTXOs, re-created with the deployed lockings. */
-    for (const locking of STEP_LOCKINGS) {
+    /* the five verifier-step UTXOs, re-created with THIS pool's lockings. */
+    for (const locking of pool.stepLockings) {
         outputs.push({ lockingBytecode: hexToBin(locking), valueSatoshis: STEP_SATS })
     }
 
@@ -351,7 +357,7 @@ export async function buildActionTx({
         /* indexed by ABSOLUTE input position (signP2pkhInput reads [inputIndex]). */
         coveredBytecodes: [
             hexToBin(pool.lockingBytecode),
-            ...STEP_LOCKINGS.map((locking) => hexToBin(locking)),
+            ...pool.stepLockings.map((locking) => hexToBin(locking)),
             ...funding.map((utxo) => addressToLockingBytecode(utxo.address)),
         ],
     }

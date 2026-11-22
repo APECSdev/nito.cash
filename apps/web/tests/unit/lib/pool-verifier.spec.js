@@ -26,7 +26,7 @@ import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
 
 import { produceVerifierInputs } from '@/lib/pool/verifier'
-import { DEPLOYED_PROGRAM } from '@/lib/pool/verifier-program'
+import { DEPLOYED_PROGRAM, WALLET_PROGRAM, WALLET_STEP_LOCKINGS } from '@/lib/pool/verifier-program'
 
 const FIX = fileURLToPath(new URL('../../fixtures/pool/', import.meta.url))
 const VECTORS = JSON.parse(readFileSync(`${FIX}/bench-vectors-steps.json`, 'utf8'))
@@ -57,12 +57,13 @@ function pushesOf(bcHex) {
 
 const hexOf = (b) => Array.from(b, (x) => x.toString(16).padStart(2, '0')).join('')
 
-/* The bench's program constants, extracted from the vectors themselves. */
+/* The bench's program constants, extracted from the vectors themselves
+   (and the committed WALLET_PROGRAM must match this extraction). */
 const OLD_PROGRAM = {
     redeems: VECTORS.steps.map((s) => hexOf(pushesOf(s.unlocking).pop())),
     sharedFragments: [0, 1, 2].map((n) => hexOf(pushesOf(VECTORS.steps[n].unlocking)[1])),
     quotientLengths: [1248, 1248, 1248],
-    quotientSuffixes: [[], [], []],
+    quotientSuffixes: ['', '', ''], /* the module's QUOTIENT_SUFFIXES form */
     stagePads: [0, 0, 0, 0],
     genesisPad: 0,
     msmSplit: 26,
@@ -84,6 +85,21 @@ describe('lib/pool/verifier (bench ground-truth reproduction)', () => {
        to it because one produceWitness is ~4-8 s of pairing math and the full
        5-fixture sweep made CI's 2-core runner too slow for the rest of the
        suite's timing-marginal tests). */
+    it('WALLET_PROGRAM/WALLET_STEP_LOCKINGS stay in lockstep with the vectors fixture', () => {
+        /* The registry's chipnet-pusd-v2 pool (the live Path-A deployment)
+           pins WALLET_PROGRAM — the committed constants must BE the fixture
+           extraction, byte-for-byte. */
+        expect(WALLET_PROGRAM.redeems).toEqual(OLD_PROGRAM.redeems)
+        expect(WALLET_PROGRAM.sharedFragments).toEqual(OLD_PROGRAM.sharedFragments)
+        expect(WALLET_PROGRAM.quotientLengths).toEqual(OLD_PROGRAM.quotientLengths)
+        expect(WALLET_PROGRAM.quotientSuffixes).toEqual(OLD_PROGRAM.quotientSuffixes)
+        expect(WALLET_PROGRAM.stagePads).toEqual(OLD_PROGRAM.stagePads)
+        expect(WALLET_PROGRAM.genesisPad).toEqual(OLD_PROGRAM.genesisPad)
+        expect(WALLET_PROGRAM.msmSplit).toEqual(OLD_PROGRAM.msmSplit)
+        expect(WALLET_PROGRAM.cuts).toEqual(OLD_PROGRAM.cuts)
+        expect(WALLET_STEP_LOCKINGS).toEqual(VECTORS.steps.map((s) => s.locking))
+    })
+
     it('reproduces the bench vectors byte-for-byte for the generating fixture', () => {
         const fixture = OLD_FIXTURES.fixtures[0]
         const inputs = produceVerifierInputs({

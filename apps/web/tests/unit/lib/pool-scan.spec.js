@@ -28,7 +28,10 @@ import { detectReceived, detectSpent, scanPool, scanPoolActions } from '@/lib/po
 import { getDefaultPool, getPools, poolAddress, poolScripthash, poolLockingBytecode } from '@/lib/pool/registry'
 
 /* The REAL chipnet registry entry (gate3-demo-pool). */
-const POOL = getDefaultPool('chipnet')
+/* Pinned to the GATE3 entry explicitly — the chipnet array gains the new
+   wallet-committed pool (which becomes getDefaultPool) and these gate3
+   ground-truth assertions must keep testing gate3. */
+const POOL = getPools('chipnet').find((p) => p.id === 'gate3-demo-pool')
 const CATEGORY = BigInt('0x' + POOL.assetCategory)
 
 /* The recipient wallet (test entropy — no real value). */

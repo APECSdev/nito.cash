@@ -247,7 +247,8 @@ describe('lib/pool/build full action assembly', () => {
 
 import { getLivePoolState } from '@/lib/pool/build'
 import { encodeTransactionBCH, hexToBin } from '@bitauth/libauth'
-import { STEP_LOCKINGS } from '@/lib/pool/verifier-program'
+/* The pool under test carries its OWN step lockings (per-pool programs);
+   the getLivePoolState mocks below must use POOL.stepLockings. */
 
 /* A synthetic tip action tx: out[0] = the pool continuity UTXO (with the state
    NFT commitment), out[1..5] = the re-created verifier steps. */
@@ -258,7 +259,7 @@ function tipTxHex({ commitmentHex, amount, extraStepMissing }) {
             valueSatoshis: 1000n,
             token: { category: hexToBin(POOL.assetCategory), amount: BigInt(amount), nft: { capability: 'mutable', commitment: hexToBin(commitmentHex) } },
         },
-        ...(extraStepMissing ? STEP_LOCKINGS.slice(0, 4) : STEP_LOCKINGS).map((locking) => ({
+        ...(extraStepMissing ? POOL.stepLockings.slice(0, 4) : POOL.stepLockings).map((locking) => ({
             lockingBytecode: hexToBin(locking),
             valueSatoshis: 1000n,
         })),

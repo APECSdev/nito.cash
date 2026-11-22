@@ -89,13 +89,14 @@ const networks = {
         quorum: 2,
         /* CashToken categories tracked by the wallet (by symbol). Fulcrum's
            token_data.category is the BE (display) form of the category.
-           Chipnet PUSD is a stand-in for mainnet PUSD — the LIVE pool
-           category (self-minted with the TX-P3/G3/B3 deployment; see
-           pusd-shielded-pool/CHIPNET.md). NOTE: the earlier faucet-minted
-           token (category 479aeebabc…, genesis 4257dbfb…, block 328616)
-           is SUPERSEDED — the deployed pool does not enforce it. */
+           Chipnet PUSD is a stand-in for mainnet PUSD — the chipnet-pusd-v2
+           pool's category (Path A, deployed 2026-11-22: anchor 050b5934…504a9
+           = the category, mint a3e90020…decc02, deploy 53014fd4…766da — see
+           src/lib/pool/registry.js). SUPERSEDED stand-ins: 8c73ff150fbc…
+           (the TX-P3/G3/B3 era — never tracked by any wallet-compatible pool)
+           and 479aeebabc… (the faucet token, genesis 4257dbfb…, block 328616). */
         tokens: {
-            PUSD: '8c73ff150fbc5d1599d2de187c3382c5926cc5c9c2621cdc2cac1fc14cd93144',
+            PUSD: '050b5934bea9a7713e842371d8fb233b14f5596b7339fcbf8c1c7dac58c504a9',
         },
     },
 }

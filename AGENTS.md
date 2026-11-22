@@ -409,6 +409,30 @@ sender, receiver, and amount are all masked. Design decisions locked:
   · NO new setup was run: the recovered key supersedes it for the deployed pools (a fresh
     Phase-2 would fork the lineage AGAIN for no gain); a Phase-2 MPC remains the mainnet trust
     upgrade, separate from recovery.
+  POOL-V2 DEPLOYED (2026-11-22, third session — THE RUNNER-INDEPENDENT POOL IS LIVE ON CHIPNET):
+  · apps/web/scripts/deploy-pool.mjs deployed chipnet-pusd-v2 end-to-end: anchor
+    050b5934…504a9 (= THE NEW CATEGORY), mint a3e90020…decc02 (genesis minting NFT + 100M
+    fungible), deploy 53014fd4…766da (pool UTXO with the seeded-root state NFT + the 5 WALLET
+    step UTXOs). All three broadcast-accepted; result txids == computed txids.
+  · The pool pins the WALLET-COMMITTED keypair (proving-assets-v1 lineage) + WALLET_PROGRAM
+    (the committed bench vectors — the port reproduces them byte-exactly; a lockstep test
+    asserts the constants). registry.js: the pool is the FIRST chipnet entry,
+    walletProverCompatible: true, with PUBLIC genesisLeaves + bootstrapNotes (2 dummy notes,
+    value 0, nk=1, deterministic rho/r) — the shield/transfer/unshield flows are LIVE.
+    networks.js chipnet PUSD → 050b5934… (the 8c73ff… TX-P3 stand-in superseded — no
+    wallet-compatible pool ever tracked it). build.js is per-pool programs now
+    (pool.stepLockings + pool.program; gate3/mainnet carry the deployed found-key program).
+  · GENESIS RULES DISCOVERED LIVE (all in HANDOFF-POOL-V2.md for the hushyourmoney sync):
+    (1) the genesis category anchor must be spent as vin[0] at VOUT 0 — vout 1 is rejected
+    with bad-txns-token-invalid-category; (2) genesis NFTs are minting-capable with EMPTY
+    commitments (the pool's mutable state NFT is created by SPENDING the minting NFT); (3)
+    the min-relay-fee probe must measure the SIGNED size (100 B placeholder unlockings);
+    (4) BCH txid = DSHA of the FULL SIGNED tx, and libauth hash256 is already the double.
+  · The gate3/mainnet pools STAY runner-gated (their witness-encoding generator revision is
+    not on the VM — ~/zkb is public main + a 1-byte OP_7 tweak; pool-accept.mjs is the gate).
+    The recovered keypair (deployed-vkey.json) remains on record for them.
+  · HANDOFF-POOL-V2.md carries the hushyourmoney pool-registry.json entry block (their tree
+    was mid-reorg — the handoff doc, not their repo, is the coordination vehicle).
   WARNING: the dev-host
   `apps/web/node_modules` is STALE (predates the `@sentry/vue` commit b529e76) — the glitchtip spec fails
   LOCALLY until a frozen reinstall (needs the IPv4-forcing pnpm-11 workaround below); CI installs fresh and
