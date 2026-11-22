@@ -28,7 +28,7 @@ backend server — the app runs entirely in the browser and talks to the BCH net
 | Errors         | `@sentry/vue@11`                            | GlitchTip (Sentry-protocol) — `src/plugins/glitchtip.js`; tracing at 1%, `attachProps: false` (wallet privacy), BrowserSession integration filtered out. |
 | Node polyfill  | `vite-plugin-node-polyfills` + `buffer`     | webpack 4 auto-polyfilled `Buffer`/`process`; Vite needs this for Ledger (+ any Node builtins in blockchain deps). |
 | Ledger (HW)    | `@ledgerhq/hw-app-btc@11.6.0`, `@ledgerhq/hw-transport-webusb@6.35.0` | See "Ledger Integration" below. |
-| Testing        | **Vitest** `@5.0.4` + `@vue/test-utils@2.5.1` + jsdom | 44 suites / 401 tests; coverage ratchet **89% lines/statements** hard floor (`vitest.config.js:78-81`), 90% TARGET in `codecov.yml`. Jest + `@vue/cli-plugin-unit-jest` REMOVED (Phase C). |
+| Testing        | **Vitest** `@5.0.4` + `@vue/test-utils@2.5.1` + jsdom | 45 suites / 424 tests; coverage ratchet **89% lines/statements** hard floor (`vitest.config.js:78-81`), 90% TARGET in `codecov.yml`. Jest + `@vue/cli-plugin-unit-jest` REMOVED (Phase C). |
 
 Full dependency list lives in `package.json`; the authoritative lockfile is `pnpm-lock.yaml`.
 
@@ -217,7 +217,8 @@ pnpm run test:unit                                # unit tests must pass
 >
 > **The build host for the web app is the `apecsdev` VM** (ssh alias `apecsdev`, `~/apps/nito.cash`,
 > rsynced from the dev host). It has node v24.18.1 + pnpm 11.21.0 and a warm `node_modules`.
-> It has **no Chrome** — see the visual-verification note under Phase D.
+> It has a **portable (no-root) Chrome** for the visual gate since 2026-11-22 — see the
+> verification notes under Phase D / the Concierge sections.
 
 CI runs `pnpm install --frozen-lockfile`; if `package.json` and `pnpm-lock.yaml` disagree,
 the build fails with "The lockfile would have been modified by this install." Always commit an
@@ -622,12 +623,20 @@ Post-fix the round table measures 421px (header 54 + seating 116 + phases 249).
 
 ### Verification notes for UI work here
 
-- `scripts/visual-baseline.mjs` needs a **system Chrome**. The `apecsdev` VM and `blackhost`
-  have **none** (`which google-chrome` empty on both); the dev host has
-  `/usr/bin/google-chrome`. So the working recipe is: **build on the VM**, rsync
-  `apps/web/dist-vite/` back, then drive it locally with `puppeteer-core` (present in
-  `apps/web/node_modules`) against a tiny static server — a static serve + browser run, **not**
-  a build, so the no-build-on-this-host rule is respected.
+- `scripts/visual-baseline.mjs` needs a **system Chrome**. The `apecsdev` VM HAS one since
+  2026-11-22 — a **portable, no-root install** (`sudo` there needs a password):
+  `wget https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb` →
+  `dpkg -x google-chrome-stable_current_amd64.deb ~/apps/chrome-portable` → binary
+  `~/apps/chrome-portable/opt/google/chrome/chrome` (verified 158.0.8127.36, `ldd` reports
+  no missing libs on elementary OS 8; the harness already passes `--no-sandbox`). Run the
+  gate ON the VM: `pnpm build && cd apps/web &&
+  CHROME_BIN=~/apps/chrome-portable/opt/google/chrome/chrome node scripts/visual-baseline.mjs
+  capture|compare`. Baseline re-captured 2026-11-22 (22 PNGs, all 11 routes × light/dark)
+  after the Desk/Earn/Spend redesigns; `blackhost` still has no Chrome.
+  The dev host also has `/usr/bin/google-chrome`; the cross-machine recipe still works:
+  **build on the VM**, rsync `apps/web/dist-vite/` back, then drive it locally with
+  `puppeteer-core` (present in `apps/web/node_modules`) against a tiny static server —
+  a static serve + browser run, **not** a build, so the no-build-on-this-host rule is respected.
 - **CSS `text-transform: uppercase` IS reflected in `innerText`.** Screenshot/DOM probes must
   match case-insensitively ("TONIGHT'S ITINERARY" vs "Tonight") or they silently miss sections.
 - `document.querySelector('main')` grabs **Notification.vue's `<main>`** first, not the view's.
@@ -650,6 +659,59 @@ Other workstreams commit to this same checkout (a `pool/carrier.js` + `pool-carr
 feature landed mid-session as `07cf5f2` / `60c92ca`). **Stage explicit paths only** — never
 `git add -A` / `git commit -a` — and re-read `git status` right before committing. `git fetch`
 before pushing; a push can be rejected because the other session moved `master`.
+
+## Concierge Earn + Spend MOCKUPs (2026-11-22) — Vault Desk + Courier Desk
+
+The two placeholder tabs are now hotel-style mockups too, under the same contract as the Desk:
+every figure is transcribed from published research, nothing contacts a relay/coordinator/chain,
+the only side effects are local `displayNotification` toasts, Tailwind-only, `shrink-0` on every
+`overflow-hidden` child of the fixed-height flex `<main>`. With the Desk covering topic 02, the
+three tabs now transcribe the whole 5-topic hushyourmoney research hub:
+Desk = 02 · Earn = 01a + 05 · Spend = 03 + 04.
+
+- **Earn — The Vault Desk** (`views/Concierge/Earn.vue`, suite doors `01a` + `05`): plaque +
+  house rules; suite 01a "The Shielded Pool" (status `Chipnet · mainnet demo`) opens the **vault
+  ledger** dossier — itinerary SHIELD → TRANSFER → UNSHIELD (all `Confirmed`; 3 chained
+  transfers in ONE block 329764), house register (183,472 / 186,007 multi-asset constraints,
+  2 public inputs, 35,626 B verifier, 26/26 red-team rejections, 16.967 s proof,
+  ~36.8–37.8 KB pool op), DO NOT DISTURB (1-of-1 demo-grade mainnet matrix, no audits yet,
+  per-category conservation, no network-layer coverage), "In this wallet" wiring state (note
+  library + seal wired; shield/transfer/unshield UI pending), canonical links
+  `/research/shielded-pool` + `#evidence`; suite 05 "The Hush Ceremony" (`In design`) links to
+  `https://hushyourmoney.com/ceremony` (that page marks its own monitor figures `[demo]`).
+  **Preserved verbatim:** the interest counter (`interestInterval` 100 ms, cleared in
+  `beforeUnmount`), `interestCore`/`interestRunning`, `addFunds`/`withdrawFunds` (console.log
+  kept; mockup toast ADDED), `isInvested`. The placeholder DeFi figures ("4.73%", "$914.20")
+  were REPLACED; the counter stays as the honest "house counter" local demo.
+- **Spend — The Courier Desk** (`views/Concierge/Spend.vue`, suite doors `03` + `04`): the REAL
+  paste-drop (payment processor) stays front and centre — every `handlePastedNote` debug log
+  preserved; suites 03 "Shielded Addresses" (`External survey`) opens the **dossier** (scheme rows
+  — scan/spend keys `m/44'/145'/0'/2'/…`, tweak `c = SHA256( SHA256(ECDH_x) ‖ outpoint )`,
+  `P_stealth = B + c·G`, the scan loop — plus the "where it meets the pool" design direction
+  and the topic-1773 report link) and 04 "CoinJoin" (`Live on BCH`) links to `/research/coinjoin`.
+  **Preserved verbatim:** the whole paste flow (popup, `acceptNote` → Send `?to=`),
+  `shopping`/`giving` (console.log kept; mockup toast ADDED), `hasFunds`, `loadAdvancedSpending`,
+  both getter mappings.
+- Tests: `tests/unit/concierge-earn-spend.spec.js` — 18 specs (45 suites / 424 tests total,
+  91.2% lines) pinning rendering, data-model transcriptions, ledger/dossier toggles, tone maps,
+  the preserved interest-counter timer (fake timers: ticks while mounted, stops on unmount) and
+  the full paste flow (valid note → popup → Send prefilled; unparseable → error action; no
+  address → no navigation). Verified on the apecsdev VM (build + `vitest run --coverage` green)
+  + a headless-Chrome DOM probe of the built bundle (34/34 content assertions, ZERO page errors).
+- The `TAB_CLICK` screenshots in `scripts/visual-baseline.mjs` (concierge-earn / concierge-spend)
+  still switch tabs by button text — the tab names are unchanged, so no harness edit was needed.
+
+### Suite flakes (2026-11-22 carry-over, status)
+
+- `lib-misc.spec.js > lib/bch/discovery > is bounded by DISCOVERY_MAX_BATCHES` does 200 real
+  HD derivations (~7.3 s alone) and timed out at the 20 s default under parallel load on the VM.
+  Fixed with a **60 s per-test timeout** (`it(..., 60000)` — zero logic change). Passes in
+  isolation, on CI, and in the full VM run.
+- The `EnvironmentTeardownError: [vitest-worker]: Closing rpc while "onUserConsoleLog" was
+  pending` (from `components-misc.spec.js`, one occurrence) remains **environmental** — not
+  app code, passes in isolation and on CI; do not chase it in app sources.
+- `pool-carrier.spec.js` (3 failures on one 2026-11-22 VM sync, passed on CI at `60c92ca`)
+  did **NOT recur**: 16/16 in isolation + in the full VM suite on the current tree.
 
 ## Conventions & Rules for Agents
 
