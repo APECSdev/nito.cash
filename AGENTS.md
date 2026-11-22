@@ -28,7 +28,7 @@ backend server — the app runs entirely in the browser and talks to the BCH net
 | Errors         | `@sentry/vue@11`                            | GlitchTip (Sentry-protocol) — `src/plugins/glitchtip.js`; tracing at 1%, `attachProps: false` (wallet privacy), BrowserSession integration filtered out. |
 | Node polyfill  | `vite-plugin-node-polyfills` + `buffer`     | webpack 4 auto-polyfilled `Buffer`/`process`; Vite needs this for Ledger (+ any Node builtins in blockchain deps). |
 | Ledger (HW)    | `@ledgerhq/hw-app-btc@11.6.0`, `@ledgerhq/hw-transport-webusb@6.35.0` | See "Ledger Integration" below. |
-| Testing        | **Vitest** `@5.0.4` + `@vue/test-utils@2.5.1` + jsdom | 41 suites / 373 tests; coverage gate **90% lines** (see `vitest.config.js` + `codecov.yml`). Jest + `@vue/cli-plugin-unit-jest` REMOVED (Phase C). |
+| Testing        | **Vitest** `@5.0.4` + `@vue/test-utils@2.5.1` + jsdom | 44 suites / 401 tests; coverage ratchet **89% lines/statements** hard floor (`vitest.config.js:78-81`), 90% TARGET in `codecov.yml`. Jest + `@vue/cli-plugin-unit-jest` REMOVED (Phase C). |
 
 Full dependency list lives in `package.json`; the authoritative lockfile is `pnpm-lock.yaml`.
 
@@ -207,6 +207,17 @@ pnpm install --frozen-lockfile --ignore-scripts   # lockfile must be in sync
 pnpm build                                        # must compile cleanly
 pnpm run test:unit                                # unit tests must pass
 ```
+
+> **CI runs `vitest run --coverage`, not plain `vitest run`** — every test can pass and the
+> job still fail on the coverage ratchet. Measured 2026-11-22: a feature commit of ~750
+> lines shipped without tests → `376/376 tests passed` but `ERR_PNPM_RECURSIVE_RUN_FIRST_FAIL`
+> from the threshold (run 45028769839). **Commit the tests with the feature** (or in the same
+> push), or master goes red and the `deploy` job never runs. The local gate is 89% lines /
+> 89% statements (`apps/web/vitest.config.js:78-81`); `codecov.yml` targets 90% ±1%.
+>
+> **The build host for the web app is the `apecsdev` VM** (ssh alias `apecsdev`, `~/apps/nito.cash`,
+> rsynced from the dev host). It has node v24.18.1 + pnpm 11.21.0 and a warm `node_modules`.
+> It has **no Chrome** — see the visual-verification note under Phase D.
 
 CI runs `pnpm install --frozen-lockfile`; if `package.json` and `pnpm-lock.yaml` disagree,
 the build fails with "The lockfile would have been modified by this install." Always commit an
@@ -555,6 +566,80 @@ Full review found the app silently bricked since the Vue 3 migration:
 - The screen/function review agenda is COMPLETE (see the section above);
   the visual-baseline harness + the overlap auditor + the contrast auditor
   remain the QA gates for future UI work.
+
+## Concierge Desk MOCKUP (2026-11-22) — CashFusion + P2P-over-Nostr
+
+`#/concierge` now opens a **hotel-style front desk** instead of the old placeholder Lobby. The
+Lobby tab is renamed **Desk** (`Concierge.vue` `tab: 'Desk'`, `tabs: ['Desk','Earn','Spend']`);
+the component stays `views/Concierge/Lobby.vue` so imports/routes are unchanged. Commits
+`946cea8` (feature) + `3495839` (tests); CI green on the tip run 45029875758.
+
+**It is a MOCKUP.** Nothing contacts a relay, coordinator or chain; the only side effects are
+local `displayNotification` toasts. Every figure is transcribed from published research:
+
+- **Canonical research source: `https://hushyourmoney.com/research/cashfusion`** (topic 02 of the
+  5-topic hub; anchors `#six-phases`, `#gate-evidence`, `#boundary`).
+- `/research/nostr-fusion` was **retired** by hushyourmoney commit `7b7c417` (608-line page
+  deleted, 301 → `/research/cashfusion`, `web/nuxt.config.ts:94`). The local dev server on
+  `http://127.0.0.1:3100` serves the CURRENT tree and 301s; **production was still serving the
+  old standalone page (HTTP 200) on 2026-11-22** — i.e. production lagged origin there. Do not
+  cite the standalone URL as canonical. `/research/nostr-relay` is **404** (it never existed).
+- Numbers on the desk (verified byte-identical in the merged page, grep counts ≥1): 5-party
+  G3 `10 in / 10 out · 1,760 B · fee 5,000 sats · 10/10 signatures`; 7-party `14/14`; chipnet
+  G2b `428 B · 2,000 sats ≈ 4.7 sat/B`; G1 relays `damus.io + nos.lol` (1/2 connected); 80 ms
+  publish pacing; MIN_PARTICIPANTS=5; kind-22230 discovery design-only; NIP-42 AUTH missing;
+  **G4 (mainnet opt-in beta) NOT built**.
+- In-wallet truth: no fusion/Nostr client exists. The only CashFusion mention in `apps/web/src`
+  is the `(f) Fusion` ACCOUNT STATUS CODE (`store/modules/wallets/actions/createWallet.js:19`)
+  and the TOR TODO at `:34-36`.
+
+**The demo round** ("Request a round") is a fully local timed simulation: 900 ms "asking" →
+peers seat one per 400 ms (5 = the design floor; the first/lowest pubkey tags itself
+coordinator) → six phases tick at 1300 ms → settles with the measured G3 numbers →
+"Reset the demo". `requestState`: `null → 'asking' → 'round' → 'done'`; `roundPhase` starts at
+**−1**, so settling needs **7** ticks (−1 → 6). All three timers (`roundTimer`, `peerTimer`,
+`phaseTimer`) are cleared in `beforeUnmount` AND `resetRound`.
+
+### THE FLEX-SHRINK COLLAPSE (bit twice — read before adding sections)
+
+The desk `<main>` is a **fixed-height flex column** (`h-[calc(100vh-58px-65px)]` +
+`overflow-y-auto`). When its content overflows, flex-shrink squishes the children — and any
+child with `overflow-hidden` collapses to its **automatic minimum size of ZERO**. Measured: the
+brass plaque and the round table rendered at **2px** (borders only), were invisible, and
+`scrollIntoView` could never reach them, which silently produced duplicate screenshots.
+**Every direct child section of that `<main>` that uses `overflow-hidden` needs `shrink-0`.**
+Post-fix the round table measures 421px (header 54 + seating 116 + phases 249).
+
+### Verification notes for UI work here
+
+- `scripts/visual-baseline.mjs` needs a **system Chrome**. The `apecsdev` VM and `blackhost`
+  have **none** (`which google-chrome` empty on both); the dev host has
+  `/usr/bin/google-chrome`. So the working recipe is: **build on the VM**, rsync
+  `apps/web/dist-vite/` back, then drive it locally with `puppeteer-core` (present in
+  `apps/web/node_modules`) against a tiny static server — a static serve + browser run, **not**
+  a build, so the no-build-on-this-host rule is respected.
+- **CSS `text-transform: uppercase` IS reflected in `innerText`.** Screenshot/DOM probes must
+  match case-insensitively ("TONIGHT'S ITINERARY" vs "Tonight") or they silently miss sections.
+- `document.querySelector('main')` grabs **Notification.vue's `<main>`** first, not the view's.
+  Select by content: `[...document.querySelectorAll('main')].find(m => m.innerText.includes(...))`.
+- **`scrollIntoView` did not move the scroll container** here; set `main.scrollTop` directly
+  (relative to `getBoundingClientRect().top`) and confirm with `document.elementFromPoint`.
+- The `Button` stub in tests must declare + render its **`label` PROP** — the real Button
+  renders `label`, not slot content, so a slot-only stub shows no button text.
+
+### Demo artifacts (gitignored, local only)
+
+`NOTES/concierge-desk-demo/` — 10 screenshots (phone light/dark × desk/dossier/round/settled
++ one 1280×900 desktop), `README.md` (click-through script + sources), and `serve.mjs`
+(`node NOTES/concierge-desk-demo/serve.mjs <distDir> 5493` → `http://127.0.0.1:5493/#/concierge`).
+`NOTES` is gitignored (`.gitignore:25`), so these never ship. Live demo: `https://nito.cash/#/concierge`.
+
+### Concurrent-session hazard (2026-11-22)
+
+Other workstreams commit to this same checkout (a `pool/carrier.js` + `pool-carrier.spec.js`
+feature landed mid-session as `07cf5f2` / `60c92ca`). **Stage explicit paths only** — never
+`git add -A` / `git commit -a` — and re-read `git status` right before committing. `git fetch`
+before pushing; a push can be rejected because the other session moved `master`.
 
 ## Conventions & Rules for Agents
 
