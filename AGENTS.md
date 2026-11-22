@@ -345,9 +345,44 @@ sender, receiver, and amount are all masked. Design decisions locked:
   (bench vectors steps, both fixture sets, the eval proofs, the live gate3 covenant fixture — 96 KB;
   specs resolve them via `import.meta.url`, NEVER absolute paths); the vectors byte-exact test is PINNED to
   fixture 0 (the generating proof — the 5-fixture sweep saturated CI's 2-core runner enough to trip the
-  timing-marginal DISCOVERY test). Blocker #4 (the NEXT mission): wire `getLivePoolState` + `buildActionTx`
-  + the pool scan into Shield/Transfer/Unshield UI flows (Wallet.vue's disabled buttons) + distribute the
-  proving assets (97 MB zkey via GitHub Release; wasm+vkey paths per prover.js). WARNING: the dev-host
+  timing-marginal DISCOVERY test). Blocker #4 is DONE (commit 7b70bf2, 2026-11-22; suite 51 files / 503
+  tests, coverage 92.93% stmts / 92.95% lines; VM-verified + pushed, CI deploys):
+  · WIRING: `lib/pool/actions.js` (the action orchestrator — witness tree assembled from the SCAN's ordered
+    actions + registry `genesisLeaves`/`genesisLeafCount`, never the own-notes-only store list; EXACTLY two
+    in-notes, own largest-first filled from registry `bootstrapNotes`; funding from ONE account address
+    via `getUtxosWithTokens` — Fulcrum token fields are `token_data.category`/`token_data.amount` — and
+    foreign-category token UTXOs are NEVER spent (the builder only returns pool-category + BCH change);
+    prove → verify vs the committed vkey → buildActionTx → broadcast, with onStage progress for the UI);
+    store `pool/submitPoolAction` (scanPool's return now also carries the raw engine result; displayError
+    + rethrow on every path); Wallet.vue real flows + the wallet's own DELIVERY POINT display/copy.
+  · GATE: registry `walletProverCompatible` (BOTH deployed pools false per the vkey correction) +
+    `getProverPool()` — UI + store gate on it. A Path-A deployment under the wallet-committed key flips
+    ONE flag and the flows light up with no further code change.
+  · ASSETS: GitHub Release `proving-assets-v1` (pool.wasm + pool_final.zkey + verification_key.json,
+    sha256 in the notes). LINEAGE VERIFIED on the VM: snarkjs `zKey.exportVerificationKey(pool_final.zkey)`
+    reproduces the committed verification_key.json BYTE-FOR-BYTE (groth16/bn128/nPublic 2) — our own
+    runner-independent keypair. GitHub release assets send NO access-control-allow-origin (verified), so
+    the prover Worker now proxies them at `prover.nito.cash/assets/<name>` with CORS * + 24h cache
+    (pinned names; live-verified, version 9ff7d644); prover.js `*_URL` defaults point at the Worker
+    mirror, relative paths stay the local-dev override. `toBenchVk` (actions.js) bridges the two vkey
+    shapes (snarkjs JSON vs bench objects — SAME key, byte-identical, asserted in tests); build.js's
+    `@param vk` doc corrected accordingly.
+  · prover:deploy FIX: `~/.cloudflare/token.env` assigns WITHOUT export — wrangler never saw the token;
+    the script now exports it explicitly (also: NO backticks inside its double-quoted ssh block — the
+    local shell command-substitutes them into the remote script).
+  · The pool-actions spec MOCKS build.js ON PURPOSE: a fixture proof pairs only with its own
+    publicSignals (the Groth16 pairing sanity check), so real-builder ground truth stays in pool-build.spec;
+    the orchestration spec pins the wiring (exact assembled buildActionTx params incl. vk = bench shape).
+  NEXT MISSION (the runner-recovery-INDEPENDENT end-to-end): deploy a fresh CHIPNET pool (Path A) under
+  the wallet-committed vkey/zkey (assets above, already distributed) from the PUBLIC bench main — publish
+  its genesis leaves in the registry entry (`genesisLeaves`, the Path-A pattern actions.js assembles
+  witnesses from), publish `bootstrapNotes` if first-deposit dummies are wanted, and ALIGN the pool's
+  `assetCategory` with `networks.js` chipnet PUSD `8c73ff…93144` (NOTE: gate3's registry category is
+  `98690dba…b153` — cryptographically verified on-chain via the actionHash scan, i.e. a THIRD category
+  that matches NEITHER networks.js PUSD NOR the superseded `479aee…` faucet token — a fresh pool pins
+  the category we actually mint/track). The old pools' balances stay runner-gated forever otherwise
+  (their vkey's zkey is the lost worktree's — Groth16 vkey→zkey is one-way; BLOCKER-3-BUILDER.md:49-50).
+  WARNING: the dev-host
   `apps/web/node_modules` is STALE (predates the `@sentry/vue` commit b529e76) — the glitchtip spec fails
   LOCALLY until a frozen reinstall (needs the IPv4-forcing pnpm-11 workaround below); CI installs fresh and
   is green (6197668, deployed).
