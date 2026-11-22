@@ -2,7 +2,7 @@
 
 # Nito.cash — Hush Your Money™
 
-![Nito.cash Poster](https://nito.cash/poster.jpg)
+![Nito.cash Poster](https://nito.cash/poster.jpg?1795353457)
 
 [![ci](https://github.com/APECSdev/nito.cash/actions/workflows/ci.yml/badge.svg)](https://github.com/APECSdev/nito.cash/actions/workflows/ci.yml)
 [![codecov](https://codecov.io/gh/APECSdev/nito.cash/graph/badge.svg)](https://codecov.io/gh/APECSdev/nito.cash)
