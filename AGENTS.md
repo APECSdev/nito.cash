@@ -326,6 +326,21 @@ sender, receiver, and amount are all masked. Design decisions locked:
   position + verifier-genesis input index are builder choices — decode.js finds both dynamically).
   Remaining: runner-side indexer materials (seed subtree hashes for SPEND witnesses; nullifier-set service,
   on `bch-infra`/runner) and the nito.cash wiring (shield/transfer/unshield UI + client-side WASM proving).
+  TX-BUILDER (blocker #3) is DONE wallet-side (2026-11-22, same day): `lib/pool/build.js` assembles the full
+  action tx (covenant unlocking in the live 9-push format + 5 verifier-step inputs + Schnorr funding with
+  token-bearing source outputs + continuity/payout/carrier/change outputs + fee), `lib/pool/verifier.js` is
+  the wallet port of the bench `produceTransaction` runtime (BYTE-EXACT vs the bench vectors; accepts
+  snarkjs proofs), `lib/pool/verifier-program.js` carries the deployed program constants extracted from
+  the live chain (byte-identical across all 7 live actions), and the registry carries each pool's deployed
+  347 B `covenantRedeem`. VM-eval on the apecsdev VM: the wallet-built COVENANT input + the funding inputs
+  ACCEPT on the BCH 2026 VM (deployed redeem logic + carrier tolerance + real-proof actionHash binding +
+  root binding + conservation). RUNNER-GATED discovery (BLOCKER-3-BUILDER.md in pusd-shielded-pool): the
+  deployed pools' verifier-step witness algorithm is a runner worktree revision NOT in the public bench
+  main (exec2 fragment 561 B vs 559, different MSM build; the live witness vk_x matches NEITHER vkey we
+  hold) — the wallet cannot regenerate the five verifier inputs for the ALREADY-DEPLOYED pools until the
+  runner's worktree is recovered; the gate3 "same vkey as the wallet-committed" claim is CORRECTED in the
+  registry (NOT wallet-prover-compatible until re-verified; note detection unaffected). The byte-comparison
+  harness vs the live witness pushes is built and ready as the acceptance test.
   The **local encrypted note store is DONE**
   (`apps/web/src/lib/pool/seal.js`: AES-256-GCM via WebCrypto, key = sha256 of domain-separated
   wallet entropy; `pool.notes` is a runtime-only mirror excluded from persistence via

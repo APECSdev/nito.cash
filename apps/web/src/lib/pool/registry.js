@@ -36,6 +36,11 @@ import { getNetwork } from '../bch/networks.js'
  * `lockingBytecode` — the FULL P2SH32 covenant locking script
  *   (OP_HASH256 OP_PUSHBYTES_32 <32-byte redeem hash> OP_EQUAL), hex.
  *   This is what the covenant-address history is queried against.
+ * `covenantRedeem` — the deployed 347 B redeem script (the merged spend()/init()
+ *   variant with the category as its embedded constructor arg), hex — extracted
+ *   from the live chain (the final push of any action's covenant unlocking).
+ *   Required by the tx builder (lib/pool/build.js); the hash256 of this must
+ *   equal the 32 bytes inside `lockingBytecode`.
  * `assetCategory` — the pool's pinned CashToken category (display/BE hex),
  *   matching the `tokens` registry in lib/bch/networks.js.
  * `genesisRootLE` — the tree root at pool creation (the state NFT's merkle
@@ -63,10 +68,11 @@ const POOLS = {
             id: 'gate3-demo-pool',
             name: 'Gate 3 demo pool',
             lockingBytecode: 'aa207c0c15fbdc14dda43fb0540846e065a1bbd4076e7ab64720e64c3ecd3515208087',
+            covenantRedeem: '2053b1852a0311e37849cedf9b7353faff12be4ceba23b6199801a8309ba0d699878009c637b82012088537a82012088547a82012088557a82012088567a82012088c2529dc076ce5779517e8876cf01207f7554ca0221077f7701207f758876cf01207f7778d07c57797e56797ea853797c7e7c5a7993525c79955b7995947600a26900cd537ac78800d15879517e8800d27b8800d39d5879519c6356d156798856d358799d68547abc547abc7e537abc7e7bbc7e547a012080bc7e547a012080bc7e7bbc7e7cbc7ea876517f75011f847c517f777ebc54ca0200077f7701207f758777677c519d7c82012088c2529dc076ce5379517e88203e1f1922dfb671d3f912f7ea461e0a88ee848fdde12b6c18ab1ad2c56ae734212000000000000000000000000000000000000000000000000000000000000000005279cf7b52797e8800cd5279c78800d1547a517e8800d37bd09d00d27b7b7e8768',
             assetCategory: '98690dba09831a8099613ba2eb4cbe12fffa53739bdfce4978e311032a85b153',
             genesisRootLE: '2c0f533600a77df705b7a23481a16bbc2baa9e9abb6a2943857931faa3f44525',
             genesisLeafCount: 2,
-            notes: 'Path-A lifecycle proof pool (deployed 2026-11-01, block 330438; first op SHIELD f5927a0b…). Uses the SAME circuit (183,472 constraints) and the SAME verifying key as the wallet-committed verification_key.json (POOL-DEPLOYMENT.md: vk fingerprint matches build256) — the wallet-compatible pool.',
+            notes: 'Path-A lifecycle proof pool (deployed 2026-11-01, block 330438; first op SHIELD f5927a0b…). VKEY LINEAGE CORRECTION (2026-11-22, from on-chain witness data): the deployed verifier program does NOT verify against the wallet-committed verification_key.json — the live actions’ genesis witness carries a vk_x that matches NEITHER the committed NOR the earlier vkey for their on-chain (n0, n1), and the deployed step redeems/fragments differ from the current bench main (exec2 fragment 561 B vs 559 B, terminal redeem 4158 B vs 4157 B). The pool was built by a runner worktree whose exact revision is not in the public repo (the documented “layout drift”, handoff §4.4). Until the runner’s build256 vkey + worktree are re-verified, treat this pool as NOT wallet-prover-compatible; the note-detection scan is unaffected (it validates against the on-chain n0/n1, not the vkey).',
         },
     ],
 }
