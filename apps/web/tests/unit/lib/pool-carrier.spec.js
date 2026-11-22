@@ -177,6 +177,39 @@ describe('pool carrier (encrypted-note delivery)', () => {
         expect(parsed).toEqual(packet)
     })
 
+    it('throws on an out-of-range note field (value >= 2^256)', async () => {
+        /* toBEBytes guards the 32-byte big-endian encoding — a field element
+           that cannot fit must fail loudly, not silently truncate. */
+        const badNote = { ...NOTE, value: 1n << 256n }
+
+        await expect(encryptNote(badNote, recipientPoint)).rejects.toThrow('out of range')
+    })
+
+    it('encryptNote throws on an off-curve receiver delivery point', async () => {
+        /* 32 x 0xff: the y coordinate exceeds the field prime, so unpackPoint
+           rejects it — encryptNote must refuse to deliver to a bogus point. */
+        const bogusPoint = new Uint8Array(32).fill(0xff)
+
+        await expect(encryptNote(NOTE, bogusPoint)).rejects.toThrow('not on BabyJub')
+    })
+
+    it('ownerPubFromDeliveryPoint throws on an off-curve point', async () => {
+        const bogusPoint = new Uint8Array(32).fill(0xff)
+
+        await expect(ownerPubFromDeliveryPoint(bogusPoint)).rejects.toThrow('not on BabyJub')
+    })
+
+    it('buildCarrierLockingBytecode rejects a wrong-size packet', () => {
+        expect(() => buildCarrierLockingBytecode(new Uint8Array(10))).toThrow('invalid packet size')
+
+        /* Also: null. */
+        expect(() => buildCarrierLockingBytecode(null)).toThrow('invalid packet size')
+    })
+
+    it('decryptPacket returns null with an empty leaf set (valid key, no match)', async () => {
+        expect(await decryptPacket(packet, recipientKey, [])).toBeNull()
+    })
+
     it('parse returns null for non-carrier outputs', () => {
         /* The unshield payout output shape (bare OP_RETURN, no payload). */
         expect(parseCarrierLockingBytecode(Uint8Array.of(0x6a))).toBeNull()
@@ -188,6 +221,15 @@ describe('pool carrier (encrypted-note delivery)', () => {
         const wrong = Uint8Array.from(lockingBytecode)
         wrong[3] = 0x00
         expect(parseCarrierLockingBytecode(wrong)).toBeNull()
+
+        /* Carrier LENGTH but a non-OP_RETURN / non-minimal prefix. */
+        const notOpReturn = Uint8Array.from(lockingBytecode)
+        notOpReturn[0] = 0x00
+        expect(parseCarrierLockingBytecode(notOpReturn)).toBeNull()
+
+        const wrongLengthByte = Uint8Array.from(lockingBytecode)
+        wrongLengthByte[2] = 0x63
+        expect(parseCarrierLockingBytecode(wrongLengthByte)).toBeNull()
 
         /* null / undefined. */
         expect(parseCarrierLockingBytecode(null)).toBeNull()
