@@ -22,15 +22,16 @@
 //
 // @vitest-environment node
 import { readFileSync } from 'node:fs'
+import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
 
 import { produceVerifierInputs } from '@/lib/pool/verifier'
 import { DEPLOYED_PROGRAM } from '@/lib/pool/verifier-program'
 
-const REPO = '/Workspace/apecsdev/pusd-shielded-pool'
-const VECTORS = JSON.parse(readFileSync(`${REPO}/artifacts/verifier-vectors.json`, 'utf8'))
-const OLD_FIXTURES = JSON.parse(readFileSync(`${REPO}/artifacts/public-fixtures.json`, 'utf8'))
-const NEW_FIXTURES = JSON.parse(readFileSync(`${REPO}/build/pusd-public-fixtures.json`, 'utf8'))
+const FIX = fileURLToPath(new URL('../../fixtures/pool/', import.meta.url))
+const VECTORS = JSON.parse(readFileSync(`${FIX}/bench-vectors-steps.json`, 'utf8'))
+const OLD_FIXTURES = JSON.parse(readFileSync(`${FIX}/bench-public-fixtures.json`, 'utf8'))
+const NEW_FIXTURES = JSON.parse(readFileSync(`${FIX}/pusd-public-fixtures.json`, 'utf8'))
 const COMMITTED_VK = JSON.parse(readFileSync('/Workspace/apecsdev/nito.cash/apps/web/public/proving/verification_key.json', 'utf8'))
 
 /* push parser (same shape as lib/pool/decode.js scriptPushes). */

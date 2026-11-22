@@ -21,6 +21,7 @@
 //
 // @vitest-environment node
 import { readFileSync } from 'node:fs'
+import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
 
 import { buildActionTx, buildCovenantUnlocking } from '@/lib/pool/build'
@@ -28,14 +29,14 @@ import { getDefaultPool } from '@/lib/pool/registry'
 import { actionHash } from '@/lib/pool/notes'
 import { hdNodeFromEntropy, derivePath, toCashAddress, toPrivateKeyBytes, toPublicKeyBytes } from '@/lib/bch/crypto'
 
-const REPO = '/Workspace/apecsdev/pusd-shielded-pool'
-const EVAL_PROOFS = JSON.parse(readFileSync(`${REPO}/build/eval-proofs.json`, 'utf8'))
+const FIX = fileURLToPath(new URL('../../fixtures/pool/', import.meta.url))
+const EVAL_PROOFS = JSON.parse(readFileSync(`${FIX}/eval-proofs.json`, 'utf8'))
 const VK = JSON.parse(readFileSync('/Workspace/apecsdev/nito.cash/apps/web/public/proving/verification_key.json', 'utf8'))
 /* The live SHIELD's covenant unlocking + args (extracted from chipnet f5927a0b…). */
-const LIVE = JSON.parse(readFileSync('/tmp/gate3-covenant-fixture.json', 'utf8'))
+const LIVE = JSON.parse(readFileSync(`${FIX}/gate3-covenant-live.json`, 'utf8'))
 
 /* The bench's snarkjs vk shape ({ alpha, beta, gamma, delta, ic }). */
-const FIXTURES = JSON.parse(readFileSync(`${REPO}/build/pusd-public-fixtures.json`, 'utf8'))
+const FIXTURES = JSON.parse(readFileSync(`${FIX}/pusd-public-fixtures.json`, 'utf8'))
 const BENCH_VK = FIXTURES.vk
 
 const POOL = getDefaultPool('chipnet')
