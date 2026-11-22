@@ -159,7 +159,10 @@ export function buildCovenantUnlocking({ covenantRedeemHex, args }) {
  *                        attests to (validated against publicSignals[1]).
  * @param proof           the Groth16 proof ({ a, b, c }, snarkjs encoding)
  * @param publicSignals   [merkleRoot, actionHash] (the proof's public inputs)
- * @param vk              the verifying key (public/proving/verification_key.json)
+ * @param vk              the verifying key in the BENCH shape
+ *                        ({alpha, beta, gamma, delta, ic} coordinate objects —
+ *                        lib/pool/actions.js toBenchVk converts the committed
+ *                        snarkjs JSON; NOT the raw verification_key.json)
  * @param funding         [{ txid, vout, satoshis, token?: { category, amount }, address }]
  *                        — the wallet's P2PKH inputs (SHIELD: must carry ≥
  *                        publicValueAbs of the pool category across inputs)

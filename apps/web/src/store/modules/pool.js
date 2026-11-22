@@ -18,8 +18,12 @@ import { deriveSealKey, sealJSON, unsealJSON } from '@/lib/pool/seal.js'
 
 /* Import the note-detection scan (blocker #2 wiring — see lib/pool/scan.js). */
 import { scanPool } from '@/lib/pool/scan.js'
-import { getDefaultPool } from '@/lib/pool/registry.js'
+import { getDefaultPool, getProverPool } from '@/lib/pool/registry.js'
 import { deriveSpendKey } from '@/lib/pool/notes.js'
+
+/* Import the end-to-end action orchestrator (blocker #4 wiring — see
+   lib/pool/actions.js). */
+import { submitPoolAction } from '@/lib/pool/actions.js'
 
 /* Import byte helpers + the Fulcrum provider (quorum-verified chain data). */
 import { hexToBytes } from '@/lib/bch/crypto.js'
@@ -167,7 +171,112 @@ const actions = {
             actionCount: result.actions.length,
         })
 
-        return { received, spent, actions: result.actions.length }
+        /* `scan` carries the RAW engine result (the ordered action chain) —
+           submitPoolAction assembles the witness tree from it. */
+        return { received, spent, actions: result.actions.length, scan: result }
+    },
+
+    /*
+     * Blocker #4 wiring — the end-to-end SHIELD / TRANSFER / UNSHIELD flow.
+     * Refreshes the note state (full scan — which also yields the ordered
+     * action chain that IS the witness tree), then delegates to
+     * lib/pool/actions.js submitPoolAction (in-note/funding selection →
+     * witness → Groth16 proof → signed tx → broadcast). On success the
+     * wallet's own output notes are recorded + the spent in-notes marked
+     * (pre-scan bootstrap; the next scanPool reconciles against the real
+     * chain and dedupes by commitment).
+     *
+     * Params: { action: 'shield'|'transfer'|'unshield', amount: BigInt|number
+     *   (PUSD base units), recipientDeliveryPoint?: hex (transfer only) }.
+     * Requires a wallet-prover-compatible pool (registry.js getProverPool) —
+     * both deployed pools are flagged false today, so this dispatch THROWS
+     * (with a user-visible error) until a Path-A pool is registered.
+     */
+    async submitPoolAction({ dispatch, state, rootGetters }, { action, amount, recipientDeliveryPoint, onStage }) {
+        const entropyHex = rootGetters['profile/getMasterSeed']
+
+        if (!entropyHex) {
+            const error = new Error('Open your wallet first (no seed set).')
+
+            dispatch('displayError', error, { root: true })
+
+            throw error
+        }
+
+        const network = rootGetters['profile/getNetwork']
+
+        const pool = getProverPool(network)
+
+        if (!pool) {
+            const error = new Error('No wallet-prover-compatible pool is registered on this network yet (awaiting a Path-A deployment under the wallet-committed key).')
+
+            dispatch('displayError', error, { root: true })
+
+            throw error
+        }
+
+        /* Refresh notes/leaves + fetch the ordered action chain in one sweep. */
+        const scanned = await dispatch('scanPool')
+
+        if (!scanned || !scanned.scan) {
+            const error = new Error('The pool scan returned no action chain — try again.')
+
+            dispatch('displayError', error, { root: true })
+
+            throw error
+        }
+
+        const cluster = await getCluster(network)
+
+        const spendKey = deriveSpendKey(hexToBytes(entropyHex))
+
+        /* Wallet-side funding material (the wallets store's own views —
+           the SAME account model sendCrypto signs with). */
+        const hdNode = rootGetters['wallets/getHDNode']
+        const accounts = rootGetters['wallets/getAddresses']('BCH') || []
+        const derivationPath = rootGetters['wallets/getDerivationPath']('BCH')
+        const accountBase = derivationPath.split('/').slice(0, 4).join('/')
+        const changeAddress = rootGetters['wallets/getChangeAddress']('BCH')
+
+        let result
+
+        try {
+            result = await submitPoolAction({
+                cluster, pool, networkId: network,
+                scan: scanned.scan,
+                hdNode, accounts, accountBase, derivationPath,
+                spendKey, ownNotes: state.notes,
+                action,
+                amount: BigInt(amount),
+                recipientDeliveryPoint,
+                onStage,
+                changeAddress,
+                /* UNSHIELD pays the transparent payout to the FIRST account
+                   address (the wallet's own receiving address). */
+                payoutAddress: (accounts[0] && accounts[0].address) || changeAddress,
+            })
+        } catch (error) {
+            /* Warn user (BEFORE the rethrow, so the caller's rejection
+               handler runs — the sendCrypto.js pattern). */
+            dispatch('displayError', error, { root: true })
+
+            throw error
+        }
+
+        /* Record the wallet's own output notes (leafIndex = the pre-scan
+           append position; the next scanPool reconciles + dedupes by cm). */
+        for (const note of result.outNotes) {
+            await dispatch('recordNote', note)
+        }
+
+        /* Mark the spent in-notes (spendNote is idempotent). */
+        for (const nf of result.spentNfs) {
+            await dispatch('spendNote', { nf })
+        }
+
+        dispatch('displayNotification', 'Pool action broadcast!', { root: true })
+
+        return result
     },
 
     /*

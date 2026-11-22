@@ -119,6 +119,57 @@ function json(body, status = 200) {
   });
 }
 
+/**
+ * GET /assets/:name — the PUSD shielded-pool PROVING ASSETS (nito.cash
+ * blocker #4 distribution).
+ *
+ * The 97 MB zkey + the witness calculator cannot ship inside the wallet
+ * bundle (a Cloudflare Pages Direct Upload caps a single file at 25 MiB)
+ * and the canonical storage is this repo's GitHub Release
+ * `proving-assets-v1`. GitHub release assets send NO
+ * `Access-Control-Allow-Origin`, so the browser (snarkjs fullProve, which
+ * fetches wasm/zkey on demand) CANNOT pull them directly. This route fetches
+ * the pinned asset server-side (worker->github has no CORS constraint) and
+ * streams it back with permissive CORS so the wallet can fetch
+ * https://prover.nito.cash/assets/<name> cross-origin.
+ *
+ * Asset names are PINNED (no arbitrary proxying / path traversal), the
+ * upstream tag is baked in, and responses are cacheable at the edge + in
+ * the browser (snarkjs refetches the zkey on every prove — the HTTP cache
+ * keeps that off the network).
+ */
+const RELEASE_ASSETS = {
+  "pool.wasm":
+    "https://github.com/APECSdev/nito.cash/releases/download/proving-assets-v1/pool.wasm",
+  "pool_final.zkey":
+    "https://github.com/APECSdev/nito.cash/releases/download/proving-assets-v1/pool_final.zkey",
+  "verification_key.json":
+    "https://github.com/APECSdev/nito.cash/releases/download/proving-assets-v1/verification_key.json",
+};
+
+async function handleAsset(url) {
+  const name = url.pathname.slice("/assets/".length);
+  const upstream = RELEASE_ASSETS[name];
+
+  if (!upstream) {
+    return json(
+      { error: "unknown asset", available: Object.keys(RELEASE_ASSETS) },
+      404,
+    );
+  }
+
+  const response = await fetch(upstream, { redirect: "follow" });
+
+  if (!response.ok || !response.body) {
+    return json({ error: `upstream fetch failed (${response.status})` }, 502);
+  }
+
+  const headers = new Headers(response.headers);
+  headers.set("access-control-allow-origin", "*");
+  headers.set("cache-control", "public, max-age=86400");
+  return new Response(response.body, { status: 200, headers });
+}
+
 const SCRATCH_RECIPIENT = 1 << 20; // 1 MiB
 const SCRATCH_MEMO = (1 << 20) + 1024;
 const SCRATCH_PCZT = (1 << 20) + 2048;
@@ -393,6 +444,17 @@ export default {
       }
       try {
         return await handlePczt(request);
+      } catch (e) {
+        return json({ error: `internal error: ${e?.message ?? String(e)}` }, 500);
+      }
+    }
+
+    if (url.pathname.startsWith("/assets/")) {
+      if (request.method !== "GET" && request.method !== "HEAD") {
+        return json({ error: "method not allowed, use GET" }, 405);
+      }
+      try {
+        return await handleAsset(url);
       } catch (e) {
         return json({ error: `internal error: ${e?.message ?? String(e)}` }, 500);
       }

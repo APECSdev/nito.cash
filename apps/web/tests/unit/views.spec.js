@@ -41,6 +41,22 @@ vi.mock('@/lib/solana.js', () => ({
     fetchSolBalance: vi.fn(async () => 1.5),
 }))
 
+/* ---- shielded-pool mocks (hoisted) — the blocker #4 action wiring: the
+   registry's prover-pool lookup + the action engine swap per-test. ---- */
+const { proverPoolMock, submitPoolActionMock } = vi.hoisted(() => ({
+    proverPoolMock: vi.fn(),
+    submitPoolActionMock: vi.fn(),
+}))
+
+vi.mock('@/lib/pool/registry.js', async (importOriginal) => ({
+    ...(await importOriginal()),
+    getProverPool: proverPoolMock,
+}))
+
+vi.mock('@/lib/pool/actions.js', () => ({
+    submitPoolAction: submitPoolActionMock,
+}))
+
 /* Import the store + facade AFTER the mocks. */
 import { useStore, getStoreFacade, StoreCompatPlugin, ensureStoreFacade } from '@/store'
 
@@ -135,6 +151,9 @@ beforeEach(() => {
 
     router.push.mockClear()
     router.replace.mockClear()
+    proverPoolMock.mockReset()
+    proverPoolMock.mockReturnValue(null)
+    submitPoolActionMock.mockReset()
     getClusterMock.mockClear()
     cluster.getBalance.mockClear()
     cluster.getHistory.mockReset()
@@ -467,6 +486,81 @@ describe('views/Wallet', () => {
 
         wrapper.vm.bchBalance = null
         expect(wrapper.vm.bchDisplay).toBe('—')
+    })
+
+    it('gates the action flows without a wallet-prover-compatible pool', async () => {
+        const wrapper = mountView(Wallet)
+        await new Promise((r) => setTimeout(r, 60))
+
+        wrapper.vm.toggleAction('Shield')
+        await wrapper.vm.$nextTick()
+
+        expect(wrapper.vm.activeAction).toBe('Shield')
+        expect(wrapper.vm.proverPool).toBeNull()
+        expect(wrapper.text()).toContain('Awaiting a wallet-prover-compatible pool')
+    })
+
+    it('runs the flow against a compatible pool and renders the broadcast txid', async () => {
+        proverPoolMock.mockReturnValue({ id: 'patha-pool' })
+
+        submitPoolActionMock.mockResolvedValue({
+            txid: 'ff'.repeat(32),
+            outNotes: [
+                { value: 2000n, ownerPub: 1n, rho: 2n, r: 3n, cm: 4n, nf: '9', leafIndex: 2 },
+            ],
+            spentNfs: [],
+        })
+
+        const wrapper = mountView(Wallet)
+        await new Promise((r) => setTimeout(r, 60))
+
+        wrapper.vm.toggleAction('Shield')
+        wrapper.vm.actionAmount = '1000'
+        await wrapper.vm.submitAction()
+        await wrapper.vm.$nextTick()
+
+        /* The engine ran with the UI-normalized action + amount. */
+        expect(submitPoolActionMock).toHaveBeenCalledTimes(1)
+        expect(submitPoolActionMock.mock.calls[0][0].action).toBe('shield')
+        /* The store normalizes the UI string to BigInt base units. */
+        expect(submitPoolActionMock.mock.calls[0][0].amount).toBe(1000n)
+
+        expect(wrapper.vm.actionResult).toBe('ff'.repeat(32))
+        expect(wrapper.text()).toContain('Broadcast — txid')
+
+        /* The engine's own output note reached the pool store. */
+        expect(getStoreFacade().state.pool.notes).toHaveLength(1)
+    })
+
+    it('derives and shows the delivery point (the receive-side address)', async () => {
+        const wrapper = mountView(Wallet)
+
+        /* The babyjub wasm derivation is async + slow under full-suite load
+           (the poseidon/babyjub warm-up contention pool-notes.spec documents). */
+        const ok = await waitFor(() => wrapper.vm.deliveryPointHex.length === 64, 10000)
+
+        expect(ok).toBe(true)
+        expect(wrapper.text()).toContain('Your Nito Cash address')
+    })
+
+    it('validates the amount + recipient locally BEFORE dispatching', async () => {
+        proverPoolMock.mockReturnValue({ id: 'patha-pool' })
+
+        const wrapper = mountView(Wallet)
+        await new Promise((r) => setTimeout(r, 60))
+
+        wrapper.vm.toggleAction('Shield')
+        wrapper.vm.actionAmount = '12.5'
+        await wrapper.vm.submitAction()
+        expect(wrapper.vm.actionError).toContain('whole amount')
+
+        wrapper.vm.toggleAction('Transfer')
+        wrapper.vm.actionAmount = '10'
+        wrapper.vm.transferTo = 'nothex'
+        await wrapper.vm.submitAction()
+        expect(wrapper.vm.actionError).toContain('64-hex-character')
+
+        expect(submitPoolActionMock).not.toHaveBeenCalled()
     })
 })
 

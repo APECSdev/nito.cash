@@ -90,7 +90,7 @@ describe('store/modules/pool scanPool', () => {
 
         const result = await facade.dispatch('pool/scanPool')
 
-        expect(result).toEqual({ received: 1, spent: 0, actions: 1 })
+        expect(result).toEqual({ received: 1, spent: 0, actions: 1, scan: fixtureScan() })
 
         /* The received note is stored with the scan-assigned leaf index. */
         expect(facade.state.pool.notes).toHaveLength(1)

@@ -1,8 +1,13 @@
 /* Import libraries. */
-import { beforeAll, describe, expect, it } from 'vitest'
+import { beforeAll, describe, expect, it, vi } from 'vitest'
 
 /* Import pool lib. */
-import { buildPoolWitness } from '@/lib/pool/prover'
+import {
+    buildPoolWitness,
+    PROVING_WASM_URL, PROVING_ZKEY_URL, VERIFYING_KEY_URL,
+    RELEASE_TAG, RELEASE_BASE, ASSETS_BASE,
+    fetchVerifyingKey,
+} from '@/lib/pool/prover'
 import { noteCommitment, getPoseidon } from '@/lib/pool/notes'
 
 /*
@@ -86,5 +91,50 @@ describe('pool prover (witness assembly)', () => {
         expect(input.cm.length).toEqual(2)
         expect(input.inPathElements[0].length).toEqual(20)
         expect(input.inPathBits[0].length).toEqual(20)
+    })
+})
+
+describe('pool prover (release asset distribution)', () => {
+    it('pins the canonical Release tag and the Worker-mirror asset URLs', () => {
+        /* The canonical storage: this repo's proving-assets release. */
+        expect(RELEASE_BASE).toBe(`https://github.com/APECSdev/nito.cash/releases/download/${RELEASE_TAG}/`)
+
+        /* The browser-fetchable default: the prover Worker's CORS-enabled
+           proxy of that release (GitHub assets send NO ACAO — the Worker
+           mirror is why the wallet can fetch them at all). */
+        expect(ASSETS_BASE).toBe('https://prover.nito.cash/assets/')
+        expect(PROVING_WASM_URL).toBe(ASSETS_BASE + 'pool.wasm')
+        expect(PROVING_ZKEY_URL).toBe(ASSETS_BASE + 'pool_final.zkey')
+        expect(VERIFYING_KEY_URL).toBe(ASSETS_BASE + 'verification_key.json')
+    })
+
+    it('fetches + caches the committed verifying key (app-served default path)', async () => {
+        const vkey = { vk: 'fixture' }
+
+        const fetchMock = vi.fn(async () => ({ ok: true, json: async () => vkey }))
+
+        vi.stubGlobal('fetch', fetchMock)
+
+        try {
+            /* First call fetches. */
+            expect(await fetchVerifyingKey()).toBe(vkey)
+            expect(fetchMock).toHaveBeenCalledTimes(1)
+            expect(fetchMock.mock.calls[0][0]).toBe('proving/verification_key.json')
+
+            /* Second call is served from the module cache. */
+            expect(await fetchVerifyingKey()).toBe(vkey)
+            expect(fetchMock).toHaveBeenCalledTimes(1)
+
+            /* An explicit URL bypasses the cache. */
+            expect(await fetchVerifyingKey(VERIFYING_KEY_URL)).toBe(vkey)
+            expect(fetchMock).toHaveBeenCalledTimes(2)
+            expect(fetchMock.mock.calls[1][0]).toBe(VERIFYING_KEY_URL)
+
+            /* A failing fetch surfaces a presentable error. */
+            fetchMock.mockResolvedValueOnce({ ok: false, status: 404 })
+            await expect(fetchVerifyingKey('proving/other.json')).rejects.toThrow(/404/)
+        } finally {
+            vi.unstubAllGlobals()
+        }
     })
 })

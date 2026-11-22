@@ -40,6 +40,9 @@ ssh "${REMOTE}" "bash -lc '
   set -euo pipefail
   source ~/.nvm/nvm.sh >/dev/null 2>&1
   source ~/.cloudflare/token.env
+  # token.env assigns the var WITHOUT export — wrangler, a child process,
+  # never saw it, so every deploy failed the auth preflight. Export explicitly.
+  export CLOUDFLARE_API_TOKEN
   cd ~/${REMOTE_DIR}/workers/prover
   pnpm run deploy
 '"

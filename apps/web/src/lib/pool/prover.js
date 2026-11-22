@@ -14,14 +14,17 @@
 // against the bench's committed transfer fixture, which verifies on-chain).
 //
 // PROVING ASSETS — NOT COMMITTED. The witness calculator (`pool.wasm`) and the
-// proving key (`pool_final.zkey`) that match the DEPLOYED verifying key
-// (`public/proving/verification_key.json`, PPOT-derived) are gitignored in
+// proving key (`pool_final.zkey`) that pair with the WALLET-COMMITTED verifying
+// key (`public/proving/verification_key.json`, PPOT-derived) are gitignored in
 // pusd-shielded-pool and regenerate only on the build box (bch-infra); the
 // repo's committed `artifacts/` copies are a documented-STALE pre-PPOT snapshot
 // that does NOT match the live vkey. Copy the live `build/pool_js/pool.wasm` +
 // `build/pool_final.zkey` into `public/proving/` to enable proof generation.
-// (`verification_key.json` IS committed here — it lets the wallet VERIFY proofs
-// and is the live on-chain key.)
+// (`verification_key.json` IS committed here — it is the WALLET-COMMITTED key,
+// the pair of the gitignored zkey/wasm. CORRECTION 2026-11-22, registry.js: the
+// DEPLOYED pools do NOT verify under it — proofs made with these assets serve
+// wallet-side verification and FUTURE Path-A pool deployments under OUR vkey,
+// not the already-deployed pools.)
 
 import * as snarkjs from 'snarkjs'
 
@@ -32,6 +35,57 @@ import { computeRoot, merklePath } from './merkle'
 export const PROVING_WASM = 'proving/pool.wasm'
 export const PROVING_ZKEY = 'proving/pool_final.zkey'
 export const VERIFYING_KEY = 'proving/verification_key.json'
+
+/*
+ * RELEASE DISTRIBUTION (blocker #4): the witness calculator (3.4 MB) and the
+ * proving key (97 MB) are gitignored and CANNOT ship inside the app bundle —
+ * a Cloudflare Pages Direct Upload caps a single file at 25 MiB. The
+ * canonical storage is this repo's GitHub Release `proving-assets-v1`
+ * (pool.wasm + pool_final.zkey + verification_key.json, uploaded from the
+ * bch-infra-generated artifacts that live in `public/proving/`; lineage
+ * VERIFIED 2026-11-22 on the build VM — snarkjs zKey.exportVerificationKey
+ * reproduces the committed verification_key.json byte-for-byte).
+ *
+ * BROWSER-FETCHABLE MIRROR: GitHub release assets send NO
+ * `Access-Control-Allow-Origin`, so the browser cannot fetch them directly.
+ * The prover Worker proxies the release at /assets/<name> with permissive
+ * CORS (workers/prover/src/index.js handleAsset); these *_URL constants are
+ * the WORKER mirror — the default asset locations the orchestrator
+ * (lib/pool/actions.js) passes to snarkjs. The relative paths above remain
+ * the LOCAL-DEV override: with the files dropped into `public/proving/`,
+ * pass those paths instead.
+ */
+export const RELEASE_TAG = 'proving-assets-v1'
+export const RELEASE_BASE = `https://github.com/APECSdev/nito.cash/releases/download/${RELEASE_TAG}/`
+export const ASSETS_BASE = 'https://prover.nito.cash/assets/'
+export const PROVING_WASM_URL = ASSETS_BASE + 'pool.wasm'
+export const PROVING_ZKEY_URL = ASSETS_BASE + 'pool_final.zkey'
+export const VERIFYING_KEY_URL = ASSETS_BASE + 'verification_key.json'
+
+/* Module-level verifying-key cache (3 KB JSON — fetched once per session). */
+let _vkeyCache = null
+
+/*
+ * Fetch (and cache) the verifying key. Defaults to the APP-SERVED committed
+ * copy (`public/proving/verification_key.json` ships in the bundle — the
+ * committed vkey is small, so it needs no Release fetch). An explicit `url`
+ * (e.g. VERIFYING_KEY_URL) bypasses the cache.
+ */
+export async function fetchVerifyingKey(url = VERIFYING_KEY) {
+    if (!url) throw new Error('prover: no verifying-key url')
+    if (url === VERIFYING_KEY && _vkeyCache) return _vkeyCache
+
+    const res = await fetch(url)
+    if (!res.ok) throw new Error(`prover: cannot fetch verifying key (${res.status} ${url})`)
+
+    const vkey = await res.json()
+
+    if (url === VERIFYING_KEY) {
+        _vkeyCache = vkey
+    }
+
+    return vkey
+}
 
 const S = (x) => BigInt(x).toString(10)
 

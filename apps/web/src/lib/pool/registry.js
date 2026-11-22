@@ -58,6 +58,10 @@ const POOLS = {
             assetCategory: '2469acc5afa4b10cb5b5c04afb89c3a3ffd61c5da9c01e26d00951cae2a02544',
             genesisRootLE: '49bda9bde7ea07d144ff99d81a0959a112579e98ab4c84dcefb98786ab90830f',
             genesisLeafCount: 2,
+            /* NOT wallet-prover-compatible (yet): the vkey lineage vs the
+               wallet-committed build256 vkey is UNVERIFIED (see notes) — the
+               flag gates the end-to-end action flows (lib/pool/actions.js). */
+            walletProverCompatible: false,
             setupGrade: 'demo-solo-1of1',
             notes: 'First mainnet shielded pool op (2026-11-20; PREP dd1e3506…, GENESIS 0a8cb008…, DEPLOY 63ddfdd4…, TRANSFER 4fda8a8b…). NOT production: Gate-7 public ceremony still required; vkey lineage vs the wallet-committed build256 vkey is UNVERIFIED — do not treat as production until verified.',
         },
@@ -72,6 +76,11 @@ const POOLS = {
             assetCategory: '98690dba09831a8099613ba2eb4cbe12fffa53739bdfce4978e311032a85b153',
             genesisRootLE: '2c0f533600a77df705b7a23481a16bbc2baa9e9abb6a2943857931faa3f44525',
             genesisLeafCount: 2,
+            /* NOT wallet-prover-compatible: the deployed program's vkey
+               matches NEITHER vkey the wallet holds (the correction in notes
+               below). Note DETECTION is unaffected; only shield/transfer/
+               unshield are gated (lib/pool/actions.js). */
+            walletProverCompatible: false,
             notes: 'Path-A lifecycle proof pool (deployed 2026-11-01, block 330438; first op SHIELD f5927a0b…). VKEY LINEAGE CORRECTION (2026-11-22, from on-chain witness data): the deployed verifier program does NOT verify against the wallet-committed verification_key.json — the live actions’ genesis witness carries a vk_x that matches NEITHER the committed NOR the earlier vkey for their on-chain (n0, n1), and the deployed step redeems/fragments differ from the current bench main (exec2 fragment 561 B vs 559 B, terminal redeem 4158 B vs 4157 B). The pool was built by a runner worktree whose exact revision is not in the public repo (the documented “layout drift”, handoff §4.4). Until the runner’s build256 vkey + worktree are re-verified, treat this pool as NOT wallet-prover-compatible; the note-detection scan is unaffected (it validates against the on-chain n0/n1, not the vkey).',
         },
     ],
@@ -85,6 +94,21 @@ export function getPools(networkId) {
 /* The DEFAULT pool for a network (first entry; the wallet's scan target). */
 export function getDefaultPool(networkId) {
     return (POOLS[networkId] || [])[0] || null
+}
+
+/*
+ * The first pool on a network the WALLET can PROVE for end-to-end
+ * (SHIELD/TRANSFER/UNSHIELD via lib/pool/actions.js): its verifying-key
+ * lineage must match the wallet's proving assets (lib/pool/prover.js).
+ * Both DEPLOYED pools are flagged false today — gate3's vkey lineage is
+ * unverified (the runner correction in its entry) and the mainnet demo
+ * pool's lineage is unverified (its entry notes). Returns null when no
+ * pool qualifies: the UI must gate the action flows on THIS, never on
+ * getPools() — a Path-A deployment under the wallet-committed vkey flips
+ * its entry's flag and the flows light up with no further code change.
+ */
+export function getProverPool(networkId) {
+    return (POOLS[networkId] || []).find((pool) => pool.walletProverCompatible === true) || null
 }
 
 /* A pool's full covenant locking bytecode as bytes. */

@@ -48,7 +48,26 @@
                     {{note.value}} PUSD · cm {{shorten(note.cm)}}
                 </div>
 
-                <!-- Action flow scaffold (client-side proving lands next). -->
+                <!-- Your shielded payment address — the DELIVERY POINT the
+                     receive-side note detection decrypts against (lib/pool/
+                     carrier.js). Share it out-of-band; the PoC has no
+                     on-chain registry yet. -->
+                <div class="mt-[16px]">
+                    <div class="text-[12px] font-semibold text-muted">
+                        Your Nito Cash address (delivery point)
+                    </div>
+                    <div class="flex items-center justify-between gap-[8px] mt-[4px]">
+                        <div class="text-[12px] font-medium text-muted break-all px-[8px]">
+                            {{deliveryPointHex || '—'}}
+                        </div>
+                        <Button v-if="deliveryPointHex" @click.native="copyDeliveryPoint"
+                            :label="deliveryPointCopied ? 'Copied \u2713' : 'Copy'" />
+                    </div>
+                </div>
+
+                <!-- Action flow (blocker #4): scan → witness → prove → verify
+                     → build → broadcast, against a wallet-prover-compatible
+                     pool (registry.js getProverPool). -->
                 <div v-if="activeAction" class="mt-[24px] p-[14px] rounded-[8px] bg-box-bg">
                     <div class="text-[15px] font-semibold text-fg">
                         {{activeAction}}
@@ -58,8 +77,37 @@
                         {{actionDescription}}
                     </p>
 
+                    <label class="block mt-[12px] text-[12px] font-semibold text-muted">
+                        Amount (PUSD base units)
+                    </label>
+                    <input v-model="actionAmount" type="text" inputmode="numeric"
+                        :disabled="actionBusy"
+                        placeholder="e.g. 1000"
+                        class="mt-[4px] w-full rounded-[8px] border border-input-border bg-input-bg px-[10px] py-[8px] text-[14px] font-semibold text-fg" />
+
+                    <template v-if="activeAction === 'Transfer'">
+                        <label class="block mt-[12px] text-[12px] font-semibold text-muted">
+                            Recipient Nito Cash address (their delivery point)
+                        </label>
+                        <input v-model="transferTo" type="text" spellcheck="false"
+                            :disabled="actionBusy"
+                            placeholder="64 hex characters"
+                            class="mt-[4px] w-full rounded-[8px] border border-input-border bg-input-bg px-[10px] py-[8px] text-[12px] font-semibold text-fg break-all" />
+                    </template>
+
+                    <p v-if="actionError" class="mt-[10px] text-[12px] font-semibold text-warning-text">
+                        {{actionError}}
+                    </p>
+
                     <div class="mt-[12px]">
-                        <Button :label="activeAction + ' — proving lands next'" :disabled="true" />
+                        <Button v-if="proverPool" :label="submitButtonLabel" :disabled="actionBusy" @click.native="submitAction" />
+                        <p v-else class="text-[12px] font-semibold text-warning-text leading-[18px]">
+                            Awaiting a wallet-prover-compatible pool — the deployed pools' verifying-key lineage is unverified (see the Concierge Vault Desk). A Path-A deployment under the wallet-committed key unlocks these flows.
+                        </p>
+                    </div>
+
+                    <div v-if="actionResult" class="mt-[10px] text-[12px] font-semibold text-muted break-all">
+                        Broadcast — txid {{actionResult}}
                     </div>
                 </div>
             </div>
@@ -165,6 +213,13 @@ import { WALLETS, getWallet } from '@/lib/wallets'
 /* Import the network CashToken registry. */
 import { getTokenCategory } from '@/lib/bch/networks'
 
+/* Import the shielded-pool registry + the pool key material (the same
+   domain-separated key the scan + action flows use). */
+import { getProverPool } from '@/lib/pool/registry'
+import { deriveSpendKey } from '@/lib/pool/notes'
+import { deriveDeliveryPoint } from '@/lib/pool/carrier'
+import { bytesToHex, hexToBytes } from '@/lib/bch/crypto'
+
 /* Import Solana account derivation + balance. */
 import { solanaAccountFromEntropy, fetchSolBalance } from '@/lib/solana'
 
@@ -182,6 +237,14 @@ export default {
             pusdBalanceRaw: null,
             solAddress: '',
             solBalance: null,
+            /* Shielded action flow state (blocker #4). */
+            actionAmount: '',
+            transferTo: '',
+            actionBusy: false,
+            actionError: null,
+            actionResult: null,
+            deliveryPointHex: '',
+            deliveryPointCopied: false,
         }
     },
     computed: {
@@ -245,6 +308,20 @@ export default {
                 : `PUSD not tracked on ${this.getNetwork}`
         },
 
+        /* The registry's wallet-prover-compatible pool for the ACTIVE
+           network (null → the action flows stay disabled; registry.js —
+           both deployed pools are flagged false today). */
+        proverPool() {
+            return getProverPool(this.getNetwork)
+        },
+
+        /* The active action's submit-button label (busy state included). */
+        submitButtonLabel() {
+            return this.actionBusy
+                ? 'Working — proving takes ~20s…'
+                : `${this.activeAction} PUSD`
+        },
+
         /* A one-line description of the active shield/transfer/unshield flow. */
         actionDescription() {
             switch (this.activeAction) {
@@ -266,9 +343,63 @@ export default {
             this.$router.replace(`/wallets/${id}`)
         },
 
-        /* Toggle a shield / transfer / unshield flow scaffold. */
+        /* Toggle a shield / transfer / unshield flow (transient state reset). */
         toggleAction(action) {
             this.activeAction = this.activeAction === action ? null : action
+            this.actionError = null
+            this.actionResult = null
+        },
+
+        /* Submit the active flow (blocker #4) — local PRE-validation only;
+           every runtime failure surfaces through the store's displayError
+           toasts (the sendCrypto pattern). */
+        async submitAction() {
+            if (!this.proverPool || this.actionBusy) return
+
+            const amount = String(this.actionAmount || '').trim()
+
+            if (!/^\d+$/.test(amount)) {
+                this.actionError = 'Enter a whole amount (PUSD base units).'
+                return
+            }
+
+            if (this.activeAction === 'Transfer' &&
+                !/^[0-9a-fA-F]{64}$/.test(String(this.transferTo || '').trim().replace(/^0x/, ''))) {
+                this.actionError = "Enter the recipient's 64-hex-character delivery point."
+                return
+            }
+
+            this.actionError = null
+            this.actionBusy = true
+            this.actionResult = null
+
+            try {
+                const result = await this.$store.dispatch('pool/submitPoolAction', {
+                    action: this.activeAction.toLowerCase(),
+                    amount,
+                    recipientDeliveryPoint: this.activeAction === 'Transfer' ? this.transferTo : undefined,
+                })
+
+                this.actionResult = result.txid
+            } catch (err) {
+                /* The store displayed the error; keep the panel ready for a retry. */
+                console.error('Pool action failed:', err) // eslint-disable-line no-console
+            } finally {
+                this.actionBusy = false
+            }
+        },
+
+        /* Copy the delivery point (the SeedVault copy idiom). */
+        copyDeliveryPoint() {
+            if (!this.deliveryPointHex) return
+
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+                navigator.clipboard.writeText(this.deliveryPointHex).catch(() => {})
+            }
+
+            this.deliveryPointCopied = true
+
+            setTimeout(() => { this.deliveryPointCopied = false }, 2000)
         },
 
         /* Shorten a field element for display. */
@@ -326,6 +457,21 @@ export default {
             } catch (err) {
                 console.error('SOL balance fetch failed:', err) // eslint-disable-line no-console
                 this.solBalance = null
+            }
+        }
+
+        /* Derive the pool DELIVERY POINT (the shielded payment address —
+           lib/pool/carrier.js) from the SAME domain-separated pool key the
+           scan + action flows use. Guarded independently like every other
+           created() fetch. */
+        if (this.getMasterSeed) {
+            try {
+                const spendKey = deriveSpendKey(hexToBytes(this.getMasterSeed))
+
+                this.deliveryPointHex = bytesToHex(await deriveDeliveryPoint(spendKey))
+            } catch (err) {
+                console.error('Delivery point derivation failed:', err) // eslint-disable-line no-console
+                this.deliveryPointHex = ''
             }
         }
     },
