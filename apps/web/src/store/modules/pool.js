@@ -16,6 +16,15 @@
 /* Import seal/unseal helpers. */
 import { deriveSealKey, sealJSON, unsealJSON } from '@/lib/pool/seal.js'
 
+/* Import the note-detection scan (blocker #2 wiring — see lib/pool/scan.js). */
+import { scanPool } from '@/lib/pool/scan.js'
+import { getDefaultPool } from '@/lib/pool/registry.js'
+import { deriveSpendKey } from '@/lib/pool/notes.js'
+
+/* Import byte helpers + the Fulcrum provider (quorum-verified chain data). */
+import { hexToBytes } from '@/lib/bch/crypto.js'
+import { getCluster } from '@/lib/bch/provider.js'
+
 /* Runtime-only seal key — never persisted, never part of store state. */
 let _sealKey = null
 
@@ -34,6 +43,10 @@ const state = {
     /* AES-256-GCM ciphertext of `notes`, keyed from the wallet entropy —
        the only note data that persists. */
     sealed: null,
+
+    /* Last note-detection scan checkpoint (informational; the scan is a
+       full rescan by design — chipnet-scale). { height, txid, actionCount }. */
+    scan: null,
 }
 
 /* Getters. */
@@ -61,7 +74,11 @@ const actions = {
      * note stays runtime-only (nothing secret reaches persistence).
      */
     async recordNote({ commit, state }, note) {
-        const leafIndex = state.leaves.length
+        /* The note-detection scan assigns each received note its REAL on-chain
+           leaf position; a locally-created note (pre-scan self-transfer) falls
+           back to appending at the current leaf count (the bootstrap
+           behavior). */
+        const leafIndex = note.leafIndex ?? state.leaves.length
 
         commit('APPEND_LEAF', { leaf: note.cm })
         commit('ADD_NOTE', { note: { ...note, leafIndex, spent: false } })
@@ -74,6 +91,83 @@ const actions = {
         commit('SPEND_NOTE', { nf })
 
         await reseal({ commit, state })
+    },
+
+    /*
+     * Note-detection scan (blocker #2): pull the pool's full action chain
+     * from the network (covenant-address history -> decoded actions ->
+     * carrier packets), trial-decrypt with this wallet's pool spend key,
+     * record any received notes, and mark any on-chain-spent notes.
+     *
+     * Full rescan by design (chipnet-scale action counts); idempotent —
+     * received notes are deduped by commitment, spend marks by nullifier.
+     * Requires the wallet seed (no seed -> no-op, like unlockPool).
+     */
+    async scanPool({ commit, state, dispatch, rootGetters }) {
+        const entropyHex = rootGetters['profile/getMasterSeed']
+
+        if (!entropyHex) {
+            return null
+        }
+
+        /* Set the (active) network's default pool. */
+        const network = rootGetters['profile/getNetwork']
+
+        const pool = getDefaultPool(network)
+
+        if (!pool) {
+            return null
+        }
+
+        /* Initialize the Fulcrum cluster + the wallet's pool spend key. */
+        const cluster = await getCluster(network)
+
+        const spendKey = deriveSpendKey(hexToBytes(entropyHex))
+
+        /* Scan + detect (throws on any chain/validation break). */
+        const result = await scanPool({
+            cluster,
+            pool,
+            networkId: network,
+            spendKey,
+            notes: state.notes,
+        })
+
+        /* Record received notes (dedupe by commitment — a rescan must not
+           double-record). */
+        let received = 0
+
+        for (const note of result.received) {
+            if (state.notes.some((n) => n.cm === note.cm)) {
+                continue
+            }
+
+            await dispatch('recordNote', note)
+
+            received += 1
+        }
+
+        /* Mark on-chain-spent notes (spendNote is idempotent). */
+        let spent = 0
+
+        for (const nf of result.spent) {
+            const note = state.notes.find((n) => n.nf === nf && !n.spent)
+
+            if (note) {
+                await dispatch('spendNote', { nf })
+
+                spent += 1
+            }
+        }
+
+        /* Checkpoint (public data). */
+        commit('SET_SCAN', {
+            height: result.tipHeight,
+            txid: result.tipTxid,
+            actionCount: result.actions.length,
+        })
+
+        return { received, spent, actions: result.actions.length }
     },
 
     /*
@@ -167,6 +261,13 @@ const mutations = {
 
         /* Reset (persisted) ciphertext. */
         state.sealed = null
+
+        /* Reset (public) scan checkpoint. */
+        state.scan = null
+    },
+
+    SET_SCAN(state, { height, txid, actionCount }) {
+        state.scan = { height, txid, actionCount }
     },
 }
 

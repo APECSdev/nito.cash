@@ -314,8 +314,18 @@ sender, receiver, and amount are all masked. Design decisions locked:
   statement, with replay prevented by the on-chain nullifier set / root progression — so the same
   proofs verified on both the original and Option B redeployments (only the verifier-step scaffolding
   is regenerated per deployment via `produceTransaction`; VERIFIER_DIR=`/home/ubuntu/zkb/bench-pusd`).
-  Remaining: Fulcrum + Chaingraph note-detection infra (on the `bch-infra` VPS), then the nito.cash
-  wiring (shield/transfer/unshield UI + client-side WASM proving). The **local encrypted note store is DONE**
+  NOTE-DETECTION (blocker #2) is DONE wallet-side (2026-11-22): `apps/web/src/lib/pool/{registry,decode,scan}.js` + the
+  `pool/scanPool` store action scan a pool's covenant-address history over the existing Fulcrum cluster, order
+  actions by the covenant-input outpoint chain, validate each action (recomputed actionHash == proven n1;
+  proven-n0 root chain anchored at the registry genesis root), and trial-decrypt NP01 carrier packets
+  (`lib/pool/carrier.js`, blocker #1 — the encrypted-note OP_RETURN carrier, NOTE-CARRIER.md in
+  pusd-shielded-pool; NO covenant change required, empirically confirmed by the apecsdev-VM eval).
+  LIVE-VERIFIED against the real chipnet gate3-demo-pool (SHIELD f5927a0b: pvAbs 1,000,000, 0 carriers,
+  all validations pass). The deployed live pools use the 347-byte GENERALIZED covenant (covenant input
+  position + verifier-genesis input index are builder choices — decode.js finds both dynamically).
+  Remaining: runner-side indexer materials (seed subtree hashes for SPEND witnesses; nullifier-set service,
+  on `bch-infra`/runner) and the nito.cash wiring (shield/transfer/unshield UI + client-side WASM proving).
+  The **local encrypted note store is DONE**
   (`apps/web/src/lib/pool/seal.js`: AES-256-GCM via WebCrypto, key = sha256 of domain-separated
   wallet entropy; `pool.notes` is a runtime-only mirror excluded from persistence via
   `omit: ['pool.notes']` in the root store's persistedstate config; only the ciphertext
