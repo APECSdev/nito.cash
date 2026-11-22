@@ -11,7 +11,7 @@
 ![pnpm](https://img.shields.io/badge/pnpm-workspace-F69220?logo=pnpm&logoColor=white)
 ![BCH](https://img.shields.io/badge/Bitcoin%20Cash-BCH-0AC18E)
 
-> **The most user-friendly, privacy shielding wallet for crypto newcomers.**
+> **Shielded stablecoin payments, made simple.**
 
 A privacy-focused Bitcoin Cash (BCH) wallet and ZK proving stack, built for
 **[BCH Blaze 2026](https://dorahacks.io/hackathon/bchblaze2026)**.
