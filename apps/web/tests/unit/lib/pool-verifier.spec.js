@@ -79,30 +79,27 @@ describe('lib/pool/verifier (bench ground-truth reproduction)', () => {
         expect(nvk.ic[2].x).toEqual(COMMITTED_VK.IC[2][0])
     })
 
-    /* The vectors were generated from ONE of the 5 older fixtures — the byte-exact
-       run must find it and reproduce all five unlockings with zero diff. */
+    /* The vectors were generated from fixture 0 of the older fixtures (verified
+       2026-11-22 by iterating all 5 — only 0 reproduces them; the run is pinned
+       to it because one produceWitness is ~4-8 s of pairing math and the full
+       5-fixture sweep made CI's 2-core runner too slow for the rest of the
+       suite's timing-marginal tests). */
     it('reproduces the bench vectors byte-for-byte for the generating fixture', () => {
-        let matched = -1
-        for (const fixture of OLD_FIXTURES.fixtures) {
-            const inputs = produceVerifierInputs({
-                vk: OLD_FIXTURES.vk,
-                proof: fixture.proof,
-                publicSignals: fixture.publicInputs,
-                program: OLD_PROGRAM,
-            })
-            const allEqual = inputs.every((unlocking, n) => hexOf(unlocking) === VECTORS.steps[n].unlocking)
-            if (allEqual) { matched = fixture.fixture; break }
-            /* Diagnose the closest mismatch for the report. */
-            const diffs = inputs.map((unlocking, n) => {
-                const a = hexOf(unlocking), b = VECTORS.steps[n].unlocking
-                if (a === b) return `step${n}:OK`
-                let d = -1
-                for (let i = 0; i < Math.min(a.length, b.length); i++) if (a[i] !== b[i]) { d = i / 2; break }
-                return `step${n}:len ${a.length / 2} vs ${b.length / 2} firstDiff@${d}`
-            })
-            console.log(`fixture ${fixture.fixture}: ${diffs.join(' | ')}`)
-        }
-        expect(matched).toBeGreaterThanOrEqual(0)
+        const fixture = OLD_FIXTURES.fixtures[0]
+        const inputs = produceVerifierInputs({
+            vk: OLD_FIXTURES.vk,
+            proof: fixture.proof,
+            publicSignals: fixture.publicInputs,
+            program: OLD_PROGRAM,
+        })
+        const diffs = inputs.map((unlocking, n) => {
+            const a = hexOf(unlocking), b = VECTORS.steps[n].unlocking
+            if (a === b) return null
+            let d = -1
+            for (let i = 0; i < Math.min(a.length, b.length); i++) if (a[i] !== b[i]) { d = i / 2; break }
+            return `step${n}: len ${a.length / 2} vs ${b.length / 2}, firstDiff@${d}`
+        }).filter((x) => x !== null)
+        expect(diffs, diffs.join(' | ')).toEqual([])
     }, 600000)
 
     it('assembles the DEPLOYED-program layout for a current-vkey proof (live push profiles)', () => {
