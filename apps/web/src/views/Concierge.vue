@@ -4,7 +4,7 @@
 
         <Tabs :tabs="tabs" :tab="tab" v-on:tab-change="updateTab" />
 
-        <Lobby v-if="tab === 'Lobby'" />
+        <Lobby v-if="tab === 'Desk'" />
         <Earn v-if="tab === 'Earn'" />
         <Spend v-if="tab === 'Spend'" />
     </div>
@@ -33,8 +33,10 @@ export default {
     },
     data: () => {
         return {
-            tab: 'Lobby',
-            tabs: ['Earn', 'Lobby', 'Spend'],
+            /* The Lobby is presented as the hotel-style "Desk" (the component
+               keeps its name so the route/view imports stay unchanged). */
+            tab: 'Desk',
+            tabs: ['Desk', 'Earn', 'Spend'],
         }
     },
     computed: {
