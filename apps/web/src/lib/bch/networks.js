@@ -100,17 +100,8 @@ const networks = {
            (the TX-P3/G3/B3 era — never tracked by any wallet-compatible pool)
            and 479aeebabc… (the faucet token, genesis 4257dbfb…, block 328616). */
         tokens: {
-            /* chipnet-pusd-v4 (START OVER 2026-11-23, 3rd deploy = VK-CORRECT):
-               a FRESH category under the PUBLIC BENCH program built with the
-               WALLET-COMMITTED key (verifier-program-bench.js). The program is
-               vk-specific, so the first two v4 deploys (built with the bench's
-               own key) were unspendable. Deploy tx 4fa5b159…; the pool UTXO is
-               output 0 and the five step UTXOs are outputs 1..5. */
-            /* The WORKING pool (fixture shape, verified end to end). The
-               source-generalized pools (0717e1a1…, 07a020e9…, 00081625…,
-               135dc9ed…, 1d3414ac…) are deployed but their programs still fail
-               on chain, so they are NOT selected. */
-            PUSD: '2d7cae869dac55fbdefca88c005267ecde29ce8a038143674c877e5290e34fc7',
+            /* COVENANT-AT-0 SHAPE, complete generalization (30 source edits). */
+            PUSD: '0d31da753c6855b830ea683ac11552404139008bfbfac97801fe30d31a42d664',
         },
     },
 }
