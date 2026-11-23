@@ -46,6 +46,7 @@ import {
     buildPoolWitness, generateProof, verifyProof, fetchVerifyingKey,
     PROVING_WASM_URL, PROVING_ZKEY_URL,
 } from './prover.js'
+import { produceWitness } from './verifier.js'
 import { deriveOwnerPub, nullifier, randomField } from './notes.js'
 import { encryptNote, ownerPubFromDeliveryPoint } from './carrier.js'
 import { derivePath, hexToBytes, toPrivateKeyBytes, toPublicKeyBytes } from '../bch/crypto.js'
@@ -393,17 +394,58 @@ export async function submitPoolAction({
     /* ── the Groth16 proof (assets fetched on demand; ~seconds) ── */
     if (onStage) await onStage('prove')
 
-    const { proof, publicSignals } = await generateProof(witness, wasmUrl, zkeyUrl)
-
-    /* ── fail-fast proof verification against the committed vkey ── */
+    /* ── the committed vkey (needed before proving to gate the selector) ── */
     const vk = await fetchVerifyingKey()
 
-    if (verify) {
-        if (onStage) await onStage('verify')
+    /* ── the Groth16 proof + fail-fast verification against the committed vkey ──
+       The verifier's cubic-residue witness (verifier.js residueWitness) has
+       three coset scalings, and the deployed program accepts ONLY selector 2
+       (OP_2): when the raw Miller boundary is itself a cube, Fp12.ONE is the
+       only valid scaling, which encodes as OP_0 — the genesis witness byte
+       then reads 0x00 instead of 0x52, the terminal's selector comparison
+       fails, and the action is unspendable. Fresh prover randomness changes
+       the boundary's coset class, so retry until the witness is selector-2 AND
+       every fixed 32-byte value is a valid (minimal) VM number.
+       Verification stays FIRST so a bad proving-asset mismatch still reports as
+       a verification failure, not as a verifier-witness error. */
+    let proof
+    let publicSignals
+    let selector = 0
+    let allMinimal = false
+    for (let attempt = 0; attempt < 12; attempt += 1) {
+        ({ proof, publicSignals } = await generateProof(witness, wasmUrl, zkeyUrl))
+        if (verify) {
+            if (onStage) await onStage('verify')
 
-        if (!(await verifyProof(vk, proof, publicSignals))) {
-            throw new Error('The generated proof failed verification against the committed verifying key (proving-asset mismatch?).')
+            if (!(await verifyProof(vk, proof, publicSignals))) {
+                throw new Error('The generated proof failed verification against the committed verifying key (proving-asset mismatch?).')
+            }
         }
+        /* The selector/minimality gate is BEST-EFFORT: it must never change the
+           error semantics of the flow (build.js performs the authoritative
+           produceVerifierInputs). If the witness cannot be produced here — e.g.
+           a fixture proof that pairs only with its own publicSignals, as the
+           pool-actions spec uses — leave the selector unknown and proceed. */
+        let w
+        try {
+            w = produceWitness(toBenchVk(vk), proof, publicSignals)
+        } catch {
+            selector = -1
+            break
+        }
+        selector = w.selector
+        /* Every fixed 32-byte LE value the program consumes must ALSO be a
+           VALID VM NUMBER: fixed32 is little-endian, so a zero LAST byte means
+           a non-minimal encoding and the deployed program's arithmetic rejects
+           it (`Invalid input: this operation requires a valid VM Number`,
+           observed at ip325 on the terminal and ip966 on the genesis). Field
+           elements are < 2^254, so requiring a non-zero top byte is enough. */
+        const minimal = (push) => !(push.length === 32 && push[31] === 0)
+        allMinimal = [...w.terminalWitnessHex, ...Object.values(w.genesisKnownPushes)].every(minimal)
+        if (selector === 2 && allMinimal) break
+    }
+    if (selector === 0) {
+        throw new Error('The prover produced a selector-0 (OP_0) verifier witness; the deployed pool program only spends the selector-2 path (the confirmed on-chain action carries 0x52).')
     }
 
     /* ── the covenant args, EXACTLY the proven values ── */
