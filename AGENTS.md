@@ -281,6 +281,54 @@ the BCH Blaze 2026 submission):
 The flagship new feature: the **first shielded pool for ParyonUSD (PUSD) on BCH Chipnet** —
 sender, receiver, and amount are all masked. Design decisions locked:
 
+**CURRENT STATE (2026-11-23, covenant-at-0 session — supersedes the NEXT-MISSION /
+POOL-V2 / FOLLOW-UP-SESSION text below, which is history):**
+
+- **THE COVENANT-AT-INPUT-0 POOL IS LIVE AND CONFIRMED.** Category/anchor
+  `0d31da753c6855b830ea683ac11552404139008bfbfac97801fe30d31a42d664`, mint `a5d251e4…`,
+  deploy `efd3314e…`; wallet-originated actions CONFIRMED on chipnet: SHIELD
+  `43ca7bca59d35790e104a6c368dd1168a6fceae3eb5efa4d3a5d02ddb9f92e4d` and TRANSFER
+  `fdd2981d2ceed10099941b9228f53a59020c2a4039581f98614038de1bf97b8b` (encrypted carrier
+  note to a second wallet's delivery point). Both were VM-validated **7/7 inputs on the
+  BCH-2026 VM BEFORE broadcast** (the pre-broadcast gate: `shield-e2e.mjs --capture` →
+  `eval-captured.mjs` on the apecsdev VM). Shape (the FINAL tx layout, all actions):
+  in0 covenant · in1-3 exec0/1/2 · in4 genesis · in5 terminal · in6 funding; out0 continuity
+  · out1-3 exec steps · out4 GENESIS · out5 TERMINAL · out6 carrier · out7 change.
+- **THE COMPLETE GENERALIZATION = 30 size-preserving source edits across five files**
+  (`loader.mjs`, `build.mjs`, `vkx-stages.mjs`, `terminal.mjs`, `genesis.mjs`) plus the
+  `genesis-slice.json` program-hash pin. **THE HIDDEN LAYER is `shared.mjs`**: the five
+  step inputs ASSEMBLE and EXECUTE a shared program at runtime from the witness-borne
+  fragments (function 100), and that assembled program carries ITS OWN layout dispatch —
+  a `k < 3` guard, FOURTEEN k-comparison sites (including a first-executor flag and an
+  adapter-path gate at `0x17 OP_PICK/OP_ROLL`, both `k==0`-gated — their absence broke
+  exec0's GLV leftover invariant at function-ip 1102), and SEVEN `readBoundedInputSlice`
+  input indices. No static redeem disassembly reveals this; the fragments are DATA in the
+  witnesses. REPRODUCIBLE: `apps/web/scripts/generalize-bench-source.sh` (applies → builds
+  → restores via trap). The program is VK-SPECIFIC (`vkx-msm.mjs:30`, FINAL =
+  vk.ic[0] − [2^64]G): substitute the wallet vk into the bench pairing-vectors before
+  building. Program layout is byte-length-identical to the fixture build (redeems
+  574,574,574,6044,4415; fragments 867/982/559; witnesses 6717/6480/6409/7904/8965).
+- **THE METHOD THAT WORKED (recorded for future debugging):** bench-first synthetic
+  evaluation — the bench's own `produceTransaction` + a synthetic 7-input tx on the BCH-2026
+  VM (build host) isolates the program from the wallet entirely; that run failed IDENTICALLY
+  to the wallet's real tx, exonerating the wallet port. Trace-bisect (fixture control vs
+  generalized value streams) located the final two gates once 4/5 inputs passed. The
+  genesis input is PROOF-MARGINAL on op-cost (spare ≈ 125 B ≈ 100k op): the bench's own
+  test proof exceeds its budget; wallet-fresh proofs pass — the wallet's minimality rebuild
+  loop already retries.
+- **REGISTRY/WALLET STATE:** `chipnet-pusd-v4` → `0d31da75…`, `walletProverCompatible: true`;
+  `networks.js` chipnet PUSD → `0d31da75…`; `verifier-program-bench.js` (BENCH_PROGRAM) =
+  the covenant-at-0 program (`fixtureShape: false`). The FIXTURE-shape pool `2d7cae86…`
+  (TRANSFER `8dd3ce63…`) remains confirmed on-chain but its registry entry was consumed by
+  this work's iterations (recoverable from commit `b174499`); the broken intermediate
+  deployments (`0717e1a1…`, `07a020e9…`, `00081625…`, `135dc9ed…`, `1d3414ac…`,
+  `1fafc607…`) are on-chain records with measured failure modes in the registry notes.
+- **HANDOFF DELIVERED** to the hushyourmoney team (their checkout):
+  `/Workspace/apecsdev/hushyourmoney/docs/POOL-HANDOFF-2026-11-23-NITO-COVENANT0.md` —
+  paste-ready pool-registry.json entry (their schema), the v2 walletProverCompatible=false
+  correction, all txids, the shape, the hidden-dispatch story, and the acceptance method.
+  Commit `61cef0b`.
+
 - **Shielded-to-shielded** transfers; variable-amount notes; **covenant-carried state**
   (`{merkleRoot, nullifierSet}` in a CashToken NFT commitment). **Chipnet ONLY** for the hackathon.
 - **Circuit** — a BN254 Groth16 circuit (Circom) with exactly **2 public inputs**

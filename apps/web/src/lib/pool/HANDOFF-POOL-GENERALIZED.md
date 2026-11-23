@@ -1,5 +1,14 @@
 # HANDOFF — generalized BN254 shielded pool (for the hushyourmoney team)
 
+> **SUPERSEDED (2026-11-23, later session) — the generalized shape IS LIVE.
+> SUCCESSOR DOC: `/Workspace/apecsdev/hushyourmoney/docs/POOL-HANDOFF-2026-11-23-NITO-COVENANT0.md`
+> (the delivered handoff). The covenant-at-0 pool `0d31da75…` has CONFIRMED wallet-originated
+> SHIELD `43ca7bca…` + TRANSFER `fdd2981d…` (VM-validated 7/7 before broadcast); the complete
+> generalization is the 30 source edits in `scripts/generalize-bench-source.sh` — the
+> bytecode-patching sections below are the FAILED earlier approach kept as history, and the
+> operand-shift tables below are INCOMPLETE (they miss the `shared.mjs` assembled-program
+> dispatch entirely — see AGENTS.md "CURRENT STATE (2026-11-23)" and the successor doc).**
+
 Status: **the previous shape is verified end-to-end on chain; the generalized
 shape you asked for is DEPLOYED but not yet exercised by the wallet.**
 Both facts are stated precisely below — do not read the second as "working".
