@@ -195,9 +195,32 @@ const probeFee = (transaction) => BigInt(encodeTransactionBCH({ ...transaction, 
 anchor.outputs.push({ lockingBytecode: fundLocking, valueSatoshis: 1000n })
 anchor.outputs[0].valueSatoshis = BigInt(plain[0].value) - 1000n - probeFee(anchor)
 
-await signInputs(anchor, [{ lockingBytecode: fundLocking, valueSatoshis: BigInt(plain[0].value) }])
-const anchorHex = binToHex(encodeTransactionBCH(anchor))
-const anchorTxid = txidOf(anchor)
+/* CATEGORY RANGE CONSTRAINT (verified live 2026-11-23): the proving assets take
+   `assetCategory` as a SINGLE BN254 field element (lib/pool/prover.js
+   buildPoolWitness), so a category >= the scalar-field prime cannot be proven —
+   the witness calculator fails with "Assert Failed. Error in template Pool_253".
+   The category is the anchor TXID, so retry the anchor (varying the change by
+   1 sat per attempt, which changes the txid and raises the fee slightly) until
+   the txid is below the prime. ~18.9% of txids qualify, so this converges in a
+   few attempts. Measured: 09268d21… (< p) proved; 9c54723d… (>= p) failed. */
+const BN254_SCALAR_FIELD = 0x30644e72e131a029b85045b68181585d97816a916871ca8d3c208c16d87cfd47n
+
+let anchorHex = null
+let anchorTxid = null
+
+for (let salt = 0n; salt < 4096n; salt += 1n) {
+    anchor.outputs[0].valueSatoshis = BigInt(plain[0].value) - 1000n - probeFee(anchor) - salt
+    anchor.inputs[0].unlockingBytecode = new Uint8Array(0)
+
+    await signInputs(anchor, [{ lockingBytecode: fundLocking, valueSatoshis: BigInt(plain[0].value) }])
+
+    anchorHex = binToHex(encodeTransactionBCH(anchor))
+    anchorTxid = txidOf(anchor)
+
+    if (BigInt('0x' + anchorTxid) < BN254_SCALAR_FIELD) break
+
+    if (salt === 0n) console.log('anchor txid is >= the BN254 scalar field — retrying with a 1-sat change bump')
+}
 
 /* the NEW category = the anchor txid (display form) — verified empirically:
    8c73ff… and 98690dba… are exactly such anchor txids on chipnet, and the

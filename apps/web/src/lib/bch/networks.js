@@ -100,7 +100,7 @@ const networks = {
            (the TX-P3/G3/B3 era — never tracked by any wallet-compatible pool)
            and 479aeebabc… (the faucet token, genesis 4257dbfb…, block 328616). */
         tokens: {
-            PUSD: '09268d217af32e30c9c43b7e020e72002f18f9a4cf0a584222a7f22635591dbf',
+            PUSD: '1f7117cf94512f0d2806715238753d3033284b96b0ab40b3578ddb8e3318d2af',
         },
     },
 }

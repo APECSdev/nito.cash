@@ -1,117 +1,135 @@
 // apps/web/src/lib/pool/verifier-program-generalized.js
 //
-// The GENERALIZED wallet program — the LAYOUT of the on-chain deployed program
-// (verifier-program.js DEPLOYED_PROGRAM) carrying the BODIES of the
-// wallet-committed bench vectors (WALLET_PROGRAM). A fresh pool must be
-// deployed under THIS program for the wallet's own witness builder to spend it.
+// The GENERALIZED wallet program — the wallet-committed bench-vector program
+// (verifier-program.js WALLET_PROGRAM) with the input-INDEX layout corrected
+// for a real action transaction. A fresh pool is deployed under THIS program so
+// the wallet's own witness builder can spend it.
 //
 // Why this exists (the blocker this file removes):
 //   · WALLET_PROGRAM is the program the wallet's produceWitness reproduces
 //     byte-exactly (pool-verifier.spec's pinned ground-truth test), so the
 //     wallet's witness generation is validated against it. But it carries the
-//     bench FIXTURE layout: OP_TXINPUTCOUNT == 5, verifier genesis at input 3,
-//     terminal at input 4. A real action transaction cannot satisfy that — the
-//     covenant is input 0, the three exec steps 1–3, the genesis 4, the
-//     terminal 5, funding 6+. Deploying WALLET_PROGRAM as-is produced the
-//     unspendable chipnet-pusd-v2 pool.
-//   · DEPLOYED_PROGRAM carries the GENERALIZED layout (>= 5 inputs, genesis 4,
-//     terminal 5) but its two 986-byte helper bodies and its terminal constants
+//     bench FIXTURE layout: `OP_TXINPUTCOUNT == 5`, the verifier genesis read at
+//     input 3 and the terminal read at input 4. A real action transaction
+//     cannot satisfy that — the covenant is input 0, the three exec steps 1–3,
+//     the genesis 4, the terminal 5, funding 6+. Deploying WALLET_PROGRAM as-is
+//     produced the unspendable chipnet-pusd-v2 pool.
+//   · The on-chain DEPLOYED_PROGRAM carries the corrected layout, but its
+//     function-id numbering, fragment lengths and two 986-byte helper bodies
 //     belong to a witness-generation revision whose source is not available.
-//   · This module combines the two: LAYOUT from DEPLOYED, BODIES from WALLET.
-//     The bodies are the ones the wallet's witness generation was validated
-//     against, so the pair is self-consistent by construction.
+//   · This module therefore takes WALLET_PROGRAM and applies ONLY the
+//     input-index corrections. Every body, function id, fragment length and
+//     32-byte constant stays the wallet's.
 //
-// Construction is an instruction-level LCS diff (wallet vs deployed) in which
-// every changed run is resolved to the DEPLOYED side EXCEPT runs that carry a
-// body push (a 986-byte helper or any 32-byte constant), which keep the WALLET
-// side. Verified, not assumed:
-//   · deriveStepLockings(WALLET_PROGRAM.redeems) reproduces WALLET_STEP_LOCKINGS
-//     byte-exactly (the locking derivation is therefore correct);
-//   · every generalized chunk has the SAME LENGTH as the deployed chunk;
-//   · the residual difference vs DEPLOYED_PROGRAM is exactly the body pushes —
-//     exec0/1/2: one 32-byte push (the shared-fragment-set hash, which follows
-//     the WALLET fragments this module keeps); genesis: the two 986-byte
-//     helpers; terminal: three 32-byte constants.
-//   pool-verifier-generalized.spec.js pins all three facts.
+// The edit list below is derived from the scripts' semantics, not by copying
+// bytes: an index correction is an integer push that IMMEDIATELY PRECEDES
+// OP_INPUTBYTECODE / OP_UTXOBYTECODE / OP_TXINPUTCOUNT. Verified against the
+// deployed program: applying these edits reproduces the deployed program's
+// index references exactly (@110/@944/@952/@960/@1140/@1580/@1753, the
+// @1559-1568 UTXOBYTECODE run, and the exec @33 genesis read), while every
+// function-id push and fragment-length push is left as the wallet's.
+//
+//   exec0..2  @33   OP_3 -> OP_4      the genesis witness is input 4, not 3
+//             @111  2-byte length     terminal redeem length + push overhead
+//                                     (recomputed below, never hardcoded)
+//   genesis   @1493 OP_0 -> OP_1      first exec step is input 1, not 0
+//             @1716 OP_0 -> OP_1
+//   terminal  @110  OP_3 -> OP_4      genesis witness input 4
+//             @944  OP_0 -> OP_1
+//             @952  OP_1 -> OP_2
+//             @960  OP_2 -> OP_3
+//             @1140 OP_3 -> OP_4
+//             @1551 OP_EQUALVERIFY -> OP_GREATERTHANOREQUAL OP_VERIFY
+//                                     (`OP_TXINPUTCOUNT >= 5`, not `== 5`)
+//             @1559 @1562 @1565 @1568  OP_0..OP_3 -> OP_1..OP_4 (UTXOBYTECODE)
+//             @1580 OP_3 -> OP_4
+//             @1753 OP_3 -> OP_4
+//
+// pool-verifier-generalized.spec.js pins the result: the derived step lockings
+// reproduce WALLET_STEP_LOCKINGS for WALLET_PROGRAM, and every generalized
+// chunk has the same LENGTH as the corresponding deployed chunk.
 
 import { decodeAuthenticationInstructions, encodeAuthenticationInstructions, hash256, hexToBin, binToHex } from '@bitauth/libauth'
-import { DEPLOYED_PROGRAM, WALLET_PROGRAM } from './verifier-program.js'
+import { WALLET_PROGRAM } from './verifier-program.js'
 
-/* A "body" push: the inline helper bodies (986 B) and every 32-byte field
-   constant. These belong to the witness-generation revision, so they always
-   come from WALLET_PROGRAM. */
-const isBodyPush = (instruction) => Boolean(instruction.data) && (instruction.data.length === 986 || instruction.data.length === 32)
+const OP_0 = 0x00
+const OP_1 = 0x51
+const OP_2 = 0x52
+const OP_3 = 0x53
+const OP_4 = 0x54
+const OP_EQUALVERIFY = 0x88
+const OP_GREATERTHANOREQUAL = 0xa2
+const OP_VERIFY = 0x69
 
-const instructionKey = (instruction) => instruction.opcode + ':' + (instruction.data ? binToHex(instruction.data) : '')
+/* Replace one instruction with a single opcode. */
+const op = (opcode) => ({ to: [opcode] })
+/* Replace one instruction with an opcode sequence. */
+const ops = (to) => ({ to })
 
-/* Longest-common-subsequence diff over the decoded instruction stream. */
-function diffInstructions(a, b) {
-    const n = a.length
-    const m = b.length
-    const dp = Array.from({ length: n + 1 }, () => new Array(m + 1).fill(0))
-    for (let i = n - 1; i >= 0; i -= 1) {
-        for (let j = m - 1; j >= 0; j -= 1) {
-            dp[i][j] = instructionKey(a[i]) === instructionKey(b[j])
-                ? dp[i + 1][j + 1] + 1
-                : Math.max(dp[i + 1][j], dp[i][j + 1])
-        }
-    }
+/* The exec terminal-length slot: index 111 holds a 2-byte push of
+   (terminal redeem length + 3 push-overhead bytes). Recomputed, not copied. */
+const TERMINAL_LENGTH_SLOT = 111
+
+const EXEC_EDITS = {
+    33: op(OP_4),
+    [TERMINAL_LENGTH_SLOT]: { terminalLength: true },
+}
+
+const GENESIS_EDITS = {
+    1493: op(OP_1),
+    1716: op(OP_1),
+}
+
+const TERMINAL_EDITS = {
+    110: op(OP_4),
+    944: op(OP_1),
+    952: op(OP_2),
+    960: op(OP_3),
+    1140: op(OP_4),
+    1551: ops([OP_GREATERTHANOREQUAL, OP_VERIFY]),
+    1559: op(OP_1),
+    1562: op(OP_2),
+    1565: op(OP_3),
+    1568: op(OP_4),
+    1580: op(OP_4),
+    1753: op(OP_4),
+}
+
+/* Apply an edit map to a decoded instruction list, keeping the original
+   indices as the edit keys (insertions do not renumber later edits). */
+function applyEdits(instructions, edits, terminalLength) {
     const out = []
-    let i = 0
-    let j = 0
-    while (i < n && j < m) {
-        if (instructionKey(a[i]) === instructionKey(b[j])) {
-            out.push({ t: '=', a: a[i] })
-            i += 1
-            j += 1
-        } else if (dp[i + 1][j] >= dp[i][j + 1]) {
-            out.push({ t: '-', a: a[i] })
-            i += 1
-        } else {
-            out.push({ t: '+', b: b[j] })
-            j += 1
+    instructions.forEach((instruction, index) => {
+        const edit = edits[index]
+        if (!edit) {
+            out.push(instruction)
+            return
         }
-    }
-    while (i < n) out.push({ t: '-', a: a[i++] })
-    while (j < m) out.push({ t: '+', b: b[j++] })
+        if (edit.terminalLength) {
+            /* little-endian 2-byte push of (length + 3): the push itself costs
+               3 bytes (0x4d <len> <len>) once the payload exceeds 255. */
+            const value = terminalLength + 3
+            out.push({ opcode: 0x02, data: Uint8Array.of(value & 0xff, (value >> 8) & 0xff) })
+            return
+        }
+        for (const opcode of edit.to) out.push({ opcode })
+    })
     return out
 }
 
-/* Merge one chunk: deployed layout, wallet bodies. */
-function generalizeChunk(walletHex, deployedHex) {
-    const wallet = decodeAuthenticationInstructions(hexToBin(walletHex))
-    const deployed = decodeAuthenticationInstructions(hexToBin(deployedHex))
-    const merged = []
-    let run = []
-    const flush = () => {
-        if (!run.length) return
-        const bodyRun = run.some((entry) => isBodyPush(entry.a || entry.b))
-        if (bodyRun) {
-            /* keep the wallet side of the run (body pushes, and the instructions
-               adjacent to them, which are identical anyway) */
-            for (const entry of run) if (entry.t !== '+') merged.push(entry.a)
-        } else {
-            /* take the deployed side: every layout constant */
-            for (const entry of run) if (entry.t !== '-') merged.push(entry.b)
-        }
-        run = []
-    }
-    for (const entry of diffInstructions(wallet, deployed)) {
-        if (entry.t === '=') {
-            flush()
-            merged.push(entry.a)
-        } else {
-            run.push(entry)
-        }
-    }
-    flush()
-    return binToHex(encodeAuthenticationInstructions(merged))
-}
+/* Build the terminal first: the exec redeems embed its length. */
+const terminalInstructions = applyEdits(
+    decodeAuthenticationInstructions(hexToBin(WALLET_PROGRAM.redeems[4])), TERMINAL_EDITS, 0)
+const terminalHex = binToHex(encodeAuthenticationInstructions(terminalInstructions))
+const terminalLength = terminalHex.length / 2
 
-const CHUNK_NAMES = ['exec0', 'exec1', 'exec2', 'genesis', 'terminal']
+const genesisHex = binToHex(encodeAuthenticationInstructions(applyEdits(
+    decodeAuthenticationInstructions(hexToBin(WALLET_PROGRAM.redeems[3])), GENESIS_EDITS, terminalLength)))
 
-export const GENERALIZED_WALLET_REDEEMS = CHUNK_NAMES.map((name, index) =>
-    generalizeChunk(WALLET_PROGRAM.redeems[index], DEPLOYED_PROGRAM.redeems[index]))
+const execHexes = [0, 1, 2].map((index) => binToHex(encodeAuthenticationInstructions(applyEdits(
+    decodeAuthenticationInstructions(hexToBin(WALLET_PROGRAM.redeems[index])), EXEC_EDITS, terminalLength))))
+
+export const GENERALIZED_WALLET_REDEEMS = [...execHexes, genesisHex, terminalHex]
 
 /* P2SH32-style step locking: OP_HASH256 <hash256(redeem)> OP_EQUAL.
    Self-checked against WALLET_STEP_LOCKINGS by the spec. */
@@ -121,8 +139,8 @@ export function deriveStepLockings(redeems) {
 
 export const GENERALIZED_WALLET_STEP_LOCKINGS = deriveStepLockings(GENERALIZED_WALLET_REDEEMS)
 
-/* The fragments are the WALLET's — unchanged by the layout patch. The exec
-   redeems embed hash256 of their concatenation, which therefore also stays. */
+/* The fragments are the WALLET's — untouched by the layout patch, so the exec
+   redeems' embedded hash256(fragment set) stays valid. */
 export const GENERALIZED_WALLET_SHARED_FRAGMENTS = WALLET_PROGRAM.sharedFragments
 
 export const GENERALIZED_WALLET_PROGRAM = {
