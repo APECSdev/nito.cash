@@ -426,17 +426,23 @@ export function produceWitness(vk, proof, publicInputs) {
     assertOk(terminalValues.length === 50, 'terminal values')
     const terminalWitnessHex = terminalValues.map((x) => num(x))
 
+    /* FIXED 32-byte LE for every genesis field push (NOT `num`): the genesis
+       witness is FIXED-OFFSET — the covenant reads n1 at byte 1792 and n0 at
+       1825, so a 31-byte minimal encoding of any preceding push shifts them
+       and the action is unspendable (hit live 2026-11-23: a proof whose n1
+       had a zero top byte produced a 31-byte push → `Invalid OP_SPLIT
+       range`). Field elements are < 2^254, so le32 is always exact. */
     const genesisKnownPushes = {
         0: concatBytes(fields.map((x) => fixed32(x))),
-        2: num(mod(-flat(factorRows[0][2]).reduce((sum, x, i) => sum + x * basis[i], 0n))),
-        3: num(mod(-flat(factorRows[0][1]).reduce((sum, x, i) => sum + x * basis[i], 0n))),
-        4: num(slopeRows[0][1]),
-        5: num(slopeRows[0][0]),
+        2: fixed32(mod(-flat(factorRows[0][2]).reduce((sum, x, i) => sum + x * basis[i], 0n))),
+        3: fixed32(mod(-flat(factorRows[0][1]).reduce((sum, x, i) => sum + x * basis[i], 0n))),
+        4: fixed32(slopeRows[0][1]),
+        5: fixed32(slopeRows[0][0]),
         18: concatBytes([...flat(witness.c), ...flat(witness.cInv)].map(be32)),
-        38: num(BigInt(publicInputs[1])),
-        39: num(BigInt(publicInputs[0])),
+        38: fixed32(BigInt(publicInputs[1])),
+        39: fixed32(BigInt(publicInputs[0])),
     }
-    ;[...states[0].coefficients].reverse().forEach((x, i) => { genesisKnownPushes[6 + i] = num(BigInt(x)) })
+    ;[...states[0].coefficients].reverse().forEach((x, i) => { genesisKnownPushes[6 + i] = fixed32(BigInt(x)) })
 
     return {
         genesisKnownPushes,
@@ -703,6 +709,12 @@ export function produceVerifierInputs({ vk, proof, publicSignals, program }) {
     /* Sliced genesis: the densless pushes 19..39 (dead predicate, n1, n0) are gone. */
     const genesis = new Array(19)
     for (const [index, value] of Object.entries(w.genesisKnownPushes)) if (Number(index) < 19) genesis[Number(index)] = value
+    /* The selector MUST encode to exactly ONE byte in the FIXED-OFFSET
+       witness layout (the covenant reads n1 at byte 1792 / n0 at 1825): the
+       VM-number form gives OP_0 / OP_1 / OP_2 for selectors 0 / 1 / 2 — all
+       one byte. A raw `Uint8Array.of(0)` would encode as `01 00` (two bytes)
+       and shift the whole witness by one, exactly the failure mode that makes
+       a selector-0 proof unspendable. */
     genesis[1] = num(BigInt(w.selector))
     assertOk(genesis.every((x) => x !== undefined), 'genesis pushes incomplete')
 
@@ -711,8 +723,8 @@ export function produceVerifierInputs({ vk, proof, publicSignals, program }) {
         ...genesis,
         new Uint8Array(program.genesisPad ?? 0),
         m.wa,
-        num(n1),
-        num(n0),
+        fixed32(n1),
+        fixed32(n0),
         redeems[3],
     ])
 
