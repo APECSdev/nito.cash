@@ -46,6 +46,10 @@ const DRY = process.argv.includes('--dry')
    src/lib/bch/networks.js chipnet.tokens.PUSD and
    src/lib/pool/registry.js chipnet-pusd-v2.assetCategory. */
 const CATEGORY = argOf('--category', '050b5934bea9a7713e842371d8fb233b14f5596b7339fcbf8c1c7dac58c504a9')
+/* --token-sats: the sats carried by the TOKEN output. The PUBLIC BENCH program
+   pins the action to EXACTLY ONE funding input, so that single UTXO must hold
+   BOTH the pool tokens AND the ~38 KB action's fee. */
+const TOKEN_SATS = BigInt(argOf('--token-sats', '1000'))
 
 if (!TO) throw new Error('usage: node scripts/send-tpusd.mjs --to <bchtest:…> --amount <base units> [--bch <sats>] [--dry]')
 if (AMOUNT <= 0n) throw new Error('--amount must be > 0 (PUSD base units)')
@@ -133,7 +137,7 @@ const buildTx = (sources) => ({
         /* out0: the tPUSD delivery (1,000 sats dust — the token minimum). */
         {
             lockingBytecode: dest,
-            valueSatoshis: 1000n,
+            valueSatoshis: TOKEN_SATS,
             token: { category: hexToBin(CATEGORY), amount: AMOUNT },
         },
         /* out1: the action-fee BCH, SAME address (one funding account). */
@@ -159,7 +163,7 @@ let fee = probeFee(tx)
 for (const candidate of plain) {
     const sourceValue = sources.reduce((sum, u) => sum + BigInt(u.value), 0n)
 
-    if (sourceValue - 1000n - BCH - fee >= 0n) break
+    if (sourceValue - TOKEN_SATS - BCH - fee >= 0n) break
 
     sources = [...sources, candidate]
     tx = buildTx(sources)
@@ -167,9 +171,9 @@ for (const candidate of plain) {
 }
 
 const sourceValue = sources.reduce((sum, u) => sum + BigInt(u.value), 0n)
-const change = sourceValue - 1000n - BCH - fee
+const change = sourceValue - TOKEN_SATS - BCH - fee
 
-if (change < 0n) throw new Error('funding UTXOs hold ' + sourceValue + ' sats, need ' + (1000n + BCH + fee))
+if (change < 0n) throw new Error('funding UTXOs hold ' + sourceValue + ' sats, need ' + (TOKEN_SATS + BCH + fee))
 
 tx.outputs[2].valueSatoshis = change
 

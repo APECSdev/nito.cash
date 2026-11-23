@@ -398,7 +398,10 @@ describe('submitPoolAction orchestration (witness → proof → assembly → bro
 
         cluster = {
             getUtxosWithTokens: vi.fn(async () => [
-                { tx_hash: 'dd'.repeat(32), tx_pos: 0, value: 1000, token_data: { category: POOL.assetCategory, amount: 5000 } },
+                /* The fixture-shaped BENCH program pins the action to ONE funding
+                   input, so that UTXO must carry BOTH the pool tokens and the
+                   >= MIN_FUNDING_SATS fee floor. */
+                { tx_hash: 'dd'.repeat(32), tx_pos: 0, value: 60000, token_data: { category: POOL.assetCategory, amount: 5000 } },
                 { tx_hash: 'ee'.repeat(32), tx_pos: 1, value: 60000 },
             ]),
             broadcast: vi.fn(async () => 'aabbcc'),
@@ -522,7 +525,10 @@ describe('submitPoolAction orchestration (witness → proof → assembly → bro
 
         /* Funding: the pool-category token UTXO + a plain BCH UTXO, signed
            by the account key. */
-        expect(call.funding).toHaveLength(2)
+        /* ONE funding input: the fixture-shaped BENCH program pins tx.inputs
+           to exactly 7 (5 steps + covenant + 1 funding), so the selector must
+           take a single UTXO carrying both tokens and the fee floor. */
+        expect(call.funding).toHaveLength(1)
         expect(call.funding[0].token.amount).toBe(5000n)
         expect(call.fundingKey.privateKeyBytes).toHaveLength(32)
         expect(call.changeAddress).toBe('bchtest:change')

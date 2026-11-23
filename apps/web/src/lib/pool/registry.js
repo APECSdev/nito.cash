@@ -32,6 +32,7 @@ import { binToHex, lockingBytecodeToCashAddress, sha256 } from '@bitauth/libauth
    (found-key) program and the WALLET-COMMITTED program (the new Path-A pool). */
 import { DEPLOYED_PROGRAM, STEP_LOCKINGS, WALLET_PROGRAM, WALLET_STEP_LOCKINGS } from './verifier-program.js'
 import { GENERALIZED_WALLET_PROGRAM, GENERALIZED_WALLET_STEP_LOCKINGS } from './verifier-program-generalized.js'
+import { BENCH_PROGRAM, BENCH_STEP_LOCKINGS } from './verifier-program-bench.js'
 
 import { getNetwork } from '../bch/networks.js'
 
@@ -75,6 +76,39 @@ const POOLS = {
     ],
 
     chipnet: [
+        {
+            id: 'chipnet-pusd-v4',
+            name: 'Chipnet PUSD pool v4 (bench program, wallet-generated witness)',
+            network: 'chipnet',
+            lockingBytecode: 'aa20f3820b30a0d69e0d43c28aa905bf64dcbde6e5e7452b13d2f91b9d1f27b7eb9e87',
+            covenantRedeem: '204212015fa2be1a6ef485de4ec734d16f7679244d9af366580c06254b152d8b1078009c637b82012088537a82012088547a82012088557a82012088567a82012088c2529dc076ce5779517e8876cf01207f7553ca0221077f7701207f758876cf01207f7778d07c57797e56797ea853797c7e7c5a7993525c79955b7995947600a26900cd537ac78800d15879517e8800d27b8800d39d5879519c6356d156798856d358799d68547abc547abc7e537abc7e7bbc7e547a012080bc7e547a012080bc7e7bbc7e7cbc7ea876517f75011f847c517f777ebc53ca0200077f7701207f758777677c519d7c82012088c2529dc076ce5379517e88203e1f1922dfb671d3f912f7ea461e0a88ee848fdde12b6c18ab1ad2c56ae734212000000000000000000000000000000000000000000000000000000000000000005279cf7b52797e8800cd5279c78800d1547a517e8800d37bd09d00d27b7b7e8768',
+            assetCategory: '108b2d154b25060c5866f39a4d2479766fd134c74ede85f46e1abea25f011242',
+            genesisRootLE: '551108f63731bcc628dda2697d70219d103a8c1bf203f2d4aaec6bbea5b4510f',
+            genesisLeafCount: 2,
+            walletProverCompatible: true,
+            deployTxid: 'c3a03971df1fa9e04e4186b4796cfdbc7a3609cc4e32bb2e681462daf5d74ccb',
+            categoryAnchorTxid: '108b2d154b25060c5866f39a4d2479766fd134c74ede85f46e1abea25f011242',
+            mintTxid: '4af205e202987a0c5b41a1336d8b36e66020b8966a4e25e8838ec5c79649529d',
+            genesisLeaves: [
+                '12351826192886546690885792605915790291283848718645116437899738538537062803555',
+                '7398522746693646650328110604928791171707350116246498951314945102068585381447',
+            ],
+            bootstrapNotes: [
+                {
+                    note: { value: '0', ownerPub: '5299619240641551281634865583518297030282874472190772894086521144482721001553', rho: '130842949111883530073146641958534655280', r: '153387697958148631644100398335583547244' },
+                    nk: '1',
+                    index: 0,
+                },
+                {
+                    note: { value: '0', ownerPub: '5299619240641551281634865583518297030282874472190772894086521144482721001553', rho: '130842949111883530073146641958534655281', r: '153387697958149840569920012964758253420' },
+                    nk: '1',
+                    index: 1,
+                },
+            ],
+            stepLockings: BENCH_STEP_LOCKINGS,
+            program: BENCH_PROGRAM,
+            notes: 'START OVER 2026-11-23 (2nd deploy): the PUBLIC BENCH program (chunked/bn254/densless-msm/build.mjs) — the same source tree as densless-recovered/witness.mjs, which lib/pool/verifier.js ports, so the wallet witness is correct BY CONSTRUCTION. Fixture shape: steps at inputs 0..4, covenant at input 5, ONE funding input at 6 (the terminal pins tx.inputs to exactly 7 and asserts inputs[4].outpointIndex == 4, so the step OUTPUTS are emitted exec0,exec1,exec2,terminal,genesis at out1..out5).',
+        },
         {
             id: 'chipnet-pusd-v3',
             name: 'Chipnet PUSD pool v3 (generalized wallet program)',

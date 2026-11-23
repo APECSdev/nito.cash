@@ -239,23 +239,39 @@ export async function buildActionTx({
         unlockingBytecode: new Uint8Array(100),
     }))
 
+    /* The input fragments, so the order can follow the PROGRAM (see below). */
+    const programFixtureShape = pool.program && pool.program.fixtureShape === true
+    const covenantInput = {
+        outpointTransactionHash: hexToBin(poolState.poolUtxo.outpointTxid),
+        outpointIndex: poolState.poolUtxo.outpointIndex,
+        sequenceNumber: 0xfffffffe, /* live convention for all script inputs */
+        unlockingBytecode: covenantUnlocking,
+    }
+    const stepInputs = poolState.stepUtxos.map((utxo, i) => ({
+        outpointTransactionHash: hexToBin(utxo.outpointTxid),
+        outpointIndex: utxo.outpointIndex,
+        sequenceNumber: 0xfffffffe,
+        unlockingBytecode: verifierUnlockings[i],
+    }))
+
     const transaction = {
         version: 2, /* the covenant requires tx.version == 2 */
-        inputs: [
-            {
-                outpointTransactionHash: hexToBin(poolState.poolUtxo.outpointTxid),
-                outpointIndex: poolState.poolUtxo.outpointIndex,
-                sequenceNumber: 0xfffffffe, /* live convention for all script inputs */
-                unlockingBytecode: covenantUnlocking,
-            },
-            ...poolState.stepUtxos.map((utxo, i) => ({
-                outpointTransactionHash: hexToBin(utxo.outpointTxid),
-                outpointIndex: utxo.outpointIndex,
-                sequenceNumber: 0xfffffffe,
-                unlockingBytecode: verifierUnlockings[i],
-            })),
-            ...fundingInputs,
-        ],
+        /* INPUT ORDER is a property of the PROGRAM. The deployed program assumes
+           a covenant at input 0 with the five verifier steps at 1..5. The PUBLIC
+           BENCH program (program.fixtureShape) is FIXTURE-SHAPED: its steps
+           occupy inputs 0..4 (the terminal reads input 3's unlocking as the
+           genesis witness), so the covenant input FOLLOWS them at input 5. */
+        inputs: programFixtureShape
+            ? [
+                ...stepInputs,
+                covenantInput,
+                ...fundingInputs,
+            ]
+            : [
+                covenantInput,
+                ...stepInputs,
+                ...fundingInputs,
+            ],
         outputs: [],
         locktime: 0,
     }
@@ -282,9 +298,13 @@ export async function buildActionTx({
         })
     }
 
-    /* the five verifier-step UTXOs, re-created with THIS pool's lockings. */
-    for (const locking of pool.stepLockings) {
-        outputs.push({ lockingBytecode: hexToBin(locking), valueSatoshis: STEP_SATS })
+    /* the five verifier-step UTXOs, re-created with THIS pool's lockings.
+       A FIXTURE-SHAPED program asserts inputs[INPUTINDEX].outpointIndex ==
+       INPUTINDEX, so the TERMINAL (input 4) must be re-created at OUTPUT 4:
+       the steps are emitted in program order with genesis/terminal swapped. */
+    const stepOutputOrder = programFixtureShape ? [0, 1, 2, 4, 3] : [0, 1, 2, 3, 4]
+    for (const k of stepOutputOrder) {
+        outputs.push({ lockingBytecode: hexToBin(pool.stepLockings[k]), valueSatoshis: STEP_SATS })
     }
 
     /* token change: funding tokens in − (shield deposit) must return to the wallet. */
@@ -311,24 +331,24 @@ export async function buildActionTx({
     /* BCH change + fee: sign first (sizes are deterministic), then set change.
        The funding unlocking size is constant (100 B), so fee estimation is
        stable across signing. */
-    const sourceOutputs = [
-        /* covenant input's source output (the pool UTXO being spent). */
-        {
-            lockingBytecode: hexToBin(pool.lockingBytecode),
-            valueSatoshis: poolState.poolUtxo.valueSatoshis,
-            token: poolState.poolUtxo.token,
-        },
-        /* the verifier-step source outputs. */
-        ...poolState.stepUtxos.map(() => ({ lockingBytecode: new Uint8Array(35), valueSatoshis: STEP_SATS })),
-        /* the funding source outputs — token data INCLUDED (the chipnet
-           NULLFAIL gotcha: spending a token-bearing UTXO requires the token
-           prefix in the sighash's corresponding source output). */
-        ...funding.map((utxo) => ({
-            lockingBytecode: addressToLockingBytecode(utxo.address),
-            valueSatoshis: BigInt(utxo.satoshis),
-            token: utxo.token ? { category: utxo.token.category, amount: BigInt(utxo.token.amount) } : undefined,
-        })),
-    ]
+    /* sourceOutputs MUST follow the same order as `inputs` above. */
+    const covenantSourceOutput = {
+        lockingBytecode: hexToBin(pool.lockingBytecode),
+        valueSatoshis: poolState.poolUtxo.valueSatoshis,
+        token: poolState.poolUtxo.token,
+    }
+    const stepSourceOutputs = poolState.stepUtxos.map(() => ({ lockingBytecode: new Uint8Array(35), valueSatoshis: STEP_SATS }))
+    /* the funding source outputs — token data INCLUDED (the chipnet
+       NULLFAIL gotcha: spending a token-bearing UTXO requires the token
+       prefix in the sighash's corresponding source output). */
+    const fundingSourceOutputs = funding.map((utxo) => ({
+        lockingBytecode: addressToLockingBytecode(utxo.address),
+        valueSatoshis: BigInt(utxo.satoshis),
+        token: utxo.token ? { category: utxo.token.category, amount: BigInt(utxo.token.amount) } : undefined,
+    }))
+    const sourceOutputs = programFixtureShape
+        ? [...stepSourceOutputs, covenantSourceOutput, ...fundingSourceOutputs]
+        : [covenantSourceOutput, ...stepSourceOutputs, ...fundingSourceOutputs]
 
     /* Determine the change output, then sign. Two passes because the fee
        depends on the final encoded size (which is deterministic once the

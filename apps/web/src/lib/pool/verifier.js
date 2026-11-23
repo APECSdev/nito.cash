@@ -203,7 +203,7 @@ export function normalizeProof(proof) {
  * Public inputs = [merkleRoot, actionHash] (decimal strings or BigInts).
  * Returns the pieces produceVerifierInputs assembles into the 5 unlockings.
  */
-export function produceWitness(vk, proof, publicInputs) {
+export function produceWitness(vk, proof, publicInputs, options = {}) {
     proof = normalizeProof(proof)
     const mod = (x) => (x % p + p) % p
     const point = (x) => bn254.G1.Point.fromAffine({ x: BigInt(x.x), y: BigInt(x.y) })
@@ -433,7 +433,7 @@ export function produceWitness(vk, proof, publicInputs) {
        Number`, observed at ip325 on a selector-2 witness 2026-11-23). The
        confirmed on-chain action happens to carry 51 x 32B pushes simply because
        none of its values had a zero top byte. */
-    const terminalWitnessHex = terminalValues.map((x) => fixed32(x))
+    const terminalWitnessHex = terminalValues.map((x) => (options.terminalMinimal ? num(x) : fixed32(x)))
 
     /* FIXED 32-byte LE for every genesis field push (NOT `num`): the genesis
        witness is FIXED-OFFSET — the covenant reads n1 at byte 1792 and n0 at
@@ -674,7 +674,7 @@ export function msmWitness(n0, n1, vk, split = 26, cuts = [38, 46, 54, 60]) {
  *          [exec0, exec1, exec2, genesis, terminal] — tx inputs 1..5.
  */
 export function produceVerifierInputs({ vk, proof, publicSignals, program }) {
-    const w = produceWitness(vk, normalizeProof(proof), publicSignals)
+    const w = produceWitness(vk, normalizeProof(proof), publicSignals, { terminalMinimal: program.terminalMinimal === true })
     const quotient = concatBytes(w.quotient.map((x) => be32(BigInt(x))))
 
     const n0 = BigInt(publicSignals[0]), n1 = BigInt(publicSignals[1])
