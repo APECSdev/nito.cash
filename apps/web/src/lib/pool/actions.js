@@ -184,12 +184,14 @@ export async function selectFunding({
            funding input, so the selector must reach the UTXO that carries BOTH
            the pool tokens and the fee BEFORE any plain UTXO consumes the single
            slot (a plain UTXO alone can never satisfy needTokens). */
-        if (needTokens > 0n && maxInputs === 1) {
+        if (maxInputs === 1) {
             const isPool = (u) => (u.token_data && u.token_data.category === pool.assetCategory ? 1 : 0)
-            /* Pool-token UTXOs first, and the LARGEST of them first: with a
-               single funding slot the chosen UTXO must clear the fee floor on
-               its own, so a small token dust UTXO must never win. */
-            utxos.sort((a, b) => (isPool(b) - isPool(a)) || (b.value - a.value))
+            /* With a single funding slot the chosen UTXO must clear the
+               thresholds ON ITS OWN, so order by suitability: pool-token UTXOs
+               first (only when tokens are needed), then LARGEST first. Without
+               this a small dust UTXO wins the slot and the action can never be
+               funded (measured: a 3,423-sat UTXO beat the 58,200-sat one). */
+            utxos.sort((a, b) => (needTokens > 0n ? (isPool(b) - isPool(a)) : 0) || (b.value - a.value))
         }
 
         const funding = []
@@ -398,7 +400,7 @@ export async function submitPoolAction({
     const publicValueAbs = action === 'transfer' ? 0n : amount
     const publicValueSign = action === 'unshield' ? 1n : 0n
 
-    const witness = await buildPoolWitness({
+    let witness = await buildPoolWitness({
         inNotes: picked, outNotes, leaves,
         publicValueAbs, publicValueSign,
         assetCategory: BigInt('0x' + pool.assetCategory),
@@ -423,6 +425,18 @@ export async function submitPoolAction({
     let publicSignals
     let genesisMinimal = false
     for (let attempt = 0; attempt < 12; attempt += 1) {
+        if (attempt > 0) {
+            /* The prover is DETERMINISTIC for a given witness, so re-proving the
+               same witness can never change the encoding. Rebuild the WITNESS
+               instead: the output notes' rho/r are fresh randomness, so cm (and
+               therefore the new root n1, and every dependent genesis push)
+               changes. */
+            witness = await buildPoolWitness({
+                inNotes: picked, outNotes, leaves,
+                publicValueAbs, publicValueSign,
+                assetCategory: BigInt('0x' + pool.assetCategory),
+            })
+        }
         ({ proof, publicSignals } = await generateProof(witness, wasmUrl, zkeyUrl))
         try {
             const w = produceWitness(toBenchVk(vk), proof, publicSignals, {

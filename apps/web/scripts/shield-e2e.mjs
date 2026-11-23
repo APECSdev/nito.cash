@@ -95,7 +95,29 @@ if (CAPTURE) {
     }
 }
 
-const scan = await scanPool({ cluster, pool, networkId: NETWORK, spendKey, notes: [] })
+/* NOTE PERSISTENCE: a browser keeps the wallet's own shielded notes sealed in
+   localStorage; this plain-node driver is stateless, so it keeps them in a file.
+   Without it a TRANSFER can never see the note a previous SHIELD created. */
+const { writeFileSync } = await import('node:fs')
+const NOTES_FILE = argOf('--notes', '/tmp/pool-notes.json')
+const loadNotes = () => {
+    try {
+        /* selectInNotes expects FLAT records { value, ownerPub, rho, r, nk,
+           leafIndex } — own notes have nk === spendKey. */
+        return JSON.parse(readFileSync(NOTES_FILE, 'utf8')).map((rec) => ({
+            value: String(rec.value),
+            ownerPub: String(rec.ownerPub),
+            rho: String(rec.rho),
+            r: String(rec.r),
+            nk: spendKey.toString(),
+            leafIndex: rec.leafIndex,
+        }))
+    } catch { return [] }
+}
+const ownNotes = loadNotes()
+console.log('own notes :', ownNotes.length)
+
+const scan = await scanPool({ cluster, pool, networkId: NETWORK, spendKey, notes: ownNotes })
 console.log('scan      : actions', scan.actions.length, '| leaves', (scan.leaves || []).length)
 
 const result = await submitPoolAction({
@@ -108,7 +130,7 @@ const result = await submitPoolAction({
     accountBase,
     derivationPath,
     spendKey,
-    ownNotes: [],
+    ownNotes,
     action: ACTION,
     amount: AMOUNT,
     recipientDeliveryPoint: RECIPIENT,
@@ -119,6 +141,16 @@ const result = await submitPoolAction({
     verify: true,
     onStage: async (stage) => console.log('stage     :', stage),
 })
+
+/* persist the wallet's own output notes for the NEXT action */
+try {
+    const prev = (() => { try { return JSON.parse(readFileSync(NOTES_FILE, 'utf8')) } catch { return [] } })()
+    const merged = [...prev, ...(result.outNotes || [])]
+    const seen = new Set()
+    const dedup = merged.filter((r) => { const k = String(r.cm); if (seen.has(k)) return false; seen.add(k); return true })
+    writeFileSync(NOTES_FILE, JSON.stringify(dedup, (k, v) => (typeof v === 'bigint' ? v.toString() : v), 1))
+    console.log('notes saved:', dedup.length, '->', NOTES_FILE)
+} catch (e) { console.log('notes save failed:', String(e.message || e)) }
 
 console.log('')
 console.log('=== RESULT ===')
