@@ -108,10 +108,16 @@ export function leToBig(bytes) {
         : 0n
 }
 
-/* Byte array -> display txid hex (BCH txids are the double-SHA256 in
-   little-endian display order; libauth's outpoint hash is the LE byte form). */
+/* Byte array -> display txid hex. libauth keeps `outpointTransactionHash`
+   in DISPLAY order (NOT the wire LE form) — verified live 2026-11-22 by
+   decoding two chipnet txs: 15481b45… (spends 53014fd4…:6/7) and the
+   deploy 53014fd4… (spends the mint a3e90020…) both decode to outpoint
+   bytes EQUAL to the display txid, and re-encoding is byte-identical.
+   Reversing here yields the wire-order hex, which never equals Fulcrum's
+   `tx_hash` — that broke the scan's chain link and build.js's round-trip
+   self-check on the first live action. */
 export function txidHexOf(bytes) {
-    return binToHex(new Uint8Array(bytes).reverse())
+    return binToHex(bytes)
 }
 
 /*

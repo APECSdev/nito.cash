@@ -146,9 +146,9 @@ const buildActionTx = ({ prevoutTxid, args, n0, n1, carrierPacket }) => {
         dummyInput(0xa5),
         {
             outpointIndex: 0,
-            /* libauth stores the outpoint hash in LE byte order; the display
-               txid is its reverse (decode.js txidHexOf). */
-            outpointTransactionHash: hexToBin(prevoutTxid).reverse(),
+            /* libauth stores the outpoint hash in DISPLAY order (verified
+               live against chipnet txs — decode.js txidHexOf). */
+            outpointTransactionHash: hexToBin(prevoutTxid),
             sequenceNumber: 0xffffffff,
             unlockingBytecode: unlocking,
         },
