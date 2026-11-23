@@ -80,18 +80,19 @@ const POOLS = {
             id: "chipnet-pusd-v4",
             name: "Chipnet PUSD pool v4 (bench program, wallet-generated witness)",
             network: "chipnet",
-            lockingBytecode: "aa2013fbc515f56289d2fbdb8b80fb883236696e7d7df6ada9f56389ee4ce5e8aca687",
-            covenantRedeem: "20a4d9f9279d10ea946cffe569415f0854abc4f578459fd9061f6cdbd4a1e1170778009c637b82012088537a82012088547a82012088557a82012088567a82012088c2529dc076ce5779517e8876cf01207f7554ca0221077f7701207f758876cf01207f7778d07c57797e56797ea853797c7e7c5a7993525c79955b7995947600a26900cd537ac78800d15879517e8800d27b8800d39d5879519c6356d156798856d358799d68547abc547abc7e537abc7e7bbc7e547a012080bc7e547a012080bc7e7bbc7e7cbc7ea876517f75011f847c517f777ebc54ca0200077f7701207f758777677c519d7c82012088c2529dc076ce5379517e88203e1f1922dfb671d3f912f7ea461e0a88ee848fdde12b6c18ab1ad2c56ae734212000000000000000000000000000000000000000000000000000000000000000005279cf7b52797e8800cd5279c78800d1547a517e8800d37bd09d00d27b7b7e8768",
-            assetCategory: "0717e1a1d4db6c1f06d99f4578f5c4ab54085f4169e5ff6c94ea109d27f9d9a4",
+            lockingBytecode: "aa20fb4f8c3e435798373d780b560ced1e6894f40753aa142b39813d9c9120b43de787",
+            covenantRedeem: "200e8d0ab2b9cc6dd402ce71eb534614ed48cf29afe51eb85739ecf62de920a00778009c637b82012088537a82012088547a82012088557a82012088567a82012088c2529dc076ce5779517e8876cf01207f7554ca0221077f7701207f758876cf01207f7778d07c57797e56797ea853797c7e7c5a7993525c79955b7995947600a26900cd537ac78800d15879517e8800d27b8800d39d5879519c6356d156798856d358799d68547abc547abc7e537abc7e7bbc7e547a012080bc7e547a012080bc7e7bbc7e7cbc7ea876517f75011f847c517f777ebc54ca0200077f7701207f758777677c519d7c82012088c2529dc076ce5379517e88203e1f1922dfb671d3f912f7ea461e0a88ee848fdde12b6c18ab1ad2c56ae734212000000000000000000000000000000000000000000000000000000000000000005279cf7b52797e8800cd5279c78800d1547a517e8800d37bd09d00d27b7b7e8768",
+            assetCategory: "07a020e92df6ec3957b81ee5af29cf48ed144653eb71ce02d46dccb9b20a8d0e",
             genesisRootLE: "551108f63731bcc628dda2697d70219d103a8c1bf203f2d4aaec6bbea5b4510f",
             genesisLeafCount: 2,
             /* NOT SPENDABLE: the generalized program fails on chain (OP_SPLIT range
-               errors in every verifier step) — the index-shift generalization is
-               incomplete. Left false so the wallet never selects it. */
+               errors in every verifier step). The runner's generalization step is
+               NOT reproducible from the compiled bytecode alone. Left false so the
+               wallet never selects it. */
             walletProverCompatible: false,
-            deployTxid: "47497625252d913b53b21db2420dc581e9945b3545a7c377d926ff75a1773ffa",
-            categoryAnchorTxid: "0717e1a1d4db6c1f06d99f4578f5c4ab54085f4169e5ff6c94ea109d27f9d9a4",
-            mintTxid: "5615725dbce75ad42042606f7c20dc85d8c7fad4f8c9de5d2db72c0737722a63",
+            deployTxid: "878099e5b8163b66d2fd362f95e2080830719f4e12a90160fe4ca060a1da1969",
+            categoryAnchorTxid: "07a020e92df6ec3957b81ee5af29cf48ed144653eb71ce02d46dccb9b20a8d0e",
+            mintTxid: "ebc19fb28e93f74a7fc0b11fb3ba6d45d28e2626aa932554e7532460c581ddc2",
             genesisLeaves: [
                 "12351826192886546690885792605915790291283848718645116437899738538537062803555",
                 "7398522746693646650328110604928791171707350116246498951314945102068585381447",
@@ -110,8 +111,9 @@ const POOLS = {
             ],
             stepLockings: BENCH_STEP_LOCKINGS,
             program: BENCH_PROGRAM,
-            notes: "Deployed 2026-11-23 (4th v4 deploy) - THE REQUESTED SHAPE: covenant at input 0, the five verifier steps at inputs 1..5 (exec0,exec1,exec2,genesis,terminal), ONE funding input at 6 (tx.inputs pinned to 7), and the steps re-created at outputs 1..5 IN PROGRAM ORDER (out4=genesis, out5=terminal). PUBLIC BENCH program built with the WALLET-COMMITTED verifying key (the program is vk-specific: vkx-msm.mjs:30 bakes FINAL = vk.ic[0] - [2^64]G) and GENERALIZED: every input-index operand shifted +1 (exec @82 OP_3->OP_4; terminal @1500,2545,2557,2782,3309,3312,3315,3359,3896 shifted; self-index @3304 OP_4->OP_5). OP_TXINPUTCOUNT stays 7. The covenant is the ORIGINAL gate3 bytecode (unshifted) because the genesis witness is input 4 again.",
+            notes: "Deployed 2026-11-23 (5th v4 deploy) - THE REQUESTED SHAPE, COMPLETE GENERALIZATION. in0 covenant, in1-3 execs, in4 genesis, in5 terminal, in6 funding (exactly 7); out0 continuity, out1-5 steps IN PROGRAM ORDER. Program = PUBLIC BENCH built with the WALLET-COMMITTED key (vk-specific) and generalized by shifting THREE reference forms +1: (A) literals before input opcodes, (B) literals passed to helper FUNCTIONS that do the INPUTBYTECODE inside their body (exec @27 OP_1->OP_2, @33 OP_2->OP_3) - form B is why a naive literal scan fails, (C) the terminal self-index @3304 OP_4->OP_5.",
         },
+
 
         {
             id: 'chipnet-pusd-v3',

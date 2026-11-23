@@ -106,8 +106,9 @@ const networks = {
                vk-specific, so the first two v4 deploys (built with the bench's
                own key) were unspendable. Deploy tx 4fa5b159…; the pool UTXO is
                output 0 and the five step UTXOs are outputs 1..5. */
-            /* The WORKING pool. The generalized-shape pool (0717e1a1…) is
-               deployed but its program fails on chain, so it is NOT selected. */
+            /* The WORKING pool (fixture shape). The generalized-shape pools
+               (0717e1a1…, 07a020e9…) are deployed but their programs fail on
+               chain, so they are NOT selected. */
             PUSD: '2d7cae869dac55fbdefca88c005267ecde29ce8a038143674c877e5290e34fc7',
         },
     },
