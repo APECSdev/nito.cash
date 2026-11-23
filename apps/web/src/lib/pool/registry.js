@@ -31,6 +31,7 @@ import { binToHex, lockingBytecodeToCashAddress, sha256 } from '@bitauth/libauth
 /* The two on-chain verifier programs (verifier-program.js): the deployed pools'
    (found-key) program and the WALLET-COMMITTED program (the new Path-A pool). */
 import { DEPLOYED_PROGRAM, STEP_LOCKINGS, WALLET_PROGRAM, WALLET_STEP_LOCKINGS } from './verifier-program.js'
+import { GENERALIZED_WALLET_PROGRAM, GENERALIZED_WALLET_STEP_LOCKINGS } from './verifier-program-generalized.js'
 
 import { getNetwork } from '../bch/networks.js'
 
@@ -74,6 +75,46 @@ const POOLS = {
     ],
 
     chipnet: [
+        {
+            id: 'chipnet-pusd-v3',
+            name: 'Chipnet PUSD pool v3 (generalized wallet program)',
+            network: 'chipnet',
+            lockingBytecode: 'aa209a490544c732c3943a736a1879691ecb300c71223fed9229e97809b7a6af73a887',
+            covenantRedeem: '20bf1d593526f2a72242580acfa4f9182f00720e027e3bc4c9302ef37a218d260978009c637b82012088537a82012088547a82012088557a82012088567a82012088c2529dc076ce5779517e8876cf01207f7554ca0221077f7701207f758876cf01207f7778d07c57797e56797ea853797c7e7c5a7993525c79955b7995947600a26900cd537ac78800d15879517e8800d27b8800d39d5879519c6356d156798856d358799d68547abc547abc7e537abc7e7bbc7e547a012080bc7e547a012080bc7e7bbc7e7cbc7ea876517f75011f847c517f777ebc54ca0200077f7701207f758777677c519d7c82012088c2529dc076ce5379517e88203e1f1922dfb671d3f912f7ea461e0a88ee848fdde12b6c18ab1ad2c56ae734212000000000000000000000000000000000000000000000000000000000000000005279cf7b52797e8800cd5279c78800d1547a517e8800d37bd09d00d27b7b7e8768',
+            assetCategory: '09268d217af32e30c9c43b7e020e72002f18f9a4cf0a584222a7f22635591dbf',
+            genesisRootLE: '551108f63731bcc628dda2697d70219d103a8c1bf203f2d4aaec6bbea5b4510f',
+            genesisLeafCount: 2,
+            /* SPENDABLE. The step program is GENERALIZED_WALLET_PROGRAM: the
+               DEPLOYED on-chain LAYOUT (`OP_TXINPUTCOUNT >= 5`, verifier
+               genesis at input 4, terminal at input 5) carrying the WALLET's
+               bodies — the constants lib/pool/verifier.js reproduces
+               byte-exactly per pool-verifier.spec's pinned ground-truth test.
+               This is the fix for the v2 five-input fixture layout described
+               in the entry below. */
+            walletProverCompatible: true,
+            deployTxid: '56ebf641a833c81d182889d1271454299de4837d72c5ce046e461389cd9f489c',
+            categoryAnchorTxid: '09268d217af32e30c9c43b7e020e72002f18f9a4cf0a584222a7f22635591dbf',
+            mintTxid: '32f84b41bd4f655d65f86599fbbacc11d2edf49ea57b2da850eaa927274fadab',
+            genesisLeaves: [
+                '12351826192886546690885792605915790291283848718645116437899738538537062803555',
+                '7398522746693646650328110604928791171707350116246498951314945102068585381447',
+            ],
+            bootstrapNotes: [
+                {
+                    note: { value: '0', ownerPub: '5299619240641551281634865583518297030282874472190772894086521144482721001553', rho: '130842949111883530073146641958534655280', r: '153387697958148631644100398335583547244' },
+                    nk: '1',
+                    index: 0,
+                },
+                {
+                    note: { value: '0', ownerPub: '5299619240641551281634865583518297030282874472190772894086521144482721001553', rho: '130842949111883530073146641958534655281', r: '153387697958149840569920012964758253420' },
+                    nk: '1',
+                    index: 1,
+                },
+            ],
+            stepLockings: GENERALIZED_WALLET_STEP_LOCKINGS,
+            program: GENERALIZED_WALLET_PROGRAM,
+            notes: 'Deployed 2026-11-23 from apps/web/scripts/deploy-pool.mjs (anchor 09268d21… = the category, mint 32f84b41…, deploy 56ebf641…). The wallet-committed keypair (GitHub Release proving-assets-v1) + a fresh category, deployed under GENERALIZED_WALLET_PROGRAM (verifier-program-generalized.js). Replaces v2, which is unspendable as deployed — see the v2 notes for the five-input-layout evidence.',
+        },
         {
             id: 'chipnet-pusd-v2',
             name: 'Chipnet PUSD pool v2 (wallet-committed key)',

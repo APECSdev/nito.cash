@@ -10,13 +10,19 @@
 //                  derived from the gate3 registry covenantRedeem and
 //                  SELF-CHECKED (hash256 of the rebuilt redeem must reproduce
 //                  gate3's P2SH32 locking before anything else happens);
-//   · program     — the WALLET-COMMITTED verifying key's on-chain program:
-//                  the five step lockings + redeems from the committed bench
-//                  vectors (apps/web/tests/fixtures/pool/bench-vectors-steps.
-//                  json — the SAME constants lib/pool/verifier.js reproduces
-//                  byte-exactly per pool-verifier.spec's pinned ground-truth
-//                  test), committed as WALLET_PROGRAM / WALLET_STEP_LOCKINGS
-//                  in lib/pool/verifier-program.js;
+//   · program     — the WALLET-COMMITTED verifying key's on-chain program in
+//                  its GENERALIZED layout: the LAYOUT of the deployed on-chain
+//                  program (verifier-program.js DEPLOYED_PROGRAM) carrying the
+//                  BODIES of the committed bench vectors (WALLET_PROGRAM — the
+//                  constants lib/pool/verifier.js reproduces byte-exactly per
+//                  pool-verifier.spec's pinned ground-truth test). This is
+//                  GENERALIZED_WALLET_PROGRAM in
+//                  lib/pool/verifier-program-generalized.js. Deploying the raw
+//                  WALLET_PROGRAM is what made chipnet-pusd-v2 unspendable: its
+//                  fixture layout hardcodes OP_TXINPUTCOUNT == 5 with the
+//                  verifier genesis at input 3 and the terminal at input 4,
+//                  which no real action tx (covenant 0, exec 1-3, genesis 4,
+//                  terminal 5, funding 6+) can satisfy;
 //   · seed leaves — TWO PUBLIC dummy notes (value 0, the published bootstrap
 //                  key nk = 1) whose commitments form the genesis tree; the
 //                  full contents go into the registry entry as `genesisLeaves`
@@ -52,7 +58,7 @@ import {
 } from '@bitauth/libauth'
 import { ElectrumClient } from '@electrum-cash/network'
 
-import { WALLET_STEP_LOCKINGS } from '../src/lib/pool/verifier-program.js'
+import { GENERALIZED_WALLET_STEP_LOCKINGS } from '../src/lib/pool/verifier-program-generalized.js'
 
 /* The gate3 ground-truth pair (from src/lib/pool/registry.js — not plain-node
    importable due to its extensionless relative imports, so inlined here; the
@@ -258,7 +264,7 @@ const deploy = {
             valueSatoshis: 1000n,
             token: { category: CAT_BYTES, amount: 0n, nft: { capability: 'mutable', commitment: GENESIS_COMMITMENT } },
         },
-        ...WALLET_STEP_LOCKINGS.map((locking) => ({ lockingBytecode: hexToBin(locking), valueSatoshis: 1000n })),
+        ...GENERALIZED_WALLET_STEP_LOCKINGS.map((locking) => ({ lockingBytecode: hexToBin(locking), valueSatoshis: 1000n })),
         /* the 100M fungible supply, held by the mint key for later shields */
         { lockingBytecode: fundLocking, valueSatoshis: 1000n, token: { category: CAT_BYTES, amount: 100000000n } },
     ],
@@ -305,9 +311,9 @@ const registryEntry = {
         nk: BOOTSTRAP_NK.toString(10),
         index: i,
     })),
-    stepLockings: WALLET_STEP_LOCKINGS,
+    stepLockings: GENERALIZED_WALLET_STEP_LOCKINGS,
     program: 'wallet-v1',
-    notes: 'Deployed ' + new Date().toISOString() + ' (Path A, runner-independent): the wallet-COMMITTED verifying key (proving-assets-v1 lineage) + a FRESH category (anchor ' + anchorTxid.slice(0, 8) + '…, mint ' + mintTxid.slice(0, 8) + '…; networks.js chipnet PUSD is updated to it). Program = the committed bench vectors (verifier-program.js WALLET_PROGRAM); every wallet action recreates the step UTXOs with these lockings.',
+    notes: 'Deployed ' + new Date().toISOString() + ' (Path A, runner-independent): the wallet-COMMITTED verifying key (proving-assets-v1 lineage) + a FRESH category (anchor ' + anchorTxid.slice(0, 8) + '…, mint ' + mintTxid.slice(0, 8) + '…; networks.js chipnet PUSD is updated to it). Program = GENERALIZED_WALLET_PROGRAM (verifier-program-generalized.js): the deployed program LAYOUT with the committed bench vector BODIES — the only shape the wallet witness builder can spend; every wallet action recreates the step UTXOs with these lockings.',
 }
 console.log('')
 console.log('=== registry entry ===')
