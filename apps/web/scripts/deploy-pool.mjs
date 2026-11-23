@@ -153,7 +153,9 @@ const client = new ElectrumClient('nito.cash', '1.5', 'chipnet.bch.ninja', { por
 await client.connect()
 
 const utxos = await client.request('blockchain.address.listunspent', address, 'include_tokens')
-const plain = utxos.filter((u) => !u.token_data && u.value > 100000).sort((a, b) => b.value - a.value)
+/* A SINGLE plain UTXO must cover the 8 x 1000-sat outputs + fees. 50,000 is
+   ample; the old 100,000 floor forced an unnecessarily large coin. */
+const plain = utxos.filter((u) => !u.token_data && u.value > 50000).sort((a, b) => b.value - a.value)
 if (plain.length === 0) throw new Error('no plain BCH funding UTXOs at the mint key')
 console.log('funding pool: ' + plain.slice(0, 3).map((u) => u.tx_hash.slice(0, 8) + ':' + u.tx_pos + ' (' + u.value + ')').join(', '))
 

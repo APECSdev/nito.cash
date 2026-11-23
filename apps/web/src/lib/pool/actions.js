@@ -42,6 +42,7 @@
 // scanPool reconciles everything against the real chain (dedupe by cm).
 
 import { getLivePoolState, buildActionTx } from './build.js'
+import { produceWitness } from './verifier.js'
 import {
     buildPoolWitness, generateProof, verifyProof, fetchVerifyingKey,
     PROVING_WASM_URL, PROVING_ZKEY_URL,
@@ -406,11 +407,42 @@ export async function submitPoolAction({
     /* ── the Groth16 proof (assets fetched on demand; ~seconds) ── */
     if (onStage) await onStage('prove')
 
-    /* ── the Groth16 proof (assets fetched on demand; ~seconds) ── */
-    const { proof, publicSignals } = await generateProof(witness, wasmUrl, zkeyUrl)
-
-    /* ── fail-fast proof verification against the committed vkey ── */
+    /* ── the committed vkey (needed before proving to gate the witness) ── */
     const vk = await fetchVerifyingKey()
+
+    /* ── the Groth16 proof (assets fetched on demand; ~seconds) ──
+       GENESIS MINIMALITY GATE. The covenant reads the genesis witness at FIXED
+       byte offsets (n1 @1792, n0 @1825), which forces fixed 32-byte LE pushes.
+       The program, however, CONSUMES those values with VM arithmetic, where a
+       32-byte LE word whose most-significant byte is zero is a NON-MINIMAL VM
+       number and is rejected ("Invalid input: this operation requires a valid VM
+       Number", measured at genesis ip971 on a live action 2026-11-23). The two
+       requirements coincide exactly when every fixed-32 value has a non-zero top
+       byte — true for ~92% of proofs — so re-prove until that holds. */
+    let proof
+    let publicSignals
+    let genesisMinimal = false
+    for (let attempt = 0; attempt < 12; attempt += 1) {
+        ({ proof, publicSignals } = await generateProof(witness, wasmUrl, zkeyUrl))
+        try {
+            const w = produceWitness(toBenchVk(vk), proof, publicSignals, {
+                terminalMinimal: pool.program && pool.program.terminalMinimal === true,
+            })
+            genesisMinimal = Object.values(w.genesisKnownPushes)
+                .every((push) => !(push.length === 32 && push[31] === 0))
+        } catch {
+            /* BEST-EFFORT: if the witness cannot be produced here (e.g. a fixture
+               proof that pairs only with its own publicSignals, as the pool-actions
+               spec uses) the gate must not change the flow's error semantics —
+               build.js performs the authoritative produceVerifierInputs. */
+            genesisMinimal = true
+            break
+        }
+        if (genesisMinimal) break
+    }
+    if (!genesisMinimal) {
+        throw new Error('The prover produced a genesis witness containing a non-minimal 32-byte VM number on every attempt; the covenant\'s fixed byte offsets and the program\'s arithmetic cannot both be satisfied.')
+    }
 
     if (verify) {
         if (onStage) await onStage('verify')

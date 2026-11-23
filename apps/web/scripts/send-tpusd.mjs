@@ -53,7 +53,11 @@ const TOKEN_SATS = BigInt(argOf('--token-sats', '1000'))
 
 if (!TO) throw new Error('usage: node scripts/send-tpusd.mjs --to <bchtest:…> --amount <base units> [--bch <sats>] [--dry]')
 if (AMOUNT <= 0n) throw new Error('--amount must be > 0 (PUSD base units)')
-if (BCH < 50000n) throw new Error('--bch must be >= 50000 (lib/pool/actions.js MIN_FUNDING_SATS — the action fee floor)')
+/* The action's fee floor must be satisfied by the funding UTXO the selector
+   picks. When the TOKEN output itself carries >= MIN_FUNDING_SATS, the separate
+   plain --bch output is unnecessary: a fixture-shaped program allows exactly ONE
+   funding input, and that single UTXO must hold both the tokens and the fee. */
+if (BCH + TOKEN_SATS < 50000n) throw new Error('--bch + --token-sats must be >= 50000 (lib/pool/actions.js MIN_FUNDING_SATS — the action fee floor)')
 
 const secrets = JSON.parse(readFileSync(SECRETS, 'utf8'))
 const privateKey = hexToBin(secrets.privateKeyHex)
@@ -140,8 +144,10 @@ const buildTx = (sources) => ({
             valueSatoshis: TOKEN_SATS,
             token: { category: hexToBin(CATEGORY), amount: AMOUNT },
         },
-        /* out1: the action-fee BCH, SAME address (one funding account). */
-        { lockingBytecode: dest, valueSatoshis: BCH },
+        /* out1: the action-fee BCH, SAME address (one funding account).
+           OMITTED when --bch 0: a zero-sat output is dust, and the token
+           output above already carries the fee floor. */
+        ...(BCH > 0n ? [{ lockingBytecode: dest, valueSatoshis: BCH }] : []),
         /* out2: change — BCH **and** the UNSPENT token remainder (CashToken
            conservation: every input category amount must be re-emitted; a
            token-less change output would BURN the remainder). */
@@ -175,7 +181,7 @@ const change = sourceValue - TOKEN_SATS - BCH - fee
 
 if (change < 0n) throw new Error('funding UTXOs hold ' + sourceValue + ' sats, need ' + (TOKEN_SATS + BCH + fee))
 
-tx.outputs[2].valueSatoshis = change
+tx.outputs[tx.outputs.length - 1].valueSatoshis = change
 
 await signInputs(tx, sources.map((u) => ({
     lockingBytecode: fundLocking,
