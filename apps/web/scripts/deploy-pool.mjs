@@ -58,7 +58,7 @@ import {
 } from '@bitauth/libauth'
 import { ElectrumClient } from '@electrum-cash/network'
 
-import { GENERALIZED_WALLET_STEP_LOCKINGS } from '../src/lib/pool/verifier-program-generalized.js'
+import { STEP_LOCKINGS } from '../src/lib/pool/verifier-program.js'
 
 /* The gate3 ground-truth pair (from src/lib/pool/registry.js — not plain-node
    importable due to its extensionless relative imports, so inlined here; the
@@ -287,7 +287,7 @@ const deploy = {
             valueSatoshis: 1000n,
             token: { category: CAT_BYTES, amount: 0n, nft: { capability: 'mutable', commitment: GENESIS_COMMITMENT } },
         },
-        ...GENERALIZED_WALLET_STEP_LOCKINGS.map((locking) => ({ lockingBytecode: hexToBin(locking), valueSatoshis: 1000n })),
+        ...STEP_LOCKINGS.map((locking) => ({ lockingBytecode: hexToBin(locking), valueSatoshis: 1000n })),
         /* the 100M fungible supply, held by the mint key for later shields */
         { lockingBytecode: fundLocking, valueSatoshis: 1000n, token: { category: CAT_BYTES, amount: 100000000n } },
     ],
@@ -334,7 +334,7 @@ const registryEntry = {
         nk: BOOTSTRAP_NK.toString(10),
         index: i,
     })),
-    stepLockings: GENERALIZED_WALLET_STEP_LOCKINGS,
+    stepLockings: STEP_LOCKINGS,
     program: 'wallet-v1',
     notes: 'Deployed ' + new Date().toISOString() + ' (Path A, runner-independent): the wallet-COMMITTED verifying key (proving-assets-v1 lineage) + a FRESH category (anchor ' + anchorTxid.slice(0, 8) + '…, mint ' + mintTxid.slice(0, 8) + '…; networks.js chipnet PUSD is updated to it). Program = GENERALIZED_WALLET_PROGRAM (verifier-program-generalized.js): the deployed program LAYOUT with the committed bench vector BODIES — the only shape the wallet witness builder can spend; every wallet action recreates the step UTXOs with these lockings.',
 }

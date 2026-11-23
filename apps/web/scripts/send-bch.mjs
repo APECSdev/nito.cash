@@ -40,18 +40,27 @@ const plain = (Array.isArray(utxos) ? utxos : []).filter((u) => !u.token_data).s
 console.log('from      :', from)
 console.log('plain utxos:', plain.map((u) => u.tx_hash.slice(0, 10) + '…:' + u.tx_pos + '=' + u.value).join(' '))
 
-const pick = plain[0]
-if (!pick) throw new Error('no plain UTXO at ' + from)
+if (!plain.length) throw new Error('no plain UTXO at ' + from)
 
-const FEE = 300n
-const change = BigInt(pick.value) - AMOUNT - FEE
-if (change < 546n) throw new Error('change would be dust: ' + change)
+/* Accumulate UTXOs (largest first) until the amount + fee is covered. */
+const FEE_PER_INPUT = 300n
+const picked = []
+let pickedTotal = 0n
+for (const utxo of plain) {
+    picked.push(utxo)
+    pickedTotal += BigInt(utxo.value)
+    if (pickedTotal >= AMOUNT + FEE_PER_INPUT * BigInt(picked.length)) break
+}
+
+const FEE = FEE_PER_INPUT * BigInt(picked.length)
+const change = pickedTotal - AMOUNT - FEE
+if (change < 546n) throw new Error('change would be dust: ' + change + ' (have ' + pickedTotal.toString() + ', need ' + (AMOUNT + FEE).toString() + ')')
 
 const bundle = buildTransaction(
-    [{ txid: pick.tx_hash, vout: pick.tx_pos, satoshis: BigInt(pick.value), address: from }],
+    picked.map((utxo) => ({ txid: utxo.tx_hash, vout: utxo.tx_pos, satoshis: BigInt(utxo.value), address: from })),
     [{ address: TO, satoshis: AMOUNT }, { address: from, satoshis: change }],
 )
-await signP2pkhInput(bundle, 0, toPrivateKeyBytes(node), toPublicKeyBytes(node))
+for (let i = 0; i < picked.length; i += 1) await signP2pkhInput(bundle, i, toPrivateKeyBytes(node), toPublicKeyBytes(node))
 const hex = encodeTransactionToHex(bundle.transaction)
 console.log('to        :', TO, '| amount:', AMOUNT.toString(), '| change:', change.toString(), '| size:', hex.length / 2)
 

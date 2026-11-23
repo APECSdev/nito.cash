@@ -451,6 +451,28 @@ sender, receiver, and amount are all masked. Design decisions locked:
     byte-exactly, and the fixture proofs produce the same push profile as a real action.
     Also fixed this session: `decode.js` `txidHexOf` reversed libauth's already-display-order
     outpoint hash (commit e5602b0) — the scan chain link and build.js's self-check were dead.
+  · GENERALIZED CONTRACT WORKS — 9/10 INPUTS (2026-11-23, fifth session):
+    A REAL 37,282 B shield tx (10 inputs) built by the wallet's OWN pipeline against
+    DEPLOYED_PROGRAM UNMODIFIED, evaluated on the BCH-2026 VM:
+      vin0 covenant ok | vin1-3 exec ok | vin4 genesis ok | vin6-9 funding ok
+      vin5 terminal FAIL@ip1747.
+    This is the "inputs 1-5 with a covenant at 0" contract WORKING: the covenant, all
+    three exec steps, the genesis and every funding input accept. The exec failures
+    seen earlier in this session were entirely caused by mixing the deployed scripts
+    with the wallet's 559-byte fragment (deployed = 561). DEPLOYED_PROGRAM must be
+    used WHOLE: its scripts AND its own 867/982/561 fragments.
+    TERMINAL (the only remaining failure): ip is an INSTRUCTION INDEX, not a byte
+    offset. The failing site is instruction ~1746-1748 of redeems[4]:
+    `push(32)=47fd7cd8… (p) NEGATE OP_1 DIV OP_8 PICK …` — the modular-arithmetic
+    reduction over 32-byte field elements. The stack there holds four 32-byte items.
+    So the remaining delta is in the VALUES the wallet's produceWitness emits for the
+    terminal witness (its modular representation), not in the script layout.
+    HARNESS FAITHFULNESS (learned the hard way): the terminal REQUIRES the real
+    transaction's outputs (token conservation). A synthetic tx makes even the
+    CONFIRMED gate3 action f5927a0b… fail the terminal (ip1557), and a synthetic tx
+    also makes the confirmed action fail if its terminal is paired with another
+    transaction's genesis. NEVER evaluate the terminal outside a real, self-
+    consistent action transaction.
   · DECISIVE FINDING (2026-11-23, fifth session — supersedes the porting theory):
     THE VERIFIER SCRIPTS ARE POSITIONALLY BOUND. Evaluated on the BCH-2026 VM, the
     COMMITTED bench vector (bench-vectors-steps.json) passes exec0/1/2 + genesis in a

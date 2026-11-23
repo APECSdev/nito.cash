@@ -79,9 +79,9 @@ const POOLS = {
             id: 'chipnet-pusd-v3',
             name: 'Chipnet PUSD pool v3 (generalized wallet program)',
             network: 'chipnet',
-            lockingBytecode: 'aa209639f461f44cc0181d36609d37dd7f0f95e593bd44502c332101ca7f6d23899c87',
-            covenantRedeem: '20afd218338edb8d57b340abb0964b2833303d7538527106280d2f5194cf17711f78009c637b82012088537a82012088547a82012088557a82012088567a82012088c2529dc076ce5779517e8876cf01207f7554ca0221077f7701207f758876cf01207f7778d07c57797e56797ea853797c7e7c5a7993525c79955b7995947600a26900cd537ac78800d15879517e8800d27b8800d39d5879519c6356d156798856d358799d68547abc547abc7e537abc7e7bbc7e547a012080bc7e547a012080bc7e7bbc7e7cbc7ea876517f75011f847c517f777ebc54ca0200077f7701207f758777677c519d7c82012088c2529dc076ce5379517e88203e1f1922dfb671d3f912f7ea461e0a88ee848fdde12b6c18ab1ad2c56ae734212000000000000000000000000000000000000000000000000000000000000000005279cf7b52797e8800cd5279c78800d1547a517e8800d37bd09d00d27b7b7e8768',
-            assetCategory: '1f7117cf94512f0d2806715238753d3033284b96b0ab40b3578ddb8e3318d2af',
+            lockingBytecode: 'aa20f8b6eb6aee9495d7a8a48f7042e668cb6c307f730408be57b7a3ea15931b2c3387',
+            covenantRedeem: '202dce58d9513f4c990752e827fe100174168cd3156dfe76aac0fdcd8cbd60d02278009c637b82012088537a82012088547a82012088557a82012088567a82012088c2529dc076ce5779517e8876cf01207f7554ca0221077f7701207f758876cf01207f7778d07c57797e56797ea853797c7e7c5a7993525c79955b7995947600a26900cd537ac78800d15879517e8800d27b8800d39d5879519c6356d156798856d358799d68547abc547abc7e537abc7e7bbc7e547a012080bc7e547a012080bc7e7bbc7e7cbc7ea876517f75011f847c517f777ebc54ca0200077f7701207f758777677c519d7c82012088c2529dc076ce5379517e88203e1f1922dfb671d3f912f7ea461e0a88ee848fdde12b6c18ab1ad2c56ae734212000000000000000000000000000000000000000000000000000000000000000005279cf7b52797e8800cd5279c78800d1547a517e8800d37bd09d00d27b7b7e8768',
+            assetCategory: '22d060bd8ccdfdc0aa76fe6d15d38c16740110fe27e85207994c3f51d958ce2d',
             genesisRootLE: '551108f63731bcc628dda2697d70219d103a8c1bf203f2d4aaec6bbea5b4510f',
             genesisLeafCount: 2,
             /* SPENDABLE. The step program is GENERALIZED_WALLET_PROGRAM: the
@@ -92,9 +92,9 @@ const POOLS = {
                This is the fix for the v2 five-input fixture layout described
                in the entry below. */
             walletProverCompatible: true,
-            deployTxid: '75abc0a1f21a604d35c7fcb7b16aa9c6755eff989d30344c9b29d0055da18278',
-            categoryAnchorTxid: '1f7117cf94512f0d2806715238753d3033284b96b0ab40b3578ddb8e3318d2af',
-            mintTxid: 'ba76b924338f3bb71d61b21ede2346fce50a759c9b0527be1e0bcc3c9970d642',
+            deployTxid: '37b26a779c5b26c75197336e2e85633d315480e95e4eae68c7957b724af7f97b',
+            categoryAnchorTxid: '22d060bd8ccdfdc0aa76fe6d15d38c16740110fe27e85207994c3f51d958ce2d',
+            mintTxid: 'cd4585c142f9a14acdbe38e45b56a6dc013c804666f62183233dace5c6c1c159',
             genesisLeaves: [
                 '12351826192886546690885792605915790291283848718645116437899738538537062803555',
                 '7398522746693646650328110604928791171707350116246498951314945102068585381447',
@@ -111,8 +111,8 @@ const POOLS = {
                     index: 1,
                 },
             ],
-            stepLockings: GENERALIZED_WALLET_STEP_LOCKINGS,
-            program: GENERALIZED_WALLET_PROGRAM,
+            stepLockings: STEP_LOCKINGS,
+            program: DEPLOYED_PROGRAM,
             notes: 'Deployed 2026-11-23 from apps/web/scripts/deploy-pool.mjs (anchor 09268d21… = the category, mint 32f84b41…, deploy 56ebf641…). The wallet-committed keypair (GitHub Release proving-assets-v1) + a fresh category, deployed under GENERALIZED_WALLET_PROGRAM (verifier-program-generalized.js). Replaces v2, which is unspendable as deployed — see the v2 notes for the five-input-layout evidence.',
         },
         {
