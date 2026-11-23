@@ -85,7 +85,10 @@ const POOLS = {
             assetCategory: "0717e1a1d4db6c1f06d99f4578f5c4ab54085f4169e5ff6c94ea109d27f9d9a4",
             genesisRootLE: "551108f63731bcc628dda2697d70219d103a8c1bf203f2d4aaec6bbea5b4510f",
             genesisLeafCount: 2,
-            walletProverCompatible: true,
+            /* NOT SPENDABLE: the generalized program fails on chain (OP_SPLIT range
+               errors in every verifier step) — the index-shift generalization is
+               incomplete. Left false so the wallet never selects it. */
+            walletProverCompatible: false,
             deployTxid: "47497625252d913b53b21db2420dc581e9945b3545a7c377d926ff75a1773ffa",
             categoryAnchorTxid: "0717e1a1d4db6c1f06d99f4578f5c4ab54085f4169e5ff6c94ea109d27f9d9a4",
             mintTxid: "5615725dbce75ad42042606f7c20dc85d8c7fad4f8c9de5d2db72c0737722a63",

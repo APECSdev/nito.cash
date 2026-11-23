@@ -65,6 +65,10 @@ export const BENCH_PROGRAM = {
     /* The five steps now sit at tx inputs 1..5 (covenant at 0), so build.js
        uses its standard ordering: covenant, steps, funding. */
     fixtureShape: false,
+    /* The terminal pins tx.inputs.length to EXACTLY 7
+       (@1549-1551 OP_1 TXINPUTCOUNT OP_7 EQUALVERIFY), so exactly ONE funding
+       input is allowed regardless of the input ORDER. */
+    fixedInputCount: 7,
     /* The terminal CONSUMES its witness with VM arithmetic, so every push must
        be a MINIMAL VM number (the bench emits bigIntToVmNumber). */
     terminalMinimal: true,

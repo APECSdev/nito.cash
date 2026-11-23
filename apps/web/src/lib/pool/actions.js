@@ -392,7 +392,7 @@ export async function submitPoolAction({
         action, amount, ownNotes, bootstrapNotes: pool.bootstrapNotes,
     })
 
-    const outNotes = await buildOutNotes({ action, amount, total, spendKey, recipientOwnerPub })
+    let outNotes = await buildOutNotes({ action, amount, total, spendKey, recipientOwnerPub })
 
     /* ── the witness (public value per action) ── */
     if (onStage) await onStage('witness')
@@ -427,10 +427,10 @@ export async function submitPoolAction({
     for (let attempt = 0; attempt < 12; attempt += 1) {
         if (attempt > 0) {
             /* The prover is DETERMINISTIC for a given witness, so re-proving the
-               same witness can never change the encoding. Rebuild the WITNESS
-               instead: the output notes' rho/r are fresh randomness, so cm (and
-               therefore the new root n1, and every dependent genesis push)
-               changes. */
+               same witness can never change the encoding. Rebuild the OUTPUT
+               NOTES first (their rho/r are fresh randomness — reusing them makes
+               n1 identical every attempt), then the witness. */
+            outNotes = await buildOutNotes({ action, amount, total, spendKey, recipientOwnerPub })
             witness = await buildPoolWitness({
                 inNotes: picked, outNotes, leaves,
                 publicValueAbs, publicValueSign,
@@ -495,7 +495,10 @@ export async function submitPoolAction({
            input index to 4. With five verifier steps + the covenant that leaves
            EXACTLY ONE funding input, which must carry both the pool tokens and
            enough BCH for the ~38 KB action. */
-        maxInputs: pool.program && pool.program.fixtureShape === true ? 1 : Infinity,
+        /* A program that pins tx.inputs.length allows exactly ONE funding input
+           (5 steps + covenant already occupy the rest). `fixedInputCount` is the
+           general form; `fixtureShape` pools imply it. */
+        maxInputs: pool.program && (pool.program.fixedInputCount || pool.program.fixtureShape) ? 1 : Infinity,
     })
 
     /* ── assemble + sign ── */
