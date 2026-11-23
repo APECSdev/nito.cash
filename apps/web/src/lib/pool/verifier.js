@@ -424,7 +424,15 @@ export function produceWitness(vk, proof, publicInputs) {
     const terminalValues = [...terminalEvaluations, q1[1].c1, q1[1].c0, q3[0].c1, q3[0].c0]
         .concat([...states[states.length - 1].coefficients].reverse().map(BigInt), flat(witness.cInv).reverse(), flat(witness.c).reverse())
     assertOk(terminalValues.length === 50, 'terminal values')
-    const terminalWitnessHex = terminalValues.map((x) => num(x))
+    /* FIXED 32-byte LE for every terminal witness push (NOT `num`): the runner's
+       terminal encoding is fixed-width — a CONFIRMED on-chain action
+       (gate3 SHIELD f5927a0b…, block 330438) carries exactly 51 32-byte pushes
+       there, while `num` emits a minimal VM-number that becomes 31 bytes
+       whenever a value's top byte is zero. Measured 2026-11-23: our terminal
+       unlocking was 8707 B vs the confirmed 8708 B, differing ONLY at push[19]
+       (31 vs 32 bytes), and the BCH-2026 VM rejected the terminal
+       (`OP_VERIFY failed`). Field elements are < 2^254, so fixed32 is exact. */
+    const terminalWitnessHex = terminalValues.map((x) => fixed32(x))
 
     /* FIXED 32-byte LE for every genesis field push (NOT `num`): the genesis
        witness is FIXED-OFFSET — the covenant reads n1 at byte 1792 and n0 at
@@ -736,7 +744,7 @@ export function produceVerifierInputs({ vk, proof, publicSignals, program }) {
         quotient.subarray(offset),
         ...w.terminalWitnessHex,
         ...pad(3),
-        num(m.zInv),
+        fixed32(m.zInv),
         state(3),
         redeems[4],
     ])
