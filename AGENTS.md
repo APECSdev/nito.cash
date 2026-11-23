@@ -451,6 +451,29 @@ sender, receiver, and amount are all masked. Design decisions locked:
     byte-exactly, and the fixture proofs produce the same push profile as a real action.
     Also fixed this session: `decode.js` `txidHexOf` reversed libauth's already-display-order
     outpoint hash (commit e5602b0) — the scan chain link and build.js's self-check were dead.
+  · DECISIVE FINDING (2026-11-23, fifth session — supersedes the porting theory):
+    THE VERIFIER SCRIPTS ARE POSITIONALLY BOUND. Evaluated on the BCH-2026 VM, the
+    COMMITTED bench vector (bench-vectors-steps.json) passes exec0/1/2 + genesis in a
+    5-INPUT tx with the steps at inputs 0-4, and fails IMMEDIATELY (exec at ip3,
+    genesis at ip1497) the moment the steps sit at inputs 1-5 or 4-8. The runner's
+    deployed program is the GENERALIZED contract that works at inputs 1-5; the
+    wallet-committed WALLET_PROGRAM is the FIXTURE contract that only ever worked in
+    a synthetic 5-input tx with no covenant and no funding. They are different
+    CONTRACTS, not two revisions of one — which is exactly why chipnet-pusd-v2
+    (deployed under WALLET_PROGRAM) is unspendable.
+    MEASURED RESULT with DEPLOYED_PROGRAM UNMODIFIED (its scripts AND its own
+    867/982/561 fragments) + the WALLET's witness builder and the wallet-committed
+    key, evaluated in a real-action shape (steps at 1-5, 8 inputs):
+      exec0 ok | exec1 ok | exec2 ok | genesis ok | terminal FAIL@ip1557.
+    4 of 5 verifier steps PASS. The earlier exec failures were CAUSED BY MIXING the
+    deployed scripts with the wallet's 559-byte fragment (the deployed exec embeds
+    561) — a mismatch introduced by the LCS construction, not a property of the
+    deployed program. NEVER mix scripts and fragments across programs.
+    REMAINING: the terminal (deployed redeems[4], 4158 B). It reads the genesis's
+    448-byte header from INPUT 4 (`OP_4 OP_INPUTBYTECODE OP_3 OP_SPLIT NIP
+    <448> OP_SPLIT DROP`, ip1555-1565). NOTE the fixture's OWN terminal also fails in
+    a synthetic 5-input tx (ip1556), so a synthetic harness is NOT faithful for the
+    terminal — it must be tested in a REAL action (covenant + token outputs).
   · REVERSE-ENGINEERING STATE (2026-11-23, fourth session — read before continuing):
     The wallet port now PASSES the deployed program on 7 of 8 inputs (covenant, exec0-2, genesis,
     funding — BCH-2026 VM, real shield tx). The ONLY remaining failure is the TERMINAL's residue
