@@ -302,7 +302,10 @@ export async function buildActionTx({
        A FIXTURE-SHAPED program asserts inputs[INPUTINDEX].outpointIndex ==
        INPUTINDEX, so the TERMINAL (input 4) must be re-created at OUTPUT 4:
        the steps are emitted in program order with genesis/terminal swapped. */
-    const stepOutputOrder = programFixtureShape ? [0, 1, 2, 4, 3] : [0, 1, 2, 3, 4]
+    /* The generalized bench program (fixtureShape: false) asserts
+       inputs[INPUTINDEX].outpointIndex == INPUTINDEX with the terminal at input
+       5, so the steps are re-created IN PROGRAM ORDER at outputs 1..5. */
+    const stepOutputOrder = [0, 1, 2, 3, 4]
     for (const k of stepOutputOrder) {
         outputs.push({ lockingBytecode: hexToBin(pool.stepLockings[k]), valueSatoshis: STEP_SATS })
     }

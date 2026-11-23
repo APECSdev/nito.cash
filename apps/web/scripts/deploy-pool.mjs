@@ -84,19 +84,11 @@ const gate3Redeem = hexToBin(GATE3.covenantRedeem)
 if (gate3Redeem[0] !== 0x20 || gate3Redeem.length < 34) throw new Error('gate3 redeem: unexpected shape')
 const covenantBytecode = gate3Redeem.subarray(33)
 
-/* THE BENCH-SHAPE COVENANT. The bench program is FIXTURE-SHAPED: its five
-   verifier steps occupy tx inputs 0..4, so the genesis witness is input 3, not
-   input 4. The covenant reads that witness with OP_4 INPUTBYTECODE (`54ca`) in
-   exactly two places (verified: 2 occurrences, both genesis reads); shifting
-   them to OP_3 (`53ca`) is the whole change. The byte offsets inside the
-   witness (n1 @1792, n0 @1825) are unaffected — they depend only on the genesis
-   pushes, which the wallet builds identically for both programs. */
-const covenantBytecodeShifted = (() => {
-    const hex = binToHex(covenantBytecode)
-    const hits = (hex.match(/54ca/g) || []).length
-    if (hits !== 2) throw new Error('bench-shape covenant: expected exactly 2 OP_4 INPUTBYTECODE sites, found ' + hits)
-    return hexToBin(hex.split('54ca').join('53ca'))
-})()
+/* THE COVENANT IS THE ORIGINAL gate3 BYTECODE (unshifted). The program is
+   GENERALIZED to the covenant-at-input-0 shape, so the steps sit at inputs 1..5
+   and the genesis witness is INPUT 4 — exactly what this covenant reads
+   (`54ca` = OP_4 INPUTBYTECODE at two sites). No bytecode edit is needed. */
+const covenantBytecodeShifted = covenantBytecode
 
 /* ---- the public bootstrap seed notes (deterministic, fully published) ---- */
 import { buildPoseidon } from 'circomlibjs'
@@ -153,9 +145,9 @@ const client = new ElectrumClient('nito.cash', '1.5', 'chipnet.bch.ninja', { por
 await client.connect()
 
 const utxos = await client.request('blockchain.address.listunspent', address, 'include_tokens')
-/* A SINGLE plain UTXO must cover the 8 x 1000-sat outputs + fees. 50,000 is
-   ample; the old 100,000 floor forced an unnecessarily large coin. */
-const plain = utxos.filter((u) => !u.token_data && u.value > 50000).sort((a, b) => b.value - a.value)
+/* A SINGLE plain UTXO must cover the 8 x 1000-sat outputs + the ~900 B fee.
+   The deploy spends ~10,000 sats total, so a 15,000 floor is ample. */
+const plain = utxos.filter((u) => !u.token_data && u.value > 15000).sort((a, b) => b.value - a.value)
 if (plain.length === 0) throw new Error('no plain BCH funding UTXOs at the mint key')
 console.log('funding pool: ' + plain.slice(0, 3).map((u) => u.tx_hash.slice(0, 8) + ':' + u.tx_pos + ' (' + u.value + ')').join(', '))
 
@@ -303,12 +295,12 @@ const deploy = {
             valueSatoshis: 1000n,
             token: { category: CAT_BYTES, amount: 0n, nft: { capability: 'mutable', commitment: GENESIS_COMMITMENT } },
         },
-        /* OUTPUT POSITIONS matter to the bench terminal: it asserts
-           inputs[INPUTINDEX].outpointIndex == INPUTINDEX (@1552-1555), so the
-           TERMINAL (tx input 4) must spend OUTPUT 4. The steps are therefore
-           emitted in program order but with genesis/terminal swapped:
-           out1=exec0 out2=exec1 out3=exec2 out4=terminal out5=genesis. */
-        ...[0, 1, 2, 4, 3].map((k) => ({ lockingBytecode: hexToBin(BENCH_STEP_LOCKINGS[k]), valueSatoshis: 1000n })),
+        /* OUTPUT POSITIONS matter: the terminal asserts
+           inputs[INPUTINDEX].outpointIndex == INPUTINDEX, and with the covenant
+           at input 0 the terminal is input 5 — so it must spend OUTPUT 5. The
+           steps are therefore emitted IN PROGRAM ORDER:
+           out1=exec0 out2=exec1 out3=exec2 out4=genesis out5=terminal. */
+        ...BENCH_STEP_LOCKINGS.map((locking) => ({ lockingBytecode: hexToBin(locking), valueSatoshis: 1000n })),
         /* the 100M fungible supply, held by the mint key for later shields */
         { lockingBytecode: fundLocking, valueSatoshis: 1000n, token: { category: CAT_BYTES, amount: 100000000n } },
     ],
