@@ -373,15 +373,17 @@ sender, receiver, and amount are all masked. Design decisions locked:
   · The pool-actions spec MOCKS build.js ON PURPOSE: a fixture proof pairs only with its own
     publicSignals (the Groth16 pairing sanity check), so real-builder ground truth stays in pool-build.spec;
     the orchestration spec pins the wiring (exact assembled buildActionTx params incl. vk = bench shape).
-  NEXT MISSION (the runner-recovery-INDEPENDENT end-to-end): deploy a fresh CHIPNET pool (Path A) under
-  the wallet-committed vkey/zkey (assets above, already distributed) from the PUBLIC bench main — publish
-  its genesis leaves in the registry entry (`genesisLeaves`, the Path-A pattern actions.js assembles
-  witnesses from), publish `bootstrapNotes` if first-deposit dummies are wanted, and ALIGN the pool's
-  `assetCategory` with `networks.js` chipnet PUSD `8c73ff…93144` (NOTE: gate3's registry category is
-  `98690dba…b153` — cryptographically verified on-chain via the actionHash scan, i.e. a THIRD category
-  that matches NEITHER networks.js PUSD NOR the superseded `479aee…` faucet token — a fresh pool pins
-  the category we actually mint/track). The old pools' balances stay runner-gated forever otherwise
-  (their vkey's zkey is the lost worktree's — Groth16 vkey→zkey is one-way; BLOCKER-3-BUILDER.md:49-50).
+  NEXT MISSION — DONE-AND-LIVE RESTATEMENT: the Path-A pool above was the mission and it is DEPLOYED
+  (chipnet-pusd-v2, see the POOL-V2 section below). The NEXT session's mission is RECORDING THE ENTIRE
+  END-TO-END FLOW (the user's directive, 2026-11-22): run shield → transfer → unshield LIVE through the
+  wallet UI against chipnet-pusd-v2 and capture it (screenshots/video + txids). Everything is in place:
+  the pool is confirmed, the wallet flows are enabled (walletProverCompatible: true), the funding PUSD
+  (100M fungible) sits at the chipnet mint key (bchtest:qpt2lckk…, deploy output 6 of 53014fd4 —
+  spendable via the .secrets mint key), and the proving assets are distributed (GitHub Release
+  proving-assets-v1 + the prover.nito.cash/assets/* mirror). Two wallets = two delivery points for a
+  cross-wallet TRANSFER (the recipient's delivery point is displayed on the Nito Cash wallet panel).
+  NOTE: the old pools' balances stay runner-gated forever otherwise (their vkey's zkey is the lost
+  worktree's — Groth16 vkey→zkey is one-way; BLOCKER-3-BUILDER.md:49-50).
   FOLLOW-UP SESSION (2026-11-22, later): RUNNER-KEY RECOVERY + the scripthash fix.
   · FOUND ON the apecsdev VM (~/zkb — the full runner-layout build env, dated Nov 13): the
     deployed pools' TRUE keypair — build/pool_final.zkey (97,716,000 B, sha256 4a4e2543…) +
@@ -433,6 +435,17 @@ sender, receiver, and amount are all masked. Design decisions locked:
     The recovered keypair (deployed-vkey.json) remains on record for them.
   · HANDOFF-POOL-V2.md carries the hushyourmoney pool-registry.json entry block (their tree
     was mid-reorg — the handoff doc, not their repo, is the coordination vehicle).
+  · FOR THE RECORDING SESSION: the end-to-end flow to capture is (1) SHIELD — fund a wallet's account
+    with PUSD from the mint key's 100M (a plain send from the .secrets key), then Shield N base units
+    through the Wallet UI (the first action spends the two PUBLIC bootstrap seed notes — anyone can
+    bootstrap); (2) TRANSFER — a second wallet (second browser profile / second entropy) shares its
+    delivery point, the first wallet Transfers to it (carrier note delivered on-chain, receiver's scan
+    detects it); (3) UNSHIELD — withdraw back to transparent. Verify each op via the pool scripthash
+    history + decodePoolAction (the scan validates actionHash + root continuity end-to-end). Expect
+    ~20s per action (client-side Groth16 proving; assets fetch from prover.nito.cash with CORS *).
+    VM Chrome: ~/apps/chrome-portable (the visual-baseline recipe). Suggested capture set: the Nito
+    Cash panel (delivery point + balance), each action's progress + result, the pool's chaingraph
+    page, and the second wallet receiving the transfer note.
   WARNING: the dev-host
   `apps/web/node_modules` is STALE (predates the `@sentry/vue` commit b529e76) — the glitchtip spec fails
   LOCALLY until a frozen reinstall (needs the IPv4-forcing pnpm-11 workaround below); CI installs fresh and
