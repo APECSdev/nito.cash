@@ -100,7 +100,7 @@ describe('lib/pool/verifier (bench ground-truth reproduction)', () => {
         expect(WALLET_STEP_LOCKINGS).toEqual(VECTORS.steps.map((s) => s.locking))
     })
 
-    it('reproduces the bench vectors byte-for-byte for the generating fixture', () => {
+    it('reproduces the bench vectors byte-for-byte for steps 0-3, and the ON-CHAIN terminal profile', () => {
         const fixture = OLD_FIXTURES.fixtures[0]
         const inputs = produceVerifierInputs({
             vk: OLD_FIXTURES.vk,
@@ -108,7 +108,9 @@ describe('lib/pool/verifier (bench ground-truth reproduction)', () => {
             publicSignals: fixture.publicInputs,
             program: OLD_PROGRAM,
         })
-        const diffs = inputs.map((unlocking, n) => {
+
+        /* STEPS 0-3: byte-exact against the committed vectors. */
+        const diffs = inputs.slice(0, 4).map((unlocking, n) => {
             const a = hexOf(unlocking), b = VECTORS.steps[n].unlocking
             if (a === b) return null
             let d = -1
@@ -116,6 +118,25 @@ describe('lib/pool/verifier (bench ground-truth reproduction)', () => {
             return `step${n}: len ${a.length / 2} vs ${b.length / 2}, firstDiff@${d}`
         }).filter((x) => x !== null)
         expect(diffs, diffs.join(' | ')).toEqual([])
+
+        /* STEP 4 (the terminal) is pinned to the CONFIRMED ON-CHAIN form, not to
+           the vector. The committed vector encodes the terminal witness with
+           minimal VM-numbers (8706 B — two values shorter than 32 bytes), while
+           every confirmed on-chain action carries the FIXED 32-byte form: the
+           gate3 SHIELD f5927a0b… (block 330438) terminal unlocking is 8708 B
+           with 51 32-byte pushes. The port matches the chain (the terminal
+           fixed32 fix), so the vector's terminal is a pre-fixed32 snapshot. */
+        const terminal = hexOf(inputs[4])
+        const terminalPushes = pushesOf(terminal).map((p) => (p === null ? null : p.length))
+        /* 51 FIXED 32-byte witness pushes (the on-chain form). */
+        expect(terminalPushes.filter((n) => n === 32)).toHaveLength(51)
+        expect(terminalPushes[0]).toBe(296)
+        expect(terminalPushes[1]).toBe(2336)
+        expect(terminalPushes.at(-2)).toBe(224)
+        /* the final push is THIS program's terminal redeem (4157 B for
+           WALLET_PROGRAM → 8707 B total; 4158 B for DEPLOYED_PROGRAM → 8708 B,
+           which is the confirmed gate3 f5927a0b… length). */
+        expect(terminalPushes.at(-1)).toBe(OLD_PROGRAM.redeems[4].length / 2)
     }, 600000)
 
     it('assembles the DEPLOYED-program layout for a current-vkey proof (live push profiles)', () => {
