@@ -451,6 +451,30 @@ sender, receiver, and amount are all masked. Design decisions locked:
     byte-exactly, and the fixture proofs produce the same push profile as a real action.
     Also fixed this session: `decode.js` `txidHexOf` reversed libauth's already-display-order
     outpoint hash (commit e5602b0) — the scan chain link and build.js's self-check were dead.
+  · REVERSE-ENGINEERING STATE (2026-11-23, fourth session — read before continuing):
+    The wallet port now PASSES the deployed program on 7 of 8 inputs (covenant, exec0-2, genesis,
+    funding — BCH-2026 VM, real shield tx). The ONLY remaining failure is the TERMINAL's residue
+    chain (c^LAMBDA == raw·w). Verified facts that SCOPE the remaining work:
+    (1) The live gate3 header layout IS the bench convention (A=slots2/3, vkx=4/5, C=6/7, B=8..11,
+    14×32-byte LE fields; the on-chain n0/n1 from genesis bytes 1825/1792 are confirmed by the
+    recovered-IC vkx reproducing slots 4/5 EXACTLY).
+    (2) BUT the live gate3 proof extracted from its own ACCEPTED witness does NOT satisfy the
+    standard Groth16 equation e(A,B)=e(α,β)·e(vkx,γ)·e(C,δ) under the recovered vkey — snarkjs
+    rejects it too, across 64 sign/limb conventions. The deployed revision therefore transforms
+    the proof points UPSTREAM (its c/cInv/selector/raw differ from the port's), not just the
+    terminal encoding. The port matches the OLD bench (byte-exact vectors) — the deployed pools
+    were made by a NEWER revision.
+    (3) The runner's generator is CONFIRMED NOT on the VM: all six chunked/bn254 generator dirs
+    were built and none emits the deployed shape (deployed redeems 364/364/364/5909/4158; current
+    densless-msm emits 574/574/574/6044/4415 — a later refactor; the deployed shape matches the
+    OLD committed vectors + tweaks: terminal +1B, frag2 +2B, genesis same length but 1914 B differ).
+    The old "1-byte OP_5→OP_7 tweak" note was WRONG — the terminal differs in 830 B, genesis 1914 B.
+    (4) The path: reproduce the deployed script's raw computation (the miller-event chain in the
+    deployed genesis/terminal bytecode — full bytes in verifier-program.js, annotated Rosetta =
+    the public bench sources) using the LIVE gate3 witness as a pass/fail oracle, then match the
+    port's c/cInv/terminal values to it; re-gate 8/8 on the 2026 VM before any deployment.
+    OR: obtain the runner's worktree from the HushYourMoney side (HANDOFF-POOL-V2.md is the
+    coordination vehicle) — one ask, exact artifact.
   · E2E wallets (generated + funded 2026-11-23, NOTES/pool-e2e-demo-wallets.md): A
     `bchtest:qzzu85xnl99u534d9z40yu7c494hknppx5lu29gl8t` (tx 15481b45…), B
     `bchtest:qza5uut0cg0aan2g8jetn68zrrmssvanluzm364c4d` (tx e232c91a…) — 20,000,000 tPUSD +
