@@ -80,18 +80,17 @@ const POOLS = {
             id: "chipnet-pusd-v4",
             name: "Chipnet PUSD pool v4 (bench program, wallet-generated witness)",
             network: "chipnet",
-            lockingBytecode: "aa20cb187b2f67357da3293ded5c02d62aa2ffb6e61961bb3a774457ffb68ced4b7787",
-            covenantRedeem: "202009e2a10319aefe6fb3600bb5a80af4d7b3036e109e14abde8a5f97edc95d1378009c637b82012088537a82012088547a82012088557a82012088567a82012088c2529dc076ce5779517e8876cf01207f7554ca0221077f7701207f758876cf01207f7778d07c57797e56797ea853797c7e7c5a7993525c79955b7995947600a26900cd537ac78800d15879517e8800d27b8800d39d5879519c6356d156798856d358799d68547abc547abc7e537abc7e7bbc7e547a012080bc7e547a012080bc7e7bbc7e7cbc7ea876517f75011f847c517f777ebc54ca0200077f7701207f758777677c519d7c82012088c2529dc076ce5379517e88203e1f1922dfb671d3f912f7ea461e0a88ee848fdde12b6c18ab1ad2c56ae734212000000000000000000000000000000000000000000000000000000000000000005279cf7b52797e8800cd5279c78800d1547a517e8800d37bd09d00d27b7b7e8768",
-            assetCategory: "135dc9ed975f8adeab149e106e03b3d7f40aa8b50b60b36ffeae1903a1e20920",
+            lockingBytecode: "aa2006efeec74c658e2a375724472d33fb273c4fc5227af461d28a3e6a9123c6e93987",
+            covenantRedeem: "204a48a7ad51983d752d60e0dfc5f7a433be9de588a1085a79c08ca60eac14341d78009c637b82012088537a82012088547a82012088557a82012088567a82012088c2529dc076ce5779517e8876cf01207f7554ca0221077f7701207f758876cf01207f7778d07c57797e56797ea853797c7e7c5a7993525c79955b7995947600a26900cd537ac78800d15879517e8800d27b8800d39d5879519c6356d156798856d358799d68547abc547abc7e537abc7e7bbc7e547a012080bc7e547a012080bc7e7bbc7e7cbc7ea876517f75011f847c517f777ebc54ca0200077f7701207f758777677c519d7c82012088c2529dc076ce5379517e88203e1f1922dfb671d3f912f7ea461e0a88ee848fdde12b6c18ab1ad2c56ae734212000000000000000000000000000000000000000000000000000000000000000005279cf7b52797e8800cd5279c78800d1547a517e8800d37bd09d00d27b7b7e8768",
+            assetCategory: "1d3414ac0ea68cc0795a08a188e59dbe33a4f7c5dfe0602d753d9851ada7484a",
             genesisRootLE: "551108f63731bcc628dda2697d70219d103a8c1bf203f2d4aaec6bbea5b4510f",
             genesisLeafCount: 2,
-            /* NOT SPENDABLE: the source-generalized program still fails on chain
-               (per-input OP_VERIFY / OP_SPLIT errors). Left false so the wallet
-               never selects it. See scripts/generalize-bench-source.sh. */
+            /* NOT SPENDABLE: the source-generalized program still fails on chain. Left
+               false so the wallet never selects it. */
             walletProverCompatible: false,
-            deployTxid: "8d814ff7143768be618cc3d48f5ba6c7258ebeb2cd08513381c057e38f33ec88",
-            categoryAnchorTxid: "135dc9ed975f8adeab149e106e03b3d7f40aa8b50b60b36ffeae1903a1e20920",
-            mintTxid: "e84c2852d8d16a0e493d7af42cdcd49f29d928627b07a0349ff8592b900fe934",
+            deployTxid: "2dce1f9cf5947d7ac7d1496a9bef701f5b3674ad2febbcf81fe9f1e57542e3d7",
+            categoryAnchorTxid: "1d3414ac0ea68cc0795a08a188e59dbe33a4f7c5dfe0602d753d9851ada7484a",
+            mintTxid: "3eb235426479f30e10896e78d40fce6d2c152809da38acdc4d7f127107c8e7b6",
             genesisLeaves: [
                 "12351826192886546690885792605915790291283848718645116437899738538537062803555",
                 "7398522746693646650328110604928791171707350116246498951314945102068585381447",
@@ -112,6 +111,7 @@ const POOLS = {
             program: BENCH_PROGRAM,
             notes: "Deployed 2026-11-23 (5th v4 deploy) - THE REQUESTED SHAPE, COMPLETE GENERALIZATION. in0 covenant, in1-3 execs, in4 genesis, in5 terminal, in6 funding (exactly 7); out0 continuity, out1-5 steps IN PROGRAM ORDER. Program = PUBLIC BENCH built with the WALLET-COMMITTED key (vk-specific) and generalized by shifting THREE reference forms +1: (A) literals before input opcodes, (B) literals passed to helper FUNCTIONS that do the INPUTBYTECODE inside their body (exec @27 OP_1->OP_2, @33 OP_2->OP_3) - form B is why a naive literal scan fails, (C) the terminal self-index @3304 OP_4->OP_5.",
         },
+
 
 
 
