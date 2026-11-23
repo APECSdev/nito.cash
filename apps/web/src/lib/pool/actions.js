@@ -20,9 +20,11 @@
 //
 // HONEST GATES (every one surfaces as a user-presentable Error):
 //   · the pool must be wallet-prover-compatible (registry.js
-//     `walletProverCompatible` — both DEPLOYED pools are false today: their
-//     vkey lineage is unverified/runner-held; the UI gates on the same
-//     flag, this is the defense in depth);
+//     `walletProverCompatible` — ALL registered pools are false today:
+//     gate3/mainnet are runner-gated on their vkey lineage, and
+//     chipnet-pusd-v2's step program pins the bench's 5-input layout while
+//     this builder emits 8 (its registry note has the VM evidence); the UI
+//     gates on the same flag, this is the defense in depth);
 //   · every action needs EXACTLY TWO in-notes (the fixed 2-in/2-out circuit
 //     shape): the wallet's own unspent notes (largest first), filled up
 //     with the pool's published bootstrap notes (registry `bootstrapNotes` —

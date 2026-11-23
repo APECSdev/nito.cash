@@ -433,6 +433,28 @@ sender, receiver, and amount are all masked. Design decisions locked:
   · The gate3/mainnet pools STAY runner-gated (their witness-encoding generator revision is
     not on the VM — ~/zkb is public main + a 1-byte OP_7 tweak; pool-accept.mjs is the gate).
     The recovered keypair (deployed-vkey.json) remains on record for them.
+  · **CORRECTION 2026-11-23 — chipnet-pusd-v2 IS UNSPENDABLE AS DEPLOYED** (`walletProverCompatible`
+    flipped back to false). Its step program is the BENCH's FIVE-INPUT variant: the terminal redeem
+    pins `OP_TXINPUTCOUNT == 5` and `OP_INPUTINDEX == 4` (WALLET redeems[4] instructions 1548-1558)
+    and the exec/genesis redeems read INPUT 3 as the genesis witness (redeems[0] instr. 33-34:
+    `OP_3 OP_INPUTBYTECODE`). The wallet's builder emits EIGHT inputs (covenant 0, exec0..2 1..3,
+    genesis 4, terminal 5, funding 6+), so no action can satisfy the scripts whatever the proof.
+    Evidence on a REAL action (36,997 B, 8-in/8-out) under the BCH-2026 VM (apecsdev `~/zkb/tools`,
+    `createVirtualMachineBch2026`): input 0 (covenant) PASSES; inputs 1-3 `OP_SPLIT invalid index
+    (item 219, split 867)`; inputs 4-5 `OP_VERIFY`; the network returned
+    `mandatory-script-verify-flag-failed (Invalid OP_SPLIT range)`. The WORKING deployed program is
+    the GENERALIZED variant (DEPLOYED_PROGRAM redeem 4 @1549-1557: `OP_TXINPUTCOUNT >= 5`,
+    terminal at index 5). FIX = generate a GENERALIZED program under the WALLET vk
+    (`~/zkb/groth16_cashscript/chunked/bn254/densless-*-recovered` is the generator family; the
+    exact variant that produced gate3 is still the missing runner revision) and redeploy.
+    The port itself is NOT implicated: `produceVerifierInputs` reproduces the bench vectors
+    byte-exactly, and the fixture proofs produce the same push profile as a real action.
+    Also fixed this session: `decode.js` `txidHexOf` reversed libauth's already-display-order
+    outpoint hash (commit e5602b0) — the scan chain link and build.js's self-check were dead.
+  · E2E wallets (generated + funded 2026-11-23, NOTES/pool-e2e-demo-wallets.md): A
+    `bchtest:qzzu85xnl99u534d9z40yu7c494hknppx5lu29gl8t` (tx 15481b45…), B
+    `bchtest:qza5uut0cg0aan2g8jetn68zrrmssvanluzm364c4d` (tx e232c91a…) — 20,000,000 tPUSD +
+    200,000 sats each. Funding tool: `apps/web/scripts/send-tpusd.mjs`.
   · HANDOFF-POOL-V2.md carries the hushyourmoney pool-registry.json entry block (their tree
     was mid-reorg — the handoff doc, not their repo, is the coordination vehicle).
   · FOR THE RECORDING SESSION: the end-to-end flow to capture is (1) SHIELD — fund a wallet's account

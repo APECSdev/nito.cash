@@ -85,14 +85,32 @@ const POOLS = {
             /* The runner-independent pool (deployed 2026-11-22): the
                wallet-COMMITTED verifying key (proving-assets-v1 lineage) + a
                FRESH category (anchor 050b5934…, mint a3e90020…, deploy
-               53014fd4…; networks.js chipnet PUSD tracks it). Program = the
-               committed bench vectors (verifier-program.js WALLET_PROGRAM —
-               the port reproduces them byte-exactly) — wallet-prover
-               compatible BY CONSTRUCTION. genesisLeaves/bootstrapNotes are
-               the two PUBLIC dummy seed notes (value 0, nk = 1) — any wallet
-               can bootstrap its first action by spending them
-               (lib/pool/actions.js selectInNotes). */
-            walletProverCompatible: true,
+               53014fd4…; networks.js chipnet PUSD tracks it). genesisLeaves/
+               bootstrapNotes are the two PUBLIC dummy seed notes (value 0,
+               nk = 1) — any wallet can bootstrap its first action by
+               spending them (lib/pool/actions.js selectInNotes).
+
+               NOT SPENDABLE AS DEPLOYED (2026-11-23, VM-verified). The
+               step program below is the BENCH's FIVE-INPUT variant: its
+               terminal redeem pins `OP_TXINPUTCOUNT == 5` and
+               `OP_INPUTINDEX == 4` (WALLET redeems[4] instructions
+               1548-1558), and the exec/genesis redeems read INPUT 3 as the
+               genesis witness (redeems[0] instruction 33-34:
+               `OP_3 OP_INPUTBYTECODE`). The wallet's builder emits EIGHT
+               inputs (covenant 0, exec0..2 1..3, genesis 4, terminal 5,
+               funding 6+) — every hardcoded index is therefore wrong and no
+               action can ever satisfy the scripts, whatever the proof.
+               Evidence, on a REAL action (36,997 B, 8-in/8-out) evaluated
+               with the BCH-2026 VM on the apecsdev VM: input 0 (covenant)
+               PASSES; inputs 1-3 fail `OP_SPLIT invalid index (item 219,
+               split 867)`, inputs 4-5 fail `OP_VERIFY`; the network's
+               broadcast error was `mandatory-script-verify-flag-failed
+               (Invalid OP_SPLIT range)`. The working DEPLOYED program is
+               the GENERALIZED variant (DEPLOYED_PROGRAM redeem 4
+               @1549-1557: `OP_TXINPUTCOUNT >= 5`, terminal at index 5).
+               FIX = redeploy under the wallet key with a GENERALIZED
+               program; the flag flips only for such a pool. */
+            walletProverCompatible: false,
             genesisLeaves: [
                 '12351826192886546690885792605915790291283848718645116437899738538537062803555',
                 '7398522746693646650328110604928791171707350116246498951314945102068585381447',
@@ -147,10 +165,12 @@ export function getDefaultPool(networkId) {
 /*
  * The first pool on a network the WALLET can PROVE for end-to-end
  * (SHIELD/TRANSFER/UNSHIELD via lib/pool/actions.js): its verifying-key
- * lineage must match the wallet's proving assets (lib/pool/prover.js).
- * Both DEPLOYED pools are flagged false today — gate3's vkey lineage is
- * unverified (the runner correction in its entry) and the mainnet demo
- * pool's lineage is unverified (its entry notes). Returns null when no
+ * lineage must match the wallet's proving assets (lib/pool/prover.js)
+ * AND its verifier program must accept the builder's input layout.
+ * ALL THREE registered pools are flagged false today — gate3's vkey
+ * lineage is runner-gated (its entry notes), the mainnet demo pool's too,
+ * and chipnet-pusd-v2's step program pins the bench's 5-input layout
+ * while the builder emits 8 inputs (its entry note). Returns null when no
  * pool qualifies: the UI must gate the action flows on THIS, never on
  * getPools() — a Path-A deployment under the wallet-committed vkey flips
  * its entry's flag and the flows light up with no further code change.

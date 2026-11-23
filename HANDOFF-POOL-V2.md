@@ -5,9 +5,10 @@
 **Audience:** the HushYourMoney team (the shielded-pool source of truth —
 `pool-registry.json` + `docs/POOL-DEPLOYMENT.md`) and any team consuming the pool.
 
-**Status: DEPLOYED AND LIVE on chipnet (2026-11-22).** The wallet-committed
-verifying key + a fresh category, zero runner dependency. Everything below is
-machine-verbatim for your registries.
+**Status: DEPLOYED on chipnet (2026-11-22) — CORRECTED 2026-11-23: the pool is
+UNSPENDABLE AS DEPLOYED (see "Correction" below; do NOT register it as usable).**
+The wallet-committed verifying key + a fresh category, zero runner dependency.
+Everything below is machine-verbatim for your registries.
 
 ## The on-chain facts (all confirmed by broadcast result == computed txid)
 
@@ -55,14 +56,50 @@ Diagnosed live 2026-11-22 (each rejected/broadcast pair on chipnet):
 4. **BCH txid = DSHA of the FULL SIGNED tx** (no segwit stripping), and libauth's
    `hash256` is already the double-sha (one call — two calls = quadruple = wrong).
 
+## CORRECTION (2026-11-23) — the deployed step program is the 5-INPUT variant
+
+The pool was deployed with the BENCH's step program (`WALLET_PROGRAM` ==
+`tests/fixtures/pool/bench-vectors-steps.json` redeems), whose scripts hardcode
+the bench's transaction layout:
+
+- terminal redeem (`redeems[4]`), instructions 1548-1558:
+  `OP_1 OP_TXINPUTCOUNT OP_5 OP_EQUALVERIFY` … `OP_INPUTINDEX OP_4 OP_EQUALVERIFY`
+  → **exactly five inputs, terminal at index 4**;
+- exec redeems (`redeems[0..2]`), instructions 33-34: `OP_3 OP_INPUTBYTECODE`
+  → **the genesis witness must be input 3**.
+
+The nito.cash builder emits EIGHT inputs (covenant 0, exec0..2 1..3, genesis 4,
+terminal 5, funding 6+), so every hardcoded index is wrong and **no action can
+ever satisfy these scripts**, independent of the proof.
+
+Evidence, on a real action (36,997 B, 8-in/8-out) evaluated with the BCH-2026 VM
+(`createVirtualMachineBch2026`, apecsdev `~/zkb/tools`):
+
+| input | result |
+|---|---|
+| 0 — covenant | PASS (ip 234/234) |
+| 1-3 — exec | `OP_SPLIT invalid index: stack item length 219; requested split index 867` |
+| 4 — genesis | `OP_VERIFY failed` |
+| 5 — terminal | `OP_VERIFY failed` |
+
+Network verdict on broadcast: `mandatory-script-verify-flag-failed (Invalid
+OP_SPLIT range)`. The working gate3/mainnet program is the GENERALIZED variant
+(`DEPLOYED_PROGRAM` redeem 4 @1549-1557: `OP_TXINPUTCOUNT >= 5`, terminal at
+index 5).
+
+**Required fix:** generate a GENERALIZED program under the wallet vk and
+redeploy (`apps/web/scripts/deploy-pool.mjs` takes the program constants from
+`lib/pool/verifier-program.js`). Until then the pool must stay
+`walletProverCompatible: false` in every registry.
+
 ## Wallet state (nito.cash, this commit)
 
 - `networks.js` chipnet PUSD → `050b5934…` (supersedes the 8c73ff… TX-P3 stand-in —
   which no wallet-compatible pool ever tracked — and the 479aee… faucet token).
-- `registry.js`: the pool is the FIRST chipnet entry with
-  `walletProverCompatible: true` — the shield/transfer/unshield flows light up
-  with no further code change. `genesisLeaves` + `bootstrapNotes` are published
-  (public dummy notes: value 0, nk=1, fixed rho/r — fully deterministic).
+- `registry.js`: the pool is the FIRST chipnet entry — `genesisLeaves` +
+  `bootstrapNotes` are published (public dummy notes: value 0, nk=1, fixed
+  rho/r — fully deterministic). `walletProverCompatible` is **false** (was true
+  on 2026-11-22; corrected 2026-11-23 — see the Correction section).
 - The deployed pools (gate3 + mainnet) stay `walletProverCompatible: false` —
   their witness-encoding generator revision is still missing
   (`apps/web/scripts/pool-accept.mjs` is the byte-exact acceptance gate).

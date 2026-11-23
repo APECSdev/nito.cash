@@ -189,8 +189,10 @@ const actions = {
      * Params: { action: 'shield'|'transfer'|'unshield', amount: BigInt|number
      *   (PUSD base units), recipientDeliveryPoint?: hex (transfer only) }.
      * Requires a wallet-prover-compatible pool (registry.js getProverPool) —
-     * both deployed pools are flagged false today, so this dispatch THROWS
-     * (with a user-visible error) until a Path-A pool is registered.
+     * every registered pool is flagged false today (runner-gated vkey
+     * lineage; chipnet-pusd-v2's step program pins the bench's 5-input
+     * layout while the builder emits 8), so this dispatch THROWS (with a
+     * user-visible error) until a generalized-program pool is registered.
      */
     async submitPoolAction({ dispatch, state, rootGetters }, { action, amount, recipientDeliveryPoint, onStage }) {
         const entropyHex = rootGetters['profile/getMasterSeed']
