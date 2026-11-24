@@ -77,14 +77,14 @@
                     <span class="tile-sub">WizardConnect | CashConnect</span>
                 </button>
 
-                <button @click="loadHistory" class="tile">
-                    <span class="tile-icon">≡</span>
-                    <span class="tile-label">History</span>
-                </button>
-
                 <button @click="loadConcierge" class="tile">
                     <span class="tile-icon">✦</span>
                     <span class="tile-label">Concierge</span>
+                </button>
+
+                <button @click="loadHistory" class="tile">
+                    <span class="tile-icon">≡</span>
+                    <span class="tile-label">History</span>
                 </button>
             </section>
         </div>

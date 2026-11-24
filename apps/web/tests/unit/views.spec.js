@@ -210,6 +210,10 @@ describe('views/Dashboard', () => {
 
         wrapper.vm.loadConcierge()
         expect(router.push).toHaveBeenCalledWith('concierge')
+
+        /* The quick-action order: Concierge now sits before History. */
+        expect(wrapper.findAll('.tile-label').map((label) => label.text()))
+            .toEqual(['Connect a 3rd-party wallet', 'Concierge', 'History'])
     })
 
     it('opens the WizardConnect modal', () => {
