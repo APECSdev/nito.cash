@@ -8,11 +8,11 @@
             v-show="open"
             class="w-[272px] md:w-[300px] rounded-[14px] border border-white/15 bg-[#0a1020]/92 text-white shadow-[0_12px_32px_rgba(0,0,0,0.4)] backdrop-blur-md p-[12px]"
         >
-            <div class="text-[11px] leading-[16px] font-semibold tracking-[0.08em] uppercase text-[#9fd8ff]">
+            <div class="text-center text-[11px] leading-[16px] font-semibold tracking-[0.08em] uppercase text-[#9fd8ff]">
                 ★ BCH BLAZE 2026
             </div>
 
-            <div class="text-[11px] leading-[16px] text-white/85 mt-[2px]">
+            <div class="text-center text-[11px] leading-[16px] text-white/85 mt-[2px]">
                 Introducing Shielded Stablecoin Payments on Bitcoin Cash
             </div>
 
@@ -24,9 +24,9 @@
                     title="Open BLAZE2026-EMBER on Selene Explorer"
                     class="group flex items-center justify-between gap-[8px] rounded-[8px] bg-secondary px-[10px] py-[6px] text-[11px] leading-[16px] font-semibold text-secondary-fg transition-colors hover:bg-secondary-hover focus-visible:ring-2 focus-visible:ring-ring"
                 >
-                    <span>Embers received</span>
+                    <span class="font-bold">Embers received</span>
                     <span class="flex items-center gap-[4px] tabular-nums">
-                        <span>🔥 {{ emberLabel }}</span>
+                        <span class="font-bold">🔥 {{ emberLabel }}</span>
                         <span class="text-[12px] transition-transform group-hover:translate-x-[2px]">↗</span>
                     </span>
                 </a>

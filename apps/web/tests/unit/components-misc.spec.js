@@ -261,6 +261,17 @@ describe('BlazeBanner.vue', () => {
         expect(wrapper.vm.emberShort).toContain('…')
     })
 
+    it('centers the BCH BLAZE 2026 header and the tagline', () => {
+        const wrapper = mountBanner()
+        const header = wrapper.findAll('div').find((d) => d.text() === '★ BCH BLAZE 2026')
+        const tagline = wrapper.findAll('div').find((d) => d.text() === 'Introducing Shielded Stablecoin Payments on Bitcoin Cash')
+
+        expect(header).toBeTruthy()
+        expect(tagline).toBeTruthy()
+        expect(header.classes()).toContain('text-center')
+        expect(tagline.classes()).toContain('text-center')
+    })
+
     it('links the highlighted ember row to the Selene token page', () => {
         const wrapper = mountBanner()
         const tokenUrl = 'https://explorer.selene.cash/token/8dc3a5cd4a84fe005bef3e30fe08bd95dbbec5a7c107c384f492d90f5059a54d'
@@ -269,6 +280,8 @@ describe('BlazeBanner.vue', () => {
         expect(link.exists()).toBe(true)
         expect(link.text()).toContain('Embers received')
         expect(link.text()).toContain('🔥')
+        expect(link.findAll('span')[0].classes()).toContain('font-bold')
+        expect(link.findAll('span')[2].classes()).toContain('font-bold')
         expect(link.attributes('target')).toBe('_blank')
         expect(link.attributes('rel')).toBe('noopener noreferrer')
         expect(link.classes()).toEqual(expect.arrayContaining(['bg-secondary', 'text-secondary-fg', 'hover:bg-secondary-hover']))
