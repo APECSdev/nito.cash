@@ -101,6 +101,7 @@ function seedWallet() {
     const mockCluster = {
         getBalance: async () => ({ confirmed: 250000, unconfirmed: 0 }),
         getUtxos: async () => [{ tx_hash: 'aa'.repeat(32), tx_pos: 0, height: 100, value: 250000 }],
+        getUtxosWithTokens: async () => [],
         getHistory: async () => [{ tx_hash: 'aa'.repeat(32), height: 100 }],
         getTransaction: async () => '00',
         verboseGetTransaction: async () => ({ txid: 'aa'.repeat(32), vout: [], confirmations: 5, time: 1700000000 }),
@@ -140,6 +141,16 @@ const browser = await puppeteer.launch({
 })
 
 const page = await browser.newPage()
+/* The BlazeBanner polls the EMBER2026 donation address on every screen it
+   appears on (splash/setup/dashboard). Seed an empty-token cluster for the
+   NON-seeded routes so the badge renders "0" instead of touching the network
+   (the seeded routes overwrite this with the full wallet mock below). */
+await page.evaluateOnNewDocument(() => {
+    window.__NITO_MOCK_CLUSTER__ = {
+        mainnet: { getUtxosWithTokens: async () => [] },
+        chipnet: { getUtxosWithTokens: async () => [] },
+    }
+})
 /* Fixed viewport = Desktop shell (768px cap) so screenshots are deterministic. */
 await page.setViewport({ width: 1024, height: 900, deviceScaleFactor: 1 })
 

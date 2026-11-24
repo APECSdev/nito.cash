@@ -1,7 +1,7 @@
 /* Unit tests for the remaining components: Passkey assistant, Amount input,
  * BlazeBanner, SeedVault, Animation.
  */
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { shallowMount } from '@vue/test-utils'
 import { createPinia, setActivePinia } from 'pinia'
 
@@ -34,11 +34,20 @@ vi.mock('@/lib/passkey.js', () => ({
     PRF_SALT: new Uint8Array(0),
 }))
 
-vi.mock('@/lib/bch/provider.js', () => ({
-    getCluster: vi.fn(async () => ({ getHistory: vi.fn(async () => []), getUtxosWithTokens: vi.fn(async () => []) })),
-}))
+const { emberState } = vi.hoisted(() => ({ emberState: { utxos: [], getUtxosWithTokens: null } }))
+
+vi.mock('@/lib/bch/provider.js', () => {
+    const getUtxosWithTokens = vi.fn(async () => emberState.utxos)
+
+    emberState.getUtxosWithTokens = getUtxosWithTokens
+
+    return {
+        getCluster: vi.fn(async () => ({ getHistory: vi.fn(async () => []), getUtxosWithTokens })),
+    }
+})
 vi.mock('@/lib/bch/discovery.js', () => ({ scanBranch: vi.fn(async () => -1) }))
 
+import { getCluster } from '@/lib/bch/provider.js'
 import { useStore, getStoreFacade, StoreCompatPlugin, ensureStoreFacade } from '@/store'
 import systemModule from '@/store/modules/system'
 import walletsModule from '@/store/modules/wallets'
@@ -64,7 +73,14 @@ const mount = (component, options = {}) => shallowMount(component, {
     ...options,
 })
 
+afterEach(() => {
+    vi.useRealTimers()
+})
+
 beforeEach(() => {
+    emberState.utxos = []
+    emberState.getUtxosWithTokens.mockClear()
+
     delete globalThis.__nito_store_facade__
 
     const pinia = createPinia()
@@ -218,6 +234,70 @@ describe('BlazeBanner.vue', () => {
         const wrapper = mount(BlazeBanner)
 
         expect(wrapper.vm.emberShort).toContain('…')
+    })
+
+    it('tracks the EMBER2026 balance at the donation address', async () => {
+        emberState.utxos = [
+            { token_data: { amount: '1200' } },
+            { token_data: { amount: '34' } },
+            { value: 1000 },
+        ]
+
+        const wrapper = mount(BlazeBanner)
+        await new Promise((r) => setTimeout(r, 20))
+
+        expect(getCluster).toHaveBeenCalledWith('mainnet')
+        expect(emberState.getUtxosWithTokens)
+            .toHaveBeenCalledWith('bitcoincash:zzhndl6y6a82gp0376meu4t2q0kwh0pxfy85da4574')
+        expect(wrapper.vm.emberCount).toBe(1234n)
+        expect(wrapper.vm.emberLabel).toBe('1,234')
+        expect(wrapper.vm.emberTitle).toBe('Embers received: 1,234')
+        expect(wrapper.text()).toContain('Embers received')
+        expect(wrapper.text()).toContain('1,234')
+    })
+
+    it('keeps the badge honest when tracking fails', async () => {
+        emberState.getUtxosWithTokens.mockRejectedValueOnce(new Error('offline'))
+
+        const wrapper = mount(BlazeBanner)
+        await new Promise((r) => setTimeout(r, 20))
+
+        expect(wrapper.vm.emberCount).toBe(null)
+        expect(wrapper.vm.emberLabel).toBe('—')
+        expect(wrapper.vm.emberTitle).toBe('Ember tracking unavailable')
+        expect(wrapper.text()).toContain('Embers received')
+    })
+
+    it('refreshes the count on the poll interval', async () => {
+        vi.useFakeTimers()
+        emberState.utxos = [{ token_data: { amount: '5' } }]
+
+        const wrapper = mount(BlazeBanner)
+        await vi.advanceTimersByTimeAsync(0)
+
+        expect(wrapper.vm.emberCount).toBe(5n)
+
+        emberState.utxos = [{ token_data: { amount: '9' } }]
+        await vi.advanceTimersByTimeAsync(60000)
+        await vi.advanceTimersByTimeAsync(0)
+
+        expect(wrapper.vm.emberCount).toBe(9n)
+    })
+
+    it('clears the ember poll on unmount', async () => {
+        vi.useFakeTimers()
+
+        const wrapper = mount(BlazeBanner)
+        await vi.advanceTimersByTimeAsync(0)
+
+        expect(emberState.getUtxosWithTokens).toHaveBeenCalledTimes(1)
+
+        wrapper.unmount()
+        emberState.getUtxosWithTokens.mockClear()
+
+        await vi.advanceTimersByTimeAsync(120000)
+
+        expect(emberState.getUtxosWithTokens).not.toHaveBeenCalled()
     })
 })
 

@@ -17,6 +17,14 @@
             </div>
 
             <div class="mt-[8px] flex flex-col gap-[6px]">
+                <div
+                    :title="emberTitle"
+                    class="flex items-center justify-between rounded-[8px] border border-white/15 px-[10px] py-[6px] text-[11px] leading-[16px]"
+                >
+                    <span class="text-white/70">Embers received</span>
+                    <span class="font-semibold tabular-nums text-[#9fd8ff]">{{ emberLabel }}</span>
+                </div>
+
                 <a
                     :href="deckUrl"
                     target="_blank"
@@ -50,14 +58,18 @@
 
         <button
             @click="open = !open"
+            :title="emberTitle"
             class="rounded-full border border-white/15 bg-[#0a1020]/92 text-white text-[11px] leading-[16px] font-semibold px-[10px] py-[5px] shadow-[0_6px_18px_rgba(0,0,0,0.35)] cursor-pointer"
         >
             ★ BLAZE 2026 {{ open ? '▾' : '▴' }}
+            <span class="text-white/70">&middot; 🔥 {{ emberLabel }}</span>
         </button>
     </div>
 </template>
 
 <script>
+import { getCluster } from '@/lib/bch/provider.js'
+
 /* BCH BLAZE 2026 submission badge (eligibility elements, floating overlay).
    The three required elements per the BLAZE brief: the Widget Factory
    presentation link, the source-repo link, and a CashTokens address for
@@ -72,8 +84,13 @@ const DECK_URL = 'https://blaze.nito.cash/deck.pdf'
 const REPO_URL = 'https://github.com/APECSdev/nito.cash'
 
 /* Official CashTokens address for EMBER2026 community-choice donations
-   (token-aware p2pkh; checksum verified via @bitauth/libauth decode). */
+   (token-aware p2pkh; checksum verified via @bitauth/libauth decode).
+   The address is DEDICATED to EMBER2026: every fungible token amount held
+   there is an ember, so the badge can sum the token UTXOs directly. */
 const EMBER_ADDRESS = 'bitcoincash:zzhndl6y6a82gp0376meu4t2q0kwh0pxfy85da4574'
+
+/* Refresh the on-chain ember count once a minute. */
+const EMBER_REFRESH_MS = 60 * 1000
 
 export default {
     data: () => ({
@@ -83,14 +100,66 @@ export default {
         copied: false,
         copiedTimer: null,
         open: true,
+
+        /* Live EMBER2026 tracking (null = not loaded yet). */
+        emberCount: null,
+        emberLoading: true,
+        emberError: false,
+        emberTimer: null,
     }),
     computed: {
         /* Truncated address for the compact row (full address is copied). */
         emberShort() {
             return this.ember.slice(12, 20) + '…' + this.ember.slice(-6)
         },
+
+        /* Formatted ember count for the badge + panel row. */
+        emberLabel() {
+            if (this.emberCount === null) {
+                return this.emberLoading ? '…' : '—'
+            }
+
+            return this.emberCount.toLocaleString()
+        },
+
+        /* Tooltip shared by the badge and the panel row. */
+        emberTitle() {
+            return this.emberError ? 'Ember tracking unavailable' : 'Embers received: ' + this.emberLabel
+        },
     },
     methods: {
+        /* Fetch the live EMBER2026 balance at the donation address.
+         *
+         * Fulcrum's `include_tokens` filter returns token-bearing UTXOs with
+         * `token_data.amount` (a decimal string); the address is dedicated to
+         * EMBER2026, so the ember count is the sum of every token amount.
+         * A failure keeps the last good count (or shows "—" on first load). */
+        async refreshEmbers() {
+            this.emberLoading = true
+
+            try {
+                const cluster = await getCluster('mainnet')
+                const utxos = await cluster.getUtxosWithTokens(this.ember)
+
+                let total = 0n
+
+                for (const utxo of utxos || []) {
+                    const amount = utxo && utxo.token_data && utxo.token_data.amount
+
+                    if (amount) {
+                        total += BigInt(amount)
+                    }
+                }
+
+                this.emberCount = total
+                this.emberError = false
+            } catch (e) {
+                this.emberError = true
+            } finally {
+                this.emberLoading = false
+            }
+        },
+
         /* Copy the EMBER2026 donation address to the clipboard. */
         copyAddress() {
             const done = () => {
@@ -128,8 +197,16 @@ export default {
             done()
         },
     },
-    beforeDestroy() {
+    mounted() {
+        this.refreshEmbers()
+
+        this.emberTimer = setInterval(() => {
+            this.refreshEmbers()
+        }, EMBER_REFRESH_MS)
+    },
+    beforeUnmount() {
         clearTimeout(this.copiedTimer)
+        clearInterval(this.emberTimer)
     },
 }
 </script>
