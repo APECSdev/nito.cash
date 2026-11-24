@@ -85,9 +85,11 @@ const REPO_URL = 'https://github.com/APECSdev/nito.cash'
 
 /* Official CashTokens address for EMBER2026 community-choice donations
    (token-aware p2pkh; checksum verified via @bitauth/libauth decode).
-   The address is DEDICATED to EMBER2026: every fungible token amount held
-   there is an ember, so the badge can sum the token UTXOs directly. */
+   The address also receives other tokens (the PUSD stablecoin was sent
+   there on 2026-11-15), so the badge counts ONLY the BLAZE2026-EMBER
+   category: "BLAZE EMBER (2026)" / symbol "BLAZE2026-EMBER" / 0 decimals. */
 const EMBER_ADDRESS = 'bitcoincash:zzhndl6y6a82gp0376meu4t2q0kwh0pxfy85da4574'
+const EMBER_CATEGORY = '8dc3a5cd4a84fe005bef3e30fe08bd95dbbec5a7c107c384f492d90f5059a54d'
 
 /* Refresh the on-chain ember count once a minute. */
 const EMBER_REFRESH_MS = 60 * 1000
@@ -131,8 +133,9 @@ export default {
         /* Fetch the live EMBER2026 balance at the donation address.
          *
          * Fulcrum's `include_tokens` filter returns token-bearing UTXOs with
-         * `token_data.amount` (a decimal string); the address is dedicated to
-         * EMBER2026, so the ember count is the sum of every token amount.
+         * `token_data.category`/`amount` (the amount is a decimal string).
+         * Only the BLAZE2026-EMBER category counts — the address also holds
+         * PUSD (2 base units, sent 2026-11-15), which is not an ember.
          * A failure keeps the last good count (or shows "—" on first load). */
         async refreshEmbers() {
             this.emberLoading = true
@@ -144,10 +147,10 @@ export default {
                 let total = 0n
 
                 for (const utxo of utxos || []) {
-                    const amount = utxo && utxo.token_data && utxo.token_data.amount
+                    const tokenData = utxo && utxo.token_data
 
-                    if (amount) {
-                        total += BigInt(amount)
+                    if (tokenData && tokenData.category === EMBER_CATEGORY && tokenData.amount) {
+                        total += BigInt(tokenData.amount)
                     }
                 }
 

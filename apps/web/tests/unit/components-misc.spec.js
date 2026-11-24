@@ -217,10 +217,35 @@ describe('inputs/Amount.vue', () => {
 })
 
 describe('BlazeBanner.vue', () => {
+    const EMBER_CATEGORY = '8dc3a5cd4a84fe005bef3e30fe08bd95dbbec5a7c107c384f492d90f5059a54d'
+    const PUSD_CATEGORY = '2469acc5afa4b10cb5b5c04afb89c3a3ffd61c5da9c01e26d00951cae2a02544'
+
+    /* Every banner mounts a 60s ember poll; unmount so the interval cannot
+       outlive the test (the same leak the beforeUnmount fix prevents). */
+    const banners = []
+
+    const mountBanner = (options = {}) => {
+        const wrapper = mount(BlazeBanner, options)
+
+        banners.push(wrapper)
+
+        return wrapper
+    }
+
+    afterEach(() => {
+        while (banners.length > 0) {
+            const wrapper = banners.pop()
+
+            if (wrapper.exists()) {
+                wrapper.unmount()
+            }
+        }
+    })
+
     it('mounts with the tip address and copies it', async () => {
         document.execCommand = vi.fn(() => true)
 
-        const wrapper = mount(BlazeBanner)
+        const wrapper = mountBanner()
         await new Promise((r) => setTimeout(r, 20))
 
         expect(wrapper.vm.emberShort).toBeTruthy()
@@ -231,19 +256,20 @@ describe('BlazeBanner.vue', () => {
     })
 
     it('shortens the address', () => {
-        const wrapper = mount(BlazeBanner)
+        const wrapper = mountBanner()
 
         expect(wrapper.vm.emberShort).toContain('…')
     })
 
     it('tracks the EMBER2026 balance at the donation address', async () => {
         emberState.utxos = [
-            { token_data: { amount: '1200' } },
-            { token_data: { amount: '34' } },
+            { token_data: { category: EMBER_CATEGORY, amount: '1200' } },
+            { token_data: { category: EMBER_CATEGORY, amount: '34' } },
+            { token_data: { category: PUSD_CATEGORY, amount: '2' } },
             { value: 1000 },
         ]
 
-        const wrapper = mount(BlazeBanner)
+        const wrapper = mountBanner()
         await new Promise((r) => setTimeout(r, 20))
 
         expect(getCluster).toHaveBeenCalledWith('mainnet')
@@ -259,7 +285,7 @@ describe('BlazeBanner.vue', () => {
     it('keeps the badge honest when tracking fails', async () => {
         emberState.getUtxosWithTokens.mockRejectedValueOnce(new Error('offline'))
 
-        const wrapper = mount(BlazeBanner)
+        const wrapper = mountBanner()
         await new Promise((r) => setTimeout(r, 20))
 
         expect(wrapper.vm.emberCount).toBe(null)
@@ -270,14 +296,17 @@ describe('BlazeBanner.vue', () => {
 
     it('refreshes the count on the poll interval', async () => {
         vi.useFakeTimers()
-        emberState.utxos = [{ token_data: { amount: '5' } }]
+        emberState.utxos = [{ token_data: { category: EMBER_CATEGORY, amount: '5' } }]
 
-        const wrapper = mount(BlazeBanner)
+        const wrapper = mountBanner()
         await vi.advanceTimersByTimeAsync(0)
 
         expect(wrapper.vm.emberCount).toBe(5n)
 
-        emberState.utxos = [{ token_data: { amount: '9' } }]
+        emberState.utxos = [
+            { token_data: { category: EMBER_CATEGORY, amount: '9' } },
+            { token_data: { category: PUSD_CATEGORY, amount: '100' } },
+        ]
         await vi.advanceTimersByTimeAsync(60000)
         await vi.advanceTimersByTimeAsync(0)
 
@@ -287,7 +316,7 @@ describe('BlazeBanner.vue', () => {
     it('clears the ember poll on unmount', async () => {
         vi.useFakeTimers()
 
-        const wrapper = mount(BlazeBanner)
+        const wrapper = mountBanner()
         await vi.advanceTimersByTimeAsync(0)
 
         expect(emberState.getUtxosWithTokens).toHaveBeenCalledTimes(1)
