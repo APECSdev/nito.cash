@@ -145,7 +145,12 @@ const result = await submitPoolAction({
 /* persist the wallet's own output notes for the NEXT action */
 try {
     const prev = (() => { try { return JSON.parse(readFileSync(NOTES_FILE, 'utf8')) } catch { return [] } })()
-    const merged = [...prev, ...(result.outNotes || [])]
+    /* drop the notes THIS action spent (result.spentNfs) — the plain-node
+       driver is stateless, and keeping a spent note lets the next action
+       select it again (a double-spend the covenant cannot see). */
+    const spent = new Set((result.spentNfs || []).map((nf) => String(nf)))
+    const prevUnspent = prev.filter((r) => !spent.has(String(r.nf)))
+    const merged = [...prevUnspent, ...(result.outNotes || [])]
     const seen = new Set()
     const dedup = merged.filter((r) => { const k = String(r.cm); if (seen.has(k)) return false; seen.add(k); return true })
     writeFileSync(NOTES_FILE, JSON.stringify(dedup, (k, v) => (typeof v === 'bigint' ? v.toString() : v), 1))

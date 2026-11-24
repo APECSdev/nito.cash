@@ -13,12 +13,13 @@
 //   out 0  : the pool continuity UTXO (covenant P2SH32 + the NEW state NFT
 //            commitment  root[32 LE] ‖ sha256(oldNfHash ‖ nf0 ‖ nf1)[32]  +
 //            the new token balance)
-//   out 1  : UNSHIELD only — the public payout (fungible pool-category tokens
-//            of exactly publicValueAbs to the recipient; the covenant reads
-//            outputs[1] when isUnshield = 1)
-//   then   : the five verifier-step UTXOs re-created (deployed lockings),
+//   out 1–5: the five verifier-step UTXOs re-created (deployed lockings)
+//   out 6  : UNSHIELD only — the public payout (fungible pool-category tokens
+//            of exactly publicValueAbs to the recipient; the generalized
+//            covenant reads outputs[6] when isUnshield = 1), otherwise the
 //            optional NP01 carrier OP_RETURN (always APPENDED — never inserted,
-//            so no constrained output index shifts), token change, BCH change.
+//            so no constrained output index shifts)
+//   then   : token change, BCH change.
 //
 // The exact on-chain shapes are mirrored from the LIVE chipnet pools (the
 // Option B action chain + gate3-demo-pool), whose deployed covenant is the
@@ -26,7 +27,7 @@
 // from the genesis witness at byte offsets 1792/1825, the `<pad>` arg = the
 // function selector (empty push 0 = spend). The tx layout is thereby FIXED:
 //   [0]=covenant, [1–3]=execs, [4]=genesis, [5]=terminal, [6+]=funding;
-//   [0]=continuity, [1]=payout (unshield only), then steps + extras.
+//   [0]=continuity, [1–5]=steps, [6]=payout (unshield only) / carrier, then extras.
 //
 // The proof is an INPUT (from lib/pool/prover.js); the builder binds it to the
 // covenant args + the pool state (root binding: the proof's n0 must equal the
@@ -174,7 +175,7 @@ export function buildCovenantUnlocking({ covenantRedeemHex, args }) {
  *                        publicValueAbs of the pool category across inputs)
  * @param fundingKey      { privateKeyBytes, publicKeyBytes } for ALL funding inputs
  * @param changeAddress   the wallet's change address (BCH + token change)
- * @param payoutAddress   UNSHIELD: the recipient address for outputs[1]
+ * @param payoutAddress   UNSHIELD: the recipient address for outputs[6]
  * @param carrierPacket   optional 164-byte NP01 packet (lib/pool/carrier.js
  *                        encryptNote) — appended as an OP_RETURN output
  * @param feeRateSatPerB  optional fee rate (default 1 sat/B)
@@ -287,17 +288,6 @@ export async function buildActionTx({
         token: { category, amount: newBalance, nft: { capability: 'mutable', commitment: newCommitment } },
     })
 
-    /* out[1] (unshield only): the public payout — fungible-only tokens of
-       EXACTLY publicValueAbs (no NFT; the covenant reads outputs[1]). */
-    if (isUnshield === 1n) {
-        if (!payoutAddress) throw new Error('pool build: unshield requires payoutAddress')
-        outputs.push({
-            lockingBytecode: addressToLockingBytecode(payoutAddress),
-            valueSatoshis: STEP_SATS,
-            token: { category, amount: publicValueAbs },
-        })
-    }
-
     /* the five verifier-step UTXOs, re-created with THIS pool's lockings.
        A FIXTURE-SHAPED program asserts inputs[INPUTINDEX].outpointIndex ==
        INPUTINDEX, so the TERMINAL (input 4) must be re-created at OUTPUT 4:
@@ -308,6 +298,20 @@ export async function buildActionTx({
     const stepOutputOrder = [0, 1, 2, 3, 4]
     for (const k of stepOutputOrder) {
         outputs.push({ lockingBytecode: hexToBin(pool.stepLockings[k]), valueSatoshis: STEP_SATS })
+    }
+
+    /* out[6] (unshield only): the public payout — fungible-only tokens of
+       EXACTLY publicValueAbs (no NFT). The generalized covenant checks
+       outputs[6].tokenCategory / tokenAmount when isUnshield = 1 (the same
+       slot the NP01 carrier occupies on a transfer), so the payout is emitted
+       AFTER the five step outputs and BEFORE token/BCH change. */
+    if (isUnshield === 1n) {
+        if (!payoutAddress) throw new Error('pool build: unshield requires payoutAddress')
+        outputs.push({
+            lockingBytecode: addressToLockingBytecode(payoutAddress),
+            valueSatoshis: STEP_SATS,
+            token: { category, amount: publicValueAbs },
+        })
     }
 
     /* token change: funding tokens in − (shield deposit) must return to the wallet. */

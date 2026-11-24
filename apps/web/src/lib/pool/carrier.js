@@ -38,7 +38,7 @@
 // decryptions are rejected silently (decryptPacket returns null).
 //
 // NO COVENANT CHANGE is required: asset-pool.cash spend() constrains only
-// tx.outputs[0] (and outputs[1] on unshield) — appended outputs are
+// tx.outputs[0] (and outputs[6] on unshield) — appended outputs are
 // unconstrained — and the verifier steps never introspect outputs (intra-tx
 // model, COVENANT-DESIGN.md §3a). The empirical full-tx VM check is the
 // runner-side eval (eval-pool.mjs CARRIER_PACKET_HEX). The carrier output is

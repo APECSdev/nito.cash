@@ -173,7 +173,7 @@ describe('lib/pool/build full action assembly', () => {
         expect(result.txid).toMatch(/^[0-9a-f]{64}$/)
     }, 300000)
 
-    it('builds an UNSHIELD tx with the payout at outputs[1]', async () => {
+    it('builds an UNSHIELD tx with the payout at outputs[6]', async () => {
         const scenario = EVAL_PROOFS.find((p) => p.label.startsWith('unshield'))
         expect(scenario).toBeTruthy()
 
@@ -203,13 +203,14 @@ describe('lib/pool/build full action assembly', () => {
             payoutAddress: toCashAddress(recipient, 'chipnet'),
         })
 
-        /* out[0] = continuity with balance − pvAbs; out[1] = the payout. */
+        /* out[0] = continuity with balance − pvAbs; out[1–5] = the steps;
+           out[6] = the payout (the generalized covenant's unshield slot). */
         expect(result.transaction.outputs[0].token.amount).toEqual(1000000n - BigInt(cov.publicValueAbs))
-        const payout = result.transaction.outputs[1]
+        const payout = result.transaction.outputs[6]
         expect(payout.token).toBeTruthy()
         expect(payout.token.amount).toEqual(BigInt(cov.publicValueAbs))
         expect(payout.token.nft).toBeUndefined() /* fungible-only */
-        /* the steps follow the payout. */
+        /* the steps precede the payout. */
         expect(result.transaction.outputs).toHaveLength(2 + 5 + 1 /* change */)
     }, 300000)
 
