@@ -1,5 +1,5 @@
 <template>
-    <nav class="flex m-[14px] mb-[6px] p-[4px] gap-[4px] rounded-[16px] bg-tab-bg">
+    <nav class="flex shrink-0 m-[14px] mb-[6px] p-[4px] gap-[4px] rounded-[16px] bg-tab-bg">
         <button
             v-for="item of tabs"
             :key="item"

@@ -57,6 +57,7 @@ const ROUTES = [
     ['concierge','#/concierge'],
     /* Earn/Spend render only on their (non-default) tabs; TAB_CLICK switches to
        them after navigating to #/concierge. Same route, distinct screenshots. */
+    ['concierge-persona','#/concierge'],
     ['concierge-earn','#/concierge'],
     ['concierge-spend','#/concierge'],
     ['concierge-advanced', '#/concierge/spend/advanced'],
@@ -73,6 +74,7 @@ const SEED_ROUTES = new Set(['dashboard', 'send', 'receive'])
    #/concierge and click the matching Tabs <button> (its text is the tab name),
    switching the tab before the screenshot. */
 const TAB_CLICK = {
+    'concierge-persona': 'Persona',
     'concierge-earn':  'Earn',
     'concierge-spend': 'Spend',
 }

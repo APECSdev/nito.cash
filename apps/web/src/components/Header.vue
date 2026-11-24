@@ -1,5 +1,5 @@
 <template>
-    <header>
+    <header class="shrink-0">
         <button @click="loadDashboard">
             <svgicon v-if="!secondary" icon="back" width="24" height="24" :fill="false" :original="true"></svgicon>
 

@@ -1,5 +1,5 @@
 <template>
-    <div>
+    <div class="flex flex-col flex-1 min-h-0">
         <Header :label="$t('concierge-view.title')" />
 
         <Tabs :tabs="tabs" :tab="tab" v-on:tab-change="updateTab" />

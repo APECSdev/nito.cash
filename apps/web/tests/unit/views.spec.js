@@ -73,6 +73,7 @@ import Concierge from '@/views/Concierge.vue'
 import Lobby from '@/views/Concierge/Lobby.vue'
 import Earn from '@/views/Concierge/Earn.vue'
 import Spend from '@/views/Concierge/Spend.vue'
+import Persona from '@/views/Concierge/Persona.vue'
 import Advanced from '@/views/Concierge/Spend/Advanced.vue'
 import App from '@/App.vue'
 
@@ -601,6 +602,31 @@ describe('views/Concierge + App', () => {
             await new Promise((r) => setTimeout(r, 40))
 
             expect(wrapper.exists()).toBe(true)
+        }
+    })
+
+    it('uses the fixed Concierge shell and flex-scrolled pages', () => {
+        const shell = shallowMount(App, {
+            global: {
+                mocks: {
+                    $store: getStoreFacade(),
+                    $router: router,
+                    $route: { path: '/concierge', params: {}, query: {} },
+                    $t: (key) => key,
+                    $i18n: { locale: 'en-US' },
+                },
+                stubs: { ...stubs, RouterView: true },
+            },
+        })
+
+        expect(shell.find('.app').classes()).toEqual(expect.arrayContaining(['flex', 'flex-col', 'overflow-hidden']))
+
+        for (const view of [Lobby, Persona, Earn, Spend]) {
+            const wrapper = mountView(view)
+            const main = wrapper.find('main')
+
+            expect(main.classes()).toContain('min-h-0')
+            expect(main.classes().join(' ')).not.toContain('h-[calc(100vh-58px-65px)]')
         }
     })
 

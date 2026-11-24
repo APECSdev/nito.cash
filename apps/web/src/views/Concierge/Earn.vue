@@ -34,7 +34,7 @@
      the light/dark switch keeps working.
 -->
 <template>
-    <main class="flex flex-col flex-1 px-[20px] pb-[10px] h-[calc(100vh-58px-65px)] overflow-y-auto [-webkit-overflow-scrolling:touch]">
+    <main class="flex flex-col flex-1 min-h-0 px-[20px] pb-[max(24px,env(safe-area-inset-bottom))] overflow-y-auto [-webkit-overflow-scrolling:touch]">
 
         <!-- ============================================================
              RIBBON — an unmissable "this is a mockup" marker.

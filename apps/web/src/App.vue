@@ -1,5 +1,5 @@
 <template>
-    <div class="app :" :class="{ dark: isDarkMode }">
+    <div class="app :" :class="{ dark: isDarkMode, 'flex flex-col overflow-hidden': isConcierge }">
         <Notification />
         <router-view />
     </div>
@@ -37,6 +37,14 @@ export default {
             const flags = this.getFlags
 
             return !!(flags && flags.dm)
+        },
+
+        /* The Concierge hub owns its own inner scroll container; the shell
+           must not scroll as well (double scrollbar). The route-scoped flex
+           column lets Header + Tabs keep their exact heights and the view's
+           <main> take the remainder. */
+        isConcierge() {
+            return !!(this.$route && this.$route.path === '/concierge')
         },
     },
     watch: {
