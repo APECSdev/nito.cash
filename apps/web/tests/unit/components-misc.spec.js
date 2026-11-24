@@ -270,6 +270,11 @@ describe('BlazeBanner.vue', () => {
         expect(tagline).toBeTruthy()
         expect(header.classes()).toContain('text-center')
         expect(tagline.classes()).toContain('text-center')
+
+        const emphasis = wrapper.findAll('span').find((s) => s.text() === 'Shielded Stablecoin Payments')
+
+        expect(emphasis).toBeTruthy()
+        expect(emphasis.classes()).toContain('font-bold')
     })
 
     it('links the highlighted ember row to the Selene token page', () => {

@@ -13,7 +13,7 @@
             </div>
 
             <div class="text-center text-[11px] leading-[16px] text-white/85 mt-[2px]">
-                Introducing Shielded Stablecoin Payments on Bitcoin Cash
+                Introducing <span class="font-bold">Shielded Stablecoin Payments</span> on Bitcoin Cash
             </div>
 
             <div class="mt-[8px] flex flex-col gap-[6px]">
