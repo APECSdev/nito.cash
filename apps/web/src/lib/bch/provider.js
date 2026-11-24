@@ -20,6 +20,8 @@ export const ElectrumMethods = {
     getUtxos: 'blockchain.address.listunspent',
     getHistory: 'blockchain.address.get_history',
     getScripthashHistory: 'blockchain.scripthash.get_history',
+    rpaGetHistory: 'blockchain.rpa.get_history',
+    rpaGetMempool: 'blockchain.rpa.get_mempool',
     getTransaction: 'blockchain.transaction.get',
     broadcast: 'blockchain.transaction.broadcast',
     estimateFee: 'blockchain.estimatefee',
@@ -196,6 +198,14 @@ export class FulcrumCluster {
 
     /* -> [ { tx_hash, height, fee? } ] */
     getHistory(address) { return this.request(ElectrumMethods.getHistory, address) }
+
+    /* Fulcrum v1.10+ RPA (CashCode) index. `prefix` is the scan-pubkey
+       prefix (1-4 hex chars); `fromHeight`/`toHeight` are inclusive, with
+       -1 meaning chain tip. -> [ { tx_hash, height } ] */
+    rpaGetHistory(prefix, fromHeight, toHeight) { return this.request(ElectrumMethods.rpaGetHistory, prefix, fromHeight, toHeight) }
+
+    /* -> [ { tx_hash, height: 0 } ] (unconfirmed) */
+    rpaGetMempool(prefix) { return this.request(ElectrumMethods.rpaGetMempool, prefix) }
 
     /* Scripthash-form history query (sha256 of the locking bytecode,
        byte-reversed, hex) — the ONLY form Fulcrum accepts for hashType-bit

@@ -63,6 +63,7 @@ const stubs = {
     Modal: { template: '<div><slot /></div>' },
     Notification: true,
     Popup: { template: '<div><slot /></div>' },
+    Persona: { template: '<div class="persona-stub" />' },
     Tabs: { template: '<div />' },
     svgicon: true,
 }
@@ -106,7 +107,28 @@ describe('views/Concierge — the Desk tab', () => {
         })
 
         expect(wrapper.vm.tab).toBe('Desk')
-        expect(wrapper.vm.tabs).toEqual(['Desk', 'Earn', 'Spend'])
+        expect(wrapper.vm.tabs).toEqual(['Desk', 'Persona', 'Earn', 'Spend'])
+    })
+
+    it('renders the Persona tab when selected', async () => {
+        const wrapper = shallowMount(Concierge, {
+            global: {
+                mocks: {
+                    $store: getStoreFacade(),
+                    $router: router,
+                    $route: { params: {}, query: {} },
+                    $t: (key) => key,
+                },
+                stubs,
+            },
+        })
+
+        expect(wrapper.find('.persona-stub').exists()).toBe(false)
+
+        wrapper.vm.tab = 'Persona'
+        await wrapper.vm.$nextTick()
+
+        expect(wrapper.find('.persona-stub').exists()).toBe(true)
     })
 })
 

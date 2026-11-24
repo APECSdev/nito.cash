@@ -222,6 +222,8 @@ describe('lib/bch/provider', () => {
         await cluster.getUtxos('addr')
         await cluster.getUtxosWithTokens('addr')
         await cluster.getHistory('addr')
+        await cluster.rpaGetHistory('5c', 100, 200)
+        await cluster.rpaGetMempool('5c')
         await cluster.getTransaction('tx')
         await cluster.verboseGetTransaction('tx')
         await cluster.broadcast('raw')
@@ -233,6 +235,8 @@ describe('lib/bch/provider', () => {
             ['blockchain.address.listunspent', ['addr']],
             ['blockchain.address.listunspent', ['addr', 'include_tokens']],
             ['blockchain.address.get_history', ['addr']],
+            ['blockchain.rpa.get_history', ['5c', 100, 200]],
+            ['blockchain.rpa.get_mempool', ['5c']],
             ['blockchain.transaction.get', ['tx']],
             ['blockchain.transaction.get', ['tx', true]],
             ['blockchain.transaction.broadcast', ['raw']],

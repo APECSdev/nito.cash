@@ -29,6 +29,7 @@ import Cookies from 'js-cookie'
 
 /* Import (local) module definitions. */
 import blockchain from './modules/blockchain'
+import cashaccount from './modules/cashaccount'
 import concierge from './modules/concierge'
 import pool from './modules/pool'
 import profile from './modules/profile'
@@ -39,6 +40,7 @@ import wallets from './modules/wallets'
 /* Module registry (name -> { namespaced, state, getters, actions, mutations }). */
 const MODULES = {
     blockchain,
+    cashaccount,
     concierge,
     pool,
     profile,

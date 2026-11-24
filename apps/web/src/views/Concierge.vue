@@ -5,6 +5,7 @@
         <Tabs :tabs="tabs" :tab="tab" v-on:tab-change="updateTab" />
 
         <Lobby v-if="tab === 'Desk'" />
+        <Persona v-if="tab === 'Persona'" />
         <Earn v-if="tab === 'Earn'" />
         <Spend v-if="tab === 'Spend'" />
     </div>
@@ -20,6 +21,7 @@ import { Header, Tabs } from '@/components'
 /* Import views. */
 import Earn from './Concierge/Earn'
 import Lobby from './Concierge/Lobby'
+import Persona from './Concierge/Persona'
 import Spend from './Concierge/Spend'
 
 export default {
@@ -29,6 +31,7 @@ export default {
 
         Earn,
         Lobby,
+        Persona,
         Spend,
     },
     data: () => {
@@ -36,7 +39,7 @@ export default {
             /* The Lobby is presented as the hotel-style "Desk" (the component
                keeps its name so the route/view imports stay unchanged). */
             tab: 'Desk',
-            tabs: ['Desk', 'Earn', 'Spend'],
+            tabs: ['Desk', 'Persona', 'Earn', 'Spend'],
         }
     },
     computed: {
