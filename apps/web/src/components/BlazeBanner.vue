@@ -12,9 +12,16 @@
                 ★ BCH BLAZE 2026
             </div>
 
-            <div class="text-[11px] leading-[16px] text-white/85 mt-[2px]">
-                Private payments on Bitcoin Cash
-            </div>
+            <a
+                :href="tokenUrl"
+                target="_blank"
+                rel="noopener noreferrer"
+                title="Open BLAZE2026-EMBER on Selene Explorer"
+                class="group mt-[6px] flex items-center justify-between gap-[8px] rounded-[8px] bg-secondary px-[10px] py-[6px] text-[11px] leading-[16px] font-semibold text-secondary-fg transition-colors hover:bg-secondary-hover focus-visible:ring-2 focus-visible:ring-ring"
+            >
+                <span>Introducing Shielded Stablecoin Payments on Bitcoin Cash</span>
+                <span class="shrink-0 text-[12px] transition-transform group-hover:translate-x-[2px]">↗</span>
+            </a>
 
             <div class="mt-[8px] flex flex-col gap-[6px]">
                 <div
@@ -91,6 +98,10 @@ const REPO_URL = 'https://github.com/APECSdev/nito.cash'
 const EMBER_ADDRESS = 'bitcoincash:zzhndl6y6a82gp0376meu4t2q0kwh0pxfy85da4574'
 const EMBER_CATEGORY = '8dc3a5cd4a84fe005bef3e30fe08bd95dbbec5a7c107c384f492d90f5059a54d'
 
+/* The token-details page (verified live: the Selene Explorer token route
+   shows "BLAZE EMBER (2026)" / symbol "BLAZE2026-EMBER"). */
+const TOKEN_URL = `https://explorer.selene.cash/token/${EMBER_CATEGORY}`
+
 /* Refresh the on-chain ember count once a minute. */
 const EMBER_REFRESH_MS = 60 * 1000
 
@@ -99,6 +110,7 @@ export default {
         deckUrl: DECK_URL,
         repoUrl: REPO_URL,
         ember: EMBER_ADDRESS,
+        tokenUrl: TOKEN_URL,
         copied: false,
         copiedTimer: null,
         open: true,

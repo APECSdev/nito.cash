@@ -261,6 +261,17 @@ describe('BlazeBanner.vue', () => {
         expect(wrapper.vm.emberShort).toContain('…')
     })
 
+    it('links the highlighted tagline to the Selene token page', () => {
+        const wrapper = mountBanner()
+        const link = wrapper.find('a[href="https://explorer.selene.cash/token/8dc3a5cd4a84fe005bef3e30fe08bd95dbbec5a7c107c384f492d90f5059a54d"]')
+
+        expect(link.exists()).toBe(true)
+        expect(link.text()).toContain('Introducing Shielded Stablecoin Payments on Bitcoin Cash')
+        expect(link.attributes('target')).toBe('_blank')
+        expect(link.attributes('rel')).toBe('noopener noreferrer')
+        expect(link.classes()).toEqual(expect.arrayContaining(['bg-secondary', 'text-secondary-fg', 'hover:bg-secondary-hover']))
+    })
+
     it('tracks the EMBER2026 balance at the donation address', async () => {
         emberState.utxos = [
             { token_data: { category: EMBER_CATEGORY, amount: '1200' } },
