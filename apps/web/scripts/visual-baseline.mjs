@@ -55,6 +55,9 @@ const ROUTES = [
     /* Concierge views render deterministically WITHOUT a wallet (Advanced only
        reads getDarkMode; ledgerConnect is on-demand), so no seeding needed. */
     ['concierge','#/concierge'],
+    /* The two guest-service doors render in place; CARD_CLICK opens them. */
+    ['concierge-quantumroot','#/concierge'],
+    ['concierge-cashfusion','#/concierge'],
     /* Earn/Spend render only on their (non-default) tabs; TAB_CLICK switches to
        them after navigating to #/concierge. Same route, distinct screenshots. */
     ['concierge-persona','#/concierge'],
@@ -77,6 +80,13 @@ const TAB_CLICK = {
     'concierge-persona': 'Persona',
     'concierge-earn':  'Earn',
     'concierge-spend': 'Spend',
+}
+
+/* The Desk's guest-service doors are <article role="button"> cards (a button
+   cannot legally contain the card's <dl>), so they need a role-based click. */
+const CARD_CLICK = {
+    'concierge-quantumroot': 'Quantumroot',
+    'concierge-cashfusion': 'CashFusion',
 }
 
 /* Inject a deterministic wallet + mock Fulcrum cluster into the page. Runs in
@@ -202,6 +212,14 @@ async function shoot(routeName, hash, theme, file) {
                 .find(x => x.textContent.trim() === tabName)
             if (b) b.click()
         }, TAB_CLICK[routeName])
+    }
+    /* Open a guest-service door (the Desk landing cards). */
+    if (CARD_CLICK[routeName]) {
+        await page.evaluate((serviceName) => {
+            const card = [...document.querySelectorAll('[role="button"]')]
+                .find(x => x.textContent.includes(serviceName))
+            if (card) card.click()
+        }, CARD_CLICK[routeName])
     }
     await new Promise(r => setTimeout(r, 1600))
     await page.addStyleTag({ content: '*, *::before, *::after { animation: none !important; transition: none !important; caret-color: transparent !important; }' }).catch(() => {})

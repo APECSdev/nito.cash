@@ -1,14 +1,28 @@
 <!-- apps/web/src/views/Concierge/Lobby.vue
 
-     MOCKUP — "The Concierge Desk" (hotel-style front desk).
+     MOCKUP — "DESK: Guest Services" (hotel-style front desk).
+
+     The Desk is now a two-door guest-services landing:
+       01 Quantumroot — the NEW orchestration (post-quantum vaults).
+       02 CashFusion  — Nostr only; the existing CashFusion pool is NOT
+                        supported by this desk.
+
+     Clicking either card swaps the Desk content in place to that service;
+     "← Guest services" returns to the landing.
 
      This screen is a DESIGN MOCKUP: every figure on it is transcribed from
      published research, and NOTHING here contacts a relay, a coordinator or
      the chain. The only side effects are local (`displayNotification`).
 
-     Sources for every claim rendered below (all verified 2026-11-22):
-       - CANONICAL: /research/cashfusion — topic 02 of the 5-topic hub
-         ("CashFusion survey + our P2P-over-Nostr research"). The Nostr
+     Sources for every claim rendered below (verified 2025-07-01 / 2026-11-22):
+       - QUANTUMROOT: https://blog.bitjson.com/quantumroot/
+         (Jason Dreyzehner, 2025-07-01 — developer preview; 256-bit classical
+         / 128-bit quantum; LM-OTS RFC 8554; 2,144-byte signature; ~2.5 KB
+         unlock; 71-byte introspection spends; 400+ addresses / 800+ inputs
+         in <100 KB; developer preview, audits pending, May 2026 target.)
+         Code: https://github.com/bitjson/quantumroot
+       - CASHFUSION: CANONICAL /research/cashfusion — topic 02 of the 5-topic
+         hub ("CashFusion survey + our P2P-over-Nostr research"). The Nostr
          sections keep their anchors: #six-phases, #gate-evidence, #boundary.
          Local source of truth: /Workspace/apecsdev/hushyourmoney
            web/pages/research/cashfusion.vue (893 lines, 18 Nostr mentions)
@@ -43,418 +57,476 @@
     <main class="flex flex-col flex-1 min-h-0 px-[20px] pb-[max(24px,env(safe-area-inset-bottom))] overflow-y-auto [-webkit-overflow-scrolling:touch]">
 
         <!-- ============================================================
-             RIBBON — an unmissable "this is a mockup" marker.
+             SERVICE — CashFusion (Nostr only). Opened from the landing.
              ============================================================ -->
-        <div class="flex items-center justify-between gap-[10px] pt-[10px]">
-            <span class="inline-flex items-center gap-[6px] rounded-full bg-secondary px-[10px] py-[3px] text-[9px] font-bold uppercase tracking-[0.18em] text-secondary-fg">
-                Mockup
-            </span>
+        <template v-if="activeService === 'cashfusion'">
 
-            <span class="text-[9px] font-semibold uppercase tracking-[0.18em] text-fg-muted">
-                Front desk &middot; open 24h
-            </span>
-        </div>
-
-        <!-- ============================================================
-             BRASS PLAQUE — the desk itself.
-
-             NOTE: `shrink-0` is REQUIRED. `main` is a fixed-height flex
-             column; when the content overflows, flex-shrink squishes the
-             items — and an `overflow-hidden` item collapses to its automatic
-             minimum size of ZERO (measured: 2px of borders). Without this the
-             plaque (and the round table below) silently vanish mid-round.
-             ============================================================ -->
-        <section class="shrink-0 mt-[12px] overflow-hidden rounded-[18px] border border-hr border-t-[3px] border-t-secondary bg-box-bg">
-            <div class="flex items-start gap-[14px] p-[16px]">
-                <!-- Desk bell (inline: no bell glyph exists in compiled-icons). -->
-                <div class="grid h-[52px] w-[52px] shrink-0 place-items-center rounded-full bg-secondary text-secondary-fg shadow-[0_10px_24px_-14px_rgba(0,0,0,0.8)]">
-                    <svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor"
-                        stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                        <path d="M6 16.5h12a6 6 0 0 0-6-10.5 6 6 0 0 0-6 10.5Z" />
-                        <path d="M12 6V3.8" />
-                        <path d="M4.2 19.2h15.6" />
-                    </svg>
-                </div>
-
-                <div class="min-w-0">
-                    <div class="text-[9px] font-bold uppercase tracking-[0.22em] text-fg-muted">
-                        The Concierge Desk
-                    </div>
-
-                    <h1 class="mt-[2px] text-[20px] font-bold leading-[26px]">
-                        Keys, coinjoins and quiet corners.
-                    </h1>
-
-                    <p class="mt-[5px] text-[12px] leading-[17px] text-fg-muted">
-                        Tell the desk where you are headed and we will arrange the transport.
-                        Every service below is a mockup entry &mdash; nothing is booked, signed or broadcast.
-                    </p>
-                </div>
-            </div>
-
-            <div class="flex gap-[10px] border-t border-hr p-[14px]">
+            <!-- Back to the guest-services landing. -->
+            <div class="flex items-center justify-between gap-[10px] pt-[10px]">
                 <Button
-                    @click.native="ring"
-                    label="Ring for the concierge"
-                    small />
-
-                <Button
-                    @click.native="houseRules = !houseRules"
-                    label="House rules"
+                    @click="closeService"
+                    label="← Guest services"
                     small
                     blank />
+
+                <span class="text-[9px] font-semibold uppercase tracking-[0.18em] text-fg-muted">
+                    Desk &middot; Guest services
+                </span>
             </div>
-        </section>
 
-        <!-- ============================================================
-             HOUSE RULES — the mockup's disclaimer, in hotel voice.
-             ============================================================ -->
-        <section v-if="houseRules" class="mt-[10px] rounded-[14px] border border-dashed border-hr bg-box-bg p-[14px]">
-            <ul class="flex flex-col gap-[6px] text-[12px] leading-[17px] text-fg-muted">
-                <li v-for="(rule, index) of houseRulesList" :key="index" class="flex gap-[8px]">
-                    <span class="text-fg-muted">&mdash;</span>
-                    <span>{{ rule }}</span>
-                </li>
-            </ul>
-        </section>
-
-        <!-- ============================================================
-             GUEST SERVICES — the two featured suites (02 + 03).
-             ============================================================ -->
-        <div class="mt-[18px] flex items-baseline justify-between gap-[10px]">
-            <div class="text-[9px] font-bold uppercase tracking-[0.22em] text-fg-muted">
-                Guest services
-            </div>
-            <div class="text-[9px] font-semibold uppercase tracking-[0.18em] text-fg-muted">
-                Suite 02 &middot; two wings
-            </div>
-        </div>
-
-        <div class="mt-[8px] flex flex-col gap-[10px]">
-            <article
-                v-for="service of services"
-                :key="service.id"
-                class="overflow-hidden rounded-[16px] border border-hr bg-box-bg">
-
-                <div class="flex items-start gap-[10px] p-[14px]">
-                    <!-- Door number (the research site's topic number). -->
-                    <div class="grid h-[34px] w-[34px] shrink-0 place-items-center rounded-[10px] border border-hr text-[13px] font-bold tabular-nums">
-                        {{ service.suite }}
+            <!-- The service plaque. -->
+            <section class="shrink-0 mt-[12px] overflow-hidden rounded-[18px] border border-hr border-t-[3px] border-t-secondary bg-box-bg">
+                <div class="flex items-start gap-[14px] p-[16px]">
+                    <!-- Relay glyph (inline: no relay glyph exists in compiled-icons). -->
+                    <div class="grid h-[52px] w-[52px] shrink-0 place-items-center rounded-full bg-secondary text-secondary-fg shadow-[0_10px_24px_-14px_rgba(0,0,0,0.8)]">
+                        <svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor"
+                            stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                            <circle cx="12" cy="12" r="2.2" />
+                            <path d="M7.8 16.2a6 6 0 0 1 0-8.4" />
+                            <path d="M16.2 7.8a6 6 0 0 1 0 8.4" />
+                            <path d="M5 19a10 10 0 0 1 0-14" />
+                            <path d="M19 5a10 10 0 0 1 0 14" />
+                        </svg>
                     </div>
 
-                    <div class="min-w-0 flex-1">
-                        <div class="flex items-start justify-between gap-[8px]">
-                            <h2 class="text-[15px] font-semibold leading-[20px]">
-                                {{ service.name }}
-                            </h2>
+                    <div class="min-w-0">
+                        <div class="text-[9px] font-bold uppercase tracking-[0.22em] text-fg-muted">
+                            Guest service &middot; 02
+                        </div>
 
-                            <span class="shrink-0 rounded-full px-[8px] py-[2px] text-[8px] font-bold uppercase tracking-[0.12em]" :class="toneClass(service.tone)">
-                                {{ service.status }}
+                        <div class="mt-[2px] flex items-start justify-between gap-[8px]">
+                            <h1 class="text-[20px] font-bold leading-[26px]">
+                                CashFusion
+                            </h1>
+
+                            <span class="shrink-0 rounded-full px-[8px] py-[2px] text-[8px] font-bold uppercase tracking-[0.12em]" :class="toneClass('gold')">
+                                Nostr only
                             </span>
                         </div>
 
-                        <p class="mt-[3px] text-[12px] leading-[16px] text-fg-muted">
-                            {{ service.tagline }}
+                        <p class="mt-[5px] text-[12px] leading-[17px] text-fg-muted">
+                            No pool. No coordinator server. Peers self-elect; relays carry sealed mail.
+                            This desk does not support the existing CashFusion pool.
                         </p>
                     </div>
                 </div>
 
-                <!-- Front-desk card: label/value rows (a hotel key card). -->
-                <dl class="border-t border-hr px-[14px] py-[10px] text-[11px] leading-[15px]">
-                    <template v-for="fact of service.facts" :key="fact.k">
-                        <div class="flex gap-[10px] py-[3px]">
-                            <dt class="w-[78px] shrink-0 text-fg-muted">{{ fact.k }}</dt>
-                            <dd class="min-w-0 flex-1">{{ fact.v }}</dd>
-                        </div>
-                    </template>
-                </dl>
-
-                <div v-if="service.action" class="flex gap-[10px] border-t border-hr p-[12px]">
-                    <!-- 02a: link out to the survey (honest — nothing runs in
-                         this wallet, so the desk hands you the reading). -->
+                <div class="flex flex-wrap items-center gap-[10px] border-t border-hr p-[14px]">
                     <Button
-                        v-if="service.id === 'cashfusion'"
-                        @click.native="openSurvey"
-                        :label="service.action"
+                        @click="requestRound"
+                        :label="requestLabel"
+                        :loading="requestState === 'asking'"
+                        loading-label="Asking the desk…"
                         small
-                        blank />
+                        :disabled="requestState === 'round'" />
 
-                    <template v-else>
-                        <Button
-                            @click.native="toggleDossier(service.id)"
-                            :label="openDossier === service.id ? 'Close the dossier' : service.action"
-                            small
-                            secondary />
-
-                        <Button
-                            @click.native="requestRound"
-                            :label="requestLabel"
-                            :loading="requestState === 'asking'"
-                            loading-label="Asking the desk…"
-                            small
-                            :disabled="requestState === 'round'" />
-                    </template>
+                    <span class="text-[10px] leading-[14px] text-fg-muted">
+                        Mockup &middot; no relay contacted
+                    </span>
                 </div>
-            </article>
-        </div>
+            </section>
 
-        <!-- ============================================================
-             THE DOSSIER — itinerary, register and house boundaries.
-             All values are measured numbers from the published research.
-             ============================================================ -->
-        <section v-if="openDossier === 'nostr'" class="mt-[10px] rounded-[16px] border border-hr bg-box-bg">
+            <!-- The Nostr-only service record (no classic pool row). -->
+            <dl class="mt-[10px] shrink-0 rounded-[14px] border border-hr bg-box-bg px-[14px] py-[10px] text-[11px] leading-[15px]">
+                <template v-for="fact of cashfusionFacts" :key="fact.k">
+                    <div class="flex gap-[10px] py-[3px]">
+                        <dt class="w-[78px] shrink-0 text-fg-muted">{{ fact.k }}</dt>
+                        <dd class="min-w-0 flex-1">{{ fact.v }}</dd>
+                    </div>
+                </template>
+            </dl>
 
-            <!-- Tonight's itinerary: the six-phase round. -->
-            <div class="p-[14px]">
-                <div class="text-[9px] font-bold uppercase tracking-[0.22em] text-fg-muted">
-                    Tonight&rsquo;s itinerary
+            <!-- ============================================================
+                 THE DOSSIER — itinerary, register and house boundaries.
+                 Always visible inside the CashFusion service; all values are
+                 measured numbers from the published research.
+                 ============================================================ -->
+            <section class="shrink-0 mt-[10px] overflow-hidden rounded-[16px] border border-hr bg-box-bg">
+
+                <!-- Tonight's itinerary: the six-phase round. -->
+                <div class="p-[14px]">
+                    <div class="text-[9px] font-bold uppercase tracking-[0.22em] text-fg-muted">
+                        Tonight&rsquo;s itinerary
+                    </div>
+
+                    <div class="mt-[3px] text-[12px] leading-[16px] text-fg-muted">
+                        One round, six phases. The coordinator is the lowest ephemeral
+                        pubkey &mdash; there is no server to bribe.
+                    </div>
+
+                    <ol class="mt-[10px] flex flex-col">
+                        <li
+                            v-for="phase of itinerary"
+                            :key="phase.n"
+                            class="flex items-start gap-[10px] border-t border-hr py-[8px] first:border-t-0 first:pt-0">
+
+                            <span class="w-[18px] shrink-0 text-[11px] font-bold tabular-nums text-fg-muted">
+                                {{ phase.n }}
+                            </span>
+
+                            <div class="min-w-0 flex-1">
+                                <div class="flex items-center gap-[8px]">
+                                    <span class="text-[13px] font-semibold">{{ phase.name }}</span>
+
+                                    <span class="rounded-full px-[7px] py-[1px] text-[8px] font-bold uppercase tracking-[0.12em]" :class="toneClass(phase.tone)">
+                                        {{ phase.state }}
+                                    </span>
+                                </div>
+
+                                <p class="mt-[2px] text-[11px] leading-[15px] text-fg-muted">
+                                    {{ phase.detail }}
+                                </p>
+                            </div>
+                        </li>
+                    </ol>
                 </div>
 
-                <div class="mt-[3px] text-[12px] leading-[16px] text-fg-muted">
-                    One round, six phases. The coordinator is the lowest ephemeral
-                    pubkey &mdash; there is no server to bribe.
+                <!-- House register: the measured gates. -->
+                <div class="border-t border-hr p-[14px]">
+                    <div class="flex items-baseline justify-between gap-[8px]">
+                        <div class="text-[9px] font-bold uppercase tracking-[0.22em] text-fg-muted">
+                            House register
+                        </div>
+
+                        <a
+                            href="https://hushyourmoney.com/research/cashfusion#gate-evidence"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            class="text-[9px] font-semibold uppercase tracking-[0.12em] text-fg-link">
+                            Gate evidence &rarr;
+                        </a>
+                    </div>
+
+                    <div class="mt-[8px] flex flex-col gap-[6px] text-[11px] leading-[15px]">
+                        <div v-for="row of register" :key="row.k" class="flex gap-[10px]">
+                            <div class="w-[86px] shrink-0 font-semibold">{{ row.k }}</div>
+                            <div class="min-w-0 flex-1 text-fg-muted">{{ row.v }}</div>
+                        </div>
+                    </div>
                 </div>
 
-                <ol class="mt-[10px] flex flex-col">
-                    <li
-                        v-for="phase of itinerary"
-                        :key="phase.n"
-                        class="flex items-start gap-[10px] border-t border-hr py-[8px] first:border-t-0 first:pt-0">
+                <!-- Do not disturb: what the round does NOT give you. -->
+                <div class="border-t border-hr p-[14px]">
+                    <h6 class="dark">DO NOT DISTURB</h6>
 
-                        <span class="w-[18px] shrink-0 text-[11px] font-bold tabular-nums text-fg-muted">
-                            {{ phase.n }}
+                    <ul class="flex flex-col gap-[5px] text-[11px] leading-[15px] text-fg-muted">
+                        <li v-for="(item, index) of boundaries" :key="index" class="flex gap-[8px]">
+                            <span>&middot;</span>
+                            <span>{{ item }}</span>
+                        </li>
+                    </ul>
+                </div>
+
+                <!-- The canonical source (verified live: HTTP 200). -->
+                <div class="border-t border-hr p-[14px] text-[11px] leading-[15px]">
+                    <a
+                        href="https://hushyourmoney.com/research/cashfusion#six-phases"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        class="font-semibold text-fg-link underline decoration-hr underline-offset-2">
+                        Read topic 02 (CashFusion + P2P over Nostr) &rarr;
+                    </a>
+                </div>
+            </section>
+
+            <!-- ============================================================
+                 THE ROUND TABLE (MOCKUP) — appears once a round is requested.
+                 Peers seat one at a time; the six phases light up in order;
+                 the table settles with the measured G3 numbers. All local.
+
+                 NOTE: `shrink-0` — same flex-shrink collapse as the plaque
+                 above; the table is the tallest block on this screen.
+                 ============================================================ -->
+            <section v-if="requestState === 'round' || requestState === 'done'" class="shrink-0 mt-[10px] overflow-hidden rounded-[16px] border border-hr bg-box-bg">
+
+                <div class="flex items-center justify-between gap-[10px] border-b border-hr p-[14px]">
+                    <div class="text-[9px] font-bold uppercase tracking-[0.22em] text-fg-muted">
+                        Table 02b &middot; {{ requestState === 'done' ? 'round settled' : 'round in session' }}
+                    </div>
+
+                    <span class="rounded-full bg-secondary px-[8px] py-[2px] text-[8px] font-bold uppercase tracking-[0.12em] text-secondary-fg">
+                        Mockup
+                    </span>
+                </div>
+
+                <!-- Seating: the 5-participant design floor. -->
+                <div class="p-[14px]">
+                    <div class="flex items-baseline justify-between gap-[8px]">
+                        <div class="text-[11px] font-semibold">Seating</div>
+
+                        <div class="text-[10px] tabular-nums text-fg-muted">
+                            {{roundPeers}}/5 peers
+                        </div>
+                    </div>
+
+                    <div class="mt-[6px] flex flex-wrap gap-[6px]">
+                        <span
+                            v-for="(peer, index) of roundPeerTags.slice(0, roundPeers)"
+                            :key="peer"
+                            class="inline-flex items-center gap-[4px] rounded-full border border-hr px-[8px] py-[2px] text-[10px]">
+                            {{peer}}
+
+                            <span
+                                v-if="index === 0"
+                                class="rounded-full bg-secondary px-[5px] text-[8px] font-bold uppercase tracking-[0.1em] text-secondary-fg">
+                                coordinator
+                            </span>
                         </span>
 
-                        <div class="min-w-0 flex-1">
-                            <div class="flex items-center gap-[8px]">
-                                <span class="text-[13px] font-semibold">{{ phase.name }}</span>
+                        <span
+                            v-if="roundPeers < 5"
+                            class="rounded-full border border-dashed border-hr px-[8px] py-[2px] text-[10px] text-fg-muted">
+                            waiting&hellip;
+                        </span>
+                    </div>
 
-                                <span class="rounded-full px-[7px] py-[1px] text-[8px] font-bold uppercase tracking-[0.12em]" :class="toneClass(phase.tone)">
-                                    {{ phase.state }}
+                    <p class="mt-[6px] text-[10px] leading-[14px] text-fg-muted">
+                        The lowest ephemeral pubkey runs the desk — there is no coordinator server to bribe.
+                    </p>
+                </div>
+
+                <!-- The six phases, live. -->
+                <div class="border-t border-hr p-[14px]">
+                    <ol>
+                        <li
+                            v-for="(phase, index) of itinerary"
+                            :key="phase.n"
+                            class="flex items-center gap-[10px] border-t border-hr py-[7px] first:border-t-0 first:pt-0">
+
+                            <span class="w-[18px] shrink-0 text-[11px] font-bold tabular-nums text-fg-muted">
+                                {{phase.n}}
+                            </span>
+
+                            <span
+                                class="flex-1 text-[12px] font-semibold"
+                                :class="index <= roundPhase ? 'text-fg' : 'text-fg-muted'">
+                                {{phase.name}}
+                            </span>
+
+                            <span
+                                class="rounded-full px-[7px] py-[1px] text-[8px] font-bold uppercase tracking-[0.12em]"
+                                :class="toneClass(phaseTone(index))">
+                                {{phaseState(index)}}
+                            </span>
+                        </li>
+                    </ol>
+                </div>
+
+                <!-- Settled: the measured G3 run, transcribed. -->
+                <div v-if="requestState === 'done'" class="border-t border-hr p-[14px]">
+                    <h6 class="dark">ROUND SETTLED</h6>
+
+                    <div class="mt-[6px] flex flex-col gap-[4px] text-[11px] leading-[15px]">
+                        <div class="flex gap-[10px]">
+                            <div class="w-[86px] shrink-0 font-semibold">Inputs</div>
+                            <div class="min-w-0 flex-1 text-fg-muted">10 (2 per peer)</div>
+                        </div>
+                        <div class="flex gap-[10px]">
+                            <div class="w-[86px] shrink-0 font-semibold">Outputs</div>
+                            <div class="min-w-0 flex-1 text-fg-muted">10 &middot; onion-wrapped</div>
+                        </div>
+                        <div class="flex gap-[10px]">
+                            <div class="w-[86px] shrink-0 font-semibold">Size</div>
+                            <div class="min-w-0 flex-1 text-fg-muted">1,760 B</div>
+                        </div>
+                        <div class="flex gap-[10px]">
+                            <div class="w-[86px] shrink-0 font-semibold">Fee</div>
+                            <div class="min-w-0 flex-1 text-fg-muted">5,000 sats &le; estBytes &times; 5 sat/B</div>
+                        </div>
+                        <div class="flex gap-[10px]">
+                            <div class="w-[86px] shrink-0 font-semibold">Signatures</div>
+                            <div class="min-w-0 flex-1 text-fg-muted">10/10 verified</div>
+                        </div>
+                    </div>
+
+                    <p class="mt-[10px] text-[10px] leading-[14px] text-fg-muted">
+                        Numbers transcribed from the published G3 run. This table never touched
+                        a relay, a peer or the chain &mdash; reset it below.
+                    </p>
+
+                    <div class="mt-[10px] flex gap-[10px]">
+                        <Button
+                            @click="resetRound"
+                            label="Reset the demo"
+                            small
+                            secondary />
+                    </div>
+                </div>
+            </section>
+        </template>
+
+        <!-- ============================================================
+             SERVICE — Quantumroot (the NEW orchestration).
+             ============================================================ -->
+        <Quantumroot
+            v-else-if="activeService === 'quantumroot'"
+            @back="closeService" />
+
+        <!-- ============================================================
+             LANDING — DESK: Guest Services.
+             ============================================================ -->
+        <template v-else>
+
+            <!-- ============================================================
+                 RIBBON — an unmissable "this is a mockup" marker.
+                 ============================================================ -->
+            <div class="flex items-center justify-between gap-[10px] pt-[10px]">
+                <span class="inline-flex items-center gap-[6px] rounded-full bg-secondary px-[10px] py-[3px] text-[9px] font-bold uppercase tracking-[0.18em] text-secondary-fg">
+                    Mockup
+                </span>
+
+                <span class="text-[9px] font-semibold uppercase tracking-[0.18em] text-fg-muted">
+                    Guest services &middot; open 24h
+                </span>
+            </div>
+
+            <!-- ============================================================
+                 BRASS PLAQUE — the desk itself.
+
+                 NOTE: `shrink-0` is REQUIRED. `main` is a fixed-height flex
+                 column; when the content overflows, flex-shrink squishes the
+                 items — and an `overflow-hidden` item collapses to its
+                 automatic minimum size of ZERO (measured: 2px of borders).
+                 Without this the plaque (and the service cards below)
+                 silently vanish mid-scroll.
+                 ============================================================ -->
+            <section class="shrink-0 mt-[12px] overflow-hidden rounded-[18px] border border-hr border-t-[3px] border-t-secondary bg-box-bg">
+                <div class="flex items-start gap-[14px] p-[16px]">
+                    <!-- Desk bell (inline: no bell glyph exists in compiled-icons). -->
+                    <div class="grid h-[52px] w-[52px] shrink-0 place-items-center rounded-full bg-secondary text-secondary-fg shadow-[0_10px_24px_-14px_rgba(0,0,0,0.8)]">
+                        <svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor"
+                            stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                            <path d="M6 16.5h12a6 6 0 0 0-6-10.5 6 6 0 0 0-6 10.5Z" />
+                            <path d="M12 6V3.8" />
+                            <path d="M4.2 19.2h15.6" />
+                        </svg>
+                    </div>
+
+                    <div class="min-w-0">
+                        <div class="text-[9px] font-bold uppercase tracking-[0.22em] text-fg-muted">
+                            The Concierge Desk
+                        </div>
+
+                        <h1 class="mt-[2px] text-[20px] font-bold leading-[26px]">
+                            Guest services.
+                        </h1>
+
+                        <p class="mt-[5px] text-[12px] leading-[17px] text-fg-muted">
+                            Two quiet ways to move. Choose a door and the desk will show you the room.
+                            Both services are mockups &mdash; nothing is booked, signed or broadcast.
+                        </p>
+                    </div>
+                </div>
+
+                <div class="flex gap-[10px] border-t border-hr p-[14px]">
+                    <Button
+                        @click="ring"
+                        label="Ring for the concierge"
+                        small />
+
+                    <Button
+                        @click="houseRules = !houseRules"
+                        label="House rules"
+                        small
+                        blank />
+                </div>
+            </section>
+
+            <!-- ============================================================
+                 HOUSE RULES — the mockup's disclaimer, in hotel voice.
+                 ============================================================ -->
+            <section v-if="houseRules" class="mt-[10px] rounded-[14px] border border-dashed border-hr bg-box-bg p-[14px]">
+                <ul class="flex flex-col gap-[6px] text-[12px] leading-[17px] text-fg-muted">
+                    <li v-for="(rule, index) of houseRulesList" :key="index" class="flex gap-[8px]">
+                        <span class="text-fg-muted">&mdash;</span>
+                        <span>{{ rule }}</span>
+                    </li>
+                </ul>
+            </section>
+
+            <!-- ============================================================
+                 GUEST SERVICES — the two doors, side by side on desktop.
+                 ============================================================ -->
+            <div class="mt-[18px] flex items-baseline justify-between gap-[10px]">
+                <div class="text-[9px] font-bold uppercase tracking-[0.22em] text-fg-muted">
+                    Guest services
+                </div>
+                <div class="text-[9px] font-semibold uppercase tracking-[0.18em] text-fg-muted">
+                    Two doors &middot; pick one
+                </div>
+            </div>
+
+            <div class="mt-[8px] grid shrink-0 grid-cols-1 gap-[10px] md:grid-cols-2">
+                <article
+                    v-for="service of services"
+                    :key="service.id"
+                    role="button"
+                    tabindex="0"
+                    class="group flex cursor-pointer flex-col overflow-hidden rounded-[16px] border border-hr bg-box-bg text-left transition-colors hover:border-secondary focus-visible:border-secondary"
+                    @click="openService(service.id)"
+                    @keydown.enter.prevent="openService(service.id)"
+                    @keydown.space.prevent="openService(service.id)">
+
+                    <div class="flex items-start gap-[10px] p-[14px]">
+                        <!-- Door number (the guest-service number). -->
+                        <div class="grid h-[34px] w-[34px] shrink-0 place-items-center rounded-[10px] border border-hr text-[13px] font-bold tabular-nums">
+                            {{ service.suite }}
+                        </div>
+
+                        <div class="min-w-0 flex-1">
+                            <div class="flex items-start justify-between gap-[8px]">
+                                <h2 class="text-[15px] font-semibold leading-[20px]">
+                                    {{ service.name }}
+                                </h2>
+
+                                <span class="shrink-0 rounded-full px-[8px] py-[2px] text-[8px] font-bold uppercase tracking-[0.12em]" :class="toneClass(service.tone)">
+                                    {{ service.status }}
                                 </span>
                             </div>
 
-                            <p class="mt-[2px] text-[11px] leading-[15px] text-fg-muted">
-                                {{ phase.detail }}
+                            <p class="mt-[3px] text-[12px] leading-[16px] text-fg-muted">
+                                {{ service.tagline }}
                             </p>
                         </div>
-                    </li>
-                </ol>
-            </div>
-
-            <!-- House register: the measured gates. -->
-            <div class="border-t border-hr p-[14px]">
-                <div class="flex items-baseline justify-between gap-[8px]">
-                    <div class="text-[9px] font-bold uppercase tracking-[0.22em] text-fg-muted">
-                        House register
                     </div>
 
-                    <a
-                        href="https://hushyourmoney.com/research/cashfusion#gate-evidence"
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        class="text-[9px] font-semibold uppercase tracking-[0.12em] text-fg-link">
-                        Gate evidence &rarr;
-                    </a>
-                </div>
+                    <!-- Front-desk card: label/value rows (a hotel key card). -->
+                    <dl class="border-t border-hr px-[14px] py-[10px] text-[11px] leading-[15px]">
+                        <template v-for="fact of service.facts" :key="fact.k">
+                            <div class="flex gap-[10px] py-[3px]">
+                                <dt class="w-[78px] shrink-0 text-fg-muted">{{ fact.k }}</dt>
+                                <dd class="min-w-0 flex-1">{{ fact.v }}</dd>
+                            </div>
+                        </template>
+                    </dl>
 
-                <div class="mt-[8px] flex flex-col gap-[6px] text-[11px] leading-[15px]">
-                    <div v-for="row of register" :key="row.k" class="flex gap-[10px]">
-                        <div class="w-[86px] shrink-0 font-semibold">{{ row.k }}</div>
-                        <div class="min-w-0 flex-1 text-fg-muted">{{ row.v }}</div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Do not disturb: what the round does NOT give you. -->
-            <div class="border-t border-hr p-[14px]">
-                <h6 class="dark">DO NOT DISTURB</h6>
-
-                <ul class="flex flex-col gap-[5px] text-[11px] leading-[15px] text-fg-muted">
-                    <li v-for="(item, index) of boundaries" :key="index" class="flex gap-[8px]">
-                        <span>&middot;</span>
-                        <span>{{ item }}</span>
-                    </li>
-                </ul>
-            </div>
-
-            <!-- The canonical source (verified live: HTTP 200). -->
-            <div class="border-t border-hr p-[14px] text-[11px] leading-[15px]">
-                <a
-                    href="https://hushyourmoney.com/research/cashfusion#six-phases"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    class="font-semibold text-fg-link underline decoration-hr underline-offset-2">
-                    Read topic 02 (CashFusion + P2P over Nostr) &rarr;
-                </a>
-            </div>
-        </section>
-
-        <!-- ============================================================
-             THE ROUND TABLE (MOCKUP) — appears once a round is requested.
-             Peers seat one at a time; the six phases light up in order;
-             the table settles with the measured G3 numbers. All local.
-
-             NOTE: `shrink-0` — same flex-shrink collapse as the plaque
-             above; the table is the tallest block on this screen.
-             ============================================================ -->
-        <section v-if="requestState === 'round' || requestState === 'done'" class="shrink-0 mt-[10px] overflow-hidden rounded-[16px] border border-hr bg-box-bg">
-
-            <div class="flex items-center justify-between gap-[10px] border-b border-hr p-[14px]">
-                <div class="text-[9px] font-bold uppercase tracking-[0.22em] text-fg-muted">
-                    Table 02b &middot; {{ requestState === 'done' ? 'round settled' : 'round in session' }}
-                </div>
-
-                <span class="rounded-full bg-secondary px-[8px] py-[2px] text-[8px] font-bold uppercase tracking-[0.12em] text-secondary-fg">
-                    Mockup
-                </span>
-            </div>
-
-            <!-- Seating: the 5-participant design floor. -->
-            <div class="p-[14px]">
-                <div class="flex items-baseline justify-between gap-[8px]">
-                    <div class="text-[11px] font-semibold">Seating</div>
-
-                    <div class="text-[10px] tabular-nums text-fg-muted">
-                        {{roundPeers}}/5 peers
-                    </div>
-                </div>
-
-                <div class="mt-[6px] flex flex-wrap gap-[6px]">
-                    <span
-                        v-for="(peer, index) of roundPeerTags.slice(0, roundPeers)"
-                        :key="peer"
-                        class="inline-flex items-center gap-[4px] rounded-full border border-hr px-[8px] py-[2px] text-[10px]">
-                        {{peer}}
-
-                        <span
-                            v-if="index === 0"
-                            class="rounded-full bg-secondary px-[5px] text-[8px] font-bold uppercase tracking-[0.1em] text-secondary-fg">
-                            coordinator
+                    <div class="mt-auto flex items-center justify-between gap-[10px] border-t border-hr p-[12px]">
+                        <span class="text-[10px] font-semibold uppercase tracking-[0.12em] text-fg-muted">
+                            {{ service.action }}
                         </span>
-                    </span>
 
-                    <span
-                        v-if="roundPeers < 5"
-                        class="rounded-full border border-dashed border-hr px-[8px] py-[2px] text-[10px] text-fg-muted">
-                        waiting&hellip;
-                    </span>
-                </div>
+                        <span class="text-[11px] font-semibold text-fg-link group-hover:underline">
+                            Open service &rarr;
+                        </span>
+                    </div>
+                </article>
+            </div>
 
-                <p class="mt-[6px] text-[10px] leading-[14px] text-fg-muted">
-                    The lowest ephemeral pubkey runs the desk — there is no coordinator server to bribe.
+            <!-- ============================================================
+                 BELL SERVICE — the original Lobby actions, still unearned.
+                 ============================================================ -->
+            <Footer>
+                <Button @click="coming" label="Open Chat" double secondary :disabled="!hasPrivilege" />
+                <Button @click="coming" label="Today's Deals" double secondary :disabled="!hasPrivilege" />
+            </Footer>
+
+            <Footer>
+                <p class="text-[11px] leading-[15px] text-fg-muted">
+                    Bell service runs on mock data. No relay was contacted, no round was
+                    opened, and no coin left this device.
                 </p>
-            </div>
-
-            <!-- The six phases, live. -->
-            <div class="border-t border-hr p-[14px]">
-                <ol>
-                    <li
-                        v-for="(phase, index) of itinerary"
-                        :key="phase.n"
-                        class="flex items-center gap-[10px] border-t border-hr py-[7px] first:border-t-0 first:pt-0">
-
-                        <span class="w-[18px] shrink-0 text-[11px] font-bold tabular-nums text-fg-muted">
-                            {{phase.n}}
-                        </span>
-
-                        <span
-                            class="flex-1 text-[12px] font-semibold"
-                            :class="index <= roundPhase ? 'text-fg' : 'text-fg-muted'">
-                            {{phase.name}}
-                        </span>
-
-                        <span
-                            class="rounded-full px-[7px] py-[1px] text-[8px] font-bold uppercase tracking-[0.12em]"
-                            :class="toneClass(phaseTone(index))">
-                            {{phaseState(index)}}
-                        </span>
-                    </li>
-                </ol>
-            </div>
-
-            <!-- Settled: the measured G3 run, transcribed. -->
-            <div v-if="requestState === 'done'" class="border-t border-hr p-[14px]">
-                <h6 class="dark">ROUND SETTLED</h6>
-
-                <div class="mt-[6px] flex flex-col gap-[4px] text-[11px] leading-[15px]">
-                    <div class="flex gap-[10px]">
-                        <div class="w-[86px] shrink-0 font-semibold">Inputs</div>
-                        <div class="min-w-0 flex-1 text-fg-muted">10 (2 per peer)</div>
-                    </div>
-                    <div class="flex gap-[10px]">
-                        <div class="w-[86px] shrink-0 font-semibold">Outputs</div>
-                        <div class="min-w-0 flex-1 text-fg-muted">10 &middot; onion-wrapped</div>
-                    </div>
-                    <div class="flex gap-[10px]">
-                        <div class="w-[86px] shrink-0 font-semibold">Size</div>
-                        <div class="min-w-0 flex-1 text-fg-muted">1,760 B</div>
-                    </div>
-                    <div class="flex gap-[10px]">
-                        <div class="w-[86px] shrink-0 font-semibold">Fee</div>
-                        <div class="min-w-0 flex-1 text-fg-muted">5,000 sats &le; estBytes &times; 5 sat/B</div>
-                    </div>
-                    <div class="flex gap-[10px]">
-                        <div class="w-[86px] shrink-0 font-semibold">Signatures</div>
-                        <div class="min-w-0 flex-1 text-fg-muted">10/10 verified</div>
-                    </div>
-                </div>
-
-                <p class="mt-[10px] text-[10px] leading-[14px] text-fg-muted">
-                    Numbers transcribed from the published G3 run. This table never touched
-                    a relay, a peer or the chain &mdash; reset it below.
-                </p>
-
-                <div class="mt-[10px] flex gap-[10px]">
-                    <Button
-                        @click.native="resetRound"
-                        label="Reset the demo"
-                        small
-                        secondary />
-                </div>
-            </div>
-        </section>
-
-        <!-- ============================================================
-             ALSO ON THE DESK — the remaining house services.
-             ============================================================ -->
-        <div class="mt-[18px] text-[9px] font-bold uppercase tracking-[0.22em] text-fg-muted">
-            Also on the desk
-        </div>
-
-        <div class="mt-[8px] flex flex-col gap-[8px]">
-            <div class="flex items-center gap-[10px] rounded-[14px] border border-hr bg-box-bg p-[12px]">
-                <div class="grid h-[30px] w-[30px] shrink-0 place-items-center rounded-[9px] border border-hr text-[12px] font-bold tabular-nums">
-                    01
-                </div>
-
-                <div class="min-w-0 flex-1">
-                    <div class="text-[13px] font-semibold">Shielded Pool</div>
-                    <div class="text-[11px] leading-[15px] text-fg-muted">
-                        PUSD note library + local sealing; chipnet covenant deployed, UI wiring pending.
-                    </div>
-                </div>
-
-                <span class="shrink-0 rounded-full px-[8px] py-[2px] text-[8px] font-bold uppercase tracking-[0.12em]" :class="toneClass('primary')">
-                    Chipnet
-                </span>
-            </div>
-        </div>
-
-        <!-- ============================================================
-             BELL SERVICE — the original Lobby actions, still unearned.
-             ============================================================ -->
-        <Footer>
-            <Button @click.native="coming" label="Open Chat" double secondary :disabled="!hasPrivilege" />
-            <Button @click.native="coming" label="Today's Deals" double secondary :disabled="!hasPrivilege" />
-        </Footer>
-
-        <Footer>
-            <p class="text-[11px] leading-[15px] text-fg-muted">
-                Bell service runs on mock data. No relay was contacted, no round was
-                opened, and no coin left this device.
-            </p>
-        </Footer>
+            </Footer>
+        </template>
     </main>
 </template>
 
@@ -465,10 +537,14 @@ import { mapActions } from 'vuex'
 /* Import components. */
 import { Button, Footer } from '@/components'
 
+/* Import the Quantumroot service (the new orchestration). */
+import Quantumroot from './Desk/Quantumroot.vue'
+
 export default {
     components: {
         Button,
         Footer,
+        Quantumroot,
     },
     data: () => {
         return {
@@ -476,8 +552,8 @@ export default {
                locked until a privilege model exists. */
             hasPrivilege: false,
 
-            /* Which service dossier is open (null = all closed). */
-            openDossier: null,
+            /* Which guest service is open (null = the landing). */
+            activeService: null,
 
             /* Mock round lifecycle: null -> 'asking' -> 'round' -> 'done'.
                ('asking' shows the spinner; 'round' seats peers + runs the
@@ -509,43 +585,53 @@ export default {
                 'The front desk never asks for a seed phrase, and neither do we.',
             ],
 
-            /* The two featured suites (research topics 02 and 03). */
+            /* The two guest services (the doors on the landing). */
             services: [
                 {
-                    id: 'cashfusion',
-                    suite: '02a',
-                    name: 'CashFusion',
-                    tagline: 'Classic coinjoin, arranged by an outside coordinator.',
-                    status: 'Not in this wallet',
-                    tone: 'muted',
-                    action: 'Read the survey',
+                    id: 'quantumroot',
+                    suite: '01',
+                    name: 'Quantumroot',
+                    tagline: 'Quantum-secure vaults for Bitcoin Cash. SHA256 only — no new cryptography.',
+                    status: 'New orchestration',
+                    tone: 'gold',
+                    action: 'Vault orchestration',
                     facts: [
-                        { k: 'Coordinator', v: 'External server, trusted for round integrity' },
-                        { k: 'Transport', v: 'Tor covert channels to that server' },
-                        { k: 'In Nito', v: 'Only the (f) Fusion account status code exists — no client is wired' },
+                        { k: 'Security', v: '256-bit classical · 128-bit quantum (Grover)' },
+                        { k: 'Signature', v: 'LM-OTS (RFC 8554) · 2,144 B · ~2.5 KB unlock' },
+                        { k: 'Sweep', v: '400+ addresses or 800+ inputs in one <100 KB tx' },
+                        { k: 'Status', v: 'Developer preview · May 2026 target' },
                     ],
                 },
                 {
-                    id: 'nostr',
-                    suite: '02b',
-                    name: 'CashFusion over Nostr',
-                    tagline: 'No coordinator server. Peers self-elect; relays carry sealed mail.',
-                    status: 'Research',
+                    id: 'cashfusion',
+                    suite: '02',
+                    name: 'CashFusion',
+                    tagline: 'No pool, no coordinator server. Peers self-elect; relays carry sealed mail.',
+                    status: 'Nostr only',
                     tone: 'gold',
-                    action: 'Open the dossier',
+                    action: 'Fusion round',
                     facts: [
                         { k: 'Coordinator', v: 'None — the lowest ephemeral pubkey per round' },
-                        { k: 'Transport', v: 'NIP-59 gift wrap (kind 1059) + NIP-44 v2 over Nostr relays' },
+                        { k: 'Transport', v: 'NIP-59 gift wrap (kind 1059) + NIP-44 v2' },
+                        { k: 'Pool', v: 'None — no existing CashFusion pool' },
                         { k: 'Gates', v: 'G1, G2a, G2b, G3, G3L passed · G4 pending' },
                     ],
                 },
+            ],
+
+            /* The CashFusion service record (Nostr only — no classic-pool row). */
+            cashfusionFacts: [
+                { k: 'Coordinator', v: 'None — the lowest ephemeral pubkey per round' },
+                { k: 'Transport', v: 'NIP-59 gift wrap (kind 1059) + NIP-44 v2 over Nostr relays' },
+                { k: 'Pool', v: 'None — no coordinator server, no existing CashFusion pool' },
+                { k: 'Gates', v: 'G1, G2a, G2b, G3, G3L passed · G4 pending' },
             ],
 
             /* The six-phase round (research §3), with its real status. */
             itinerary: [
                 {
                     n: '01', name: 'Announce', state: 'Design', tone: 'muted',
-                    detail: 'Pool discovery (kind 22230) is design-only; the harness starts from an explicit peer list.',
+                    detail: 'Peer discovery (kind 22230) is design-only; the harness starts from an explicit peer list.',
                 },
                 {
                     n: '02', name: 'Election', state: 'Implemented', tone: 'gold',
@@ -584,7 +670,7 @@ export default {
                 'Token UTXOs are excluded in v1 — plain P2PKH only.',
                 'Amounts remain public on chain; that is the shielded pool’s job.',
                 'The 5-participant floor is a design constant, not enforced in round.ts.',
-                'Live pool discovery (kind 22230) is design-only.',
+                'Live peer discovery (kind 22230) is design-only.',
                 'G4 — a mainnet opt-in beta behind a settings flag — is not built.',
                 'Free relays throttle bursts: one connection per peer, 80 ms publish pacing.',
             ],
@@ -630,20 +716,28 @@ export default {
         },
 
         /**
-         * Toggle a service dossier
+         * Open a Guest Service
+         *
+         * Swaps the Desk content in place. Leaving a running CashFusion demo
+         * clears its timers first (no round survives a door change).
          */
-        toggleDossier(_id) {
-            this.openDossier = this.openDossier === _id ? null : _id
+        openService(_id) {
+            if (this.requestState === 'asking' || this.requestState === 'round') {
+                this.resetRound()
+            }
+
+            this.activeService = _id
         },
 
         /**
-         * Open the Survey (topic 02)
+         * Close a Guest Service
          *
-         * Classic CashFusion has no client in this wallet, so the desk hands
-         * you the reading instead (opens the canonical research page).
+         * Returns to the landing and clears any demo-round timers.
          */
-        openSurvey() {
-            window.open('https://hushyourmoney.com/research/cashfusion', '_blank', 'noopener,noreferrer')
+        closeService() {
+            this.resetRound()
+
+            this.activeService = null
         },
 
         /**

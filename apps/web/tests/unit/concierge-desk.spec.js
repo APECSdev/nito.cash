@@ -1,7 +1,7 @@
 /* Unit tests for the Concierge Desk (views/Concierge/Lobby.vue + hub tab).
  *
  * The desk is a MOCKUP: every test below pins its LOCAL behaviour — the
- * rendered research transcription, the dossier toggle, the tone/state
+ * rendered research transcription, the in-place service swap, the tone/state
  * mappings, and the timed demo round (asking -> seating -> phases ->
  * settled -> reset). Nothing may contact a relay, coordinator or chain.
  *
@@ -49,6 +49,7 @@ import { useStore, getStoreFacade, StoreCompatPlugin, ensureStoreFacade } from '
 
 import Concierge from '@/views/Concierge.vue'
 import Lobby from '@/views/Concierge/Lobby.vue'
+import Quantumroot from '@/views/Concierge/Desk/Quantumroot.vue'
 
 const router = { push: vi.fn(), replace: vi.fn(), back: vi.fn() }
 
@@ -80,6 +81,12 @@ const mountDesk = (options = {}) => shallowMount(Lobby, {
     },
     ...options,
 })
+
+const openCashfusion = async (wrapper) => {
+    const door = wrapper.findAll('article').find((d) => d.text().includes('CashFusion'))
+
+    await door.trigger('click')
+}
 
 beforeEach(() => {
     /* The facade is cached on globalThis and is NOT rebuilt for a new Pinia
@@ -133,31 +140,45 @@ describe('views/Concierge — the Desk tab', () => {
 })
 
 describe('views/Concierge/Lobby — the desk rendering', () => {
-    it('renders the plaque, the ribbon and both suites (02a + 02b)', () => {
+    it('renders the Guest Services landing with the two side-by-side doors', () => {
         const wrapper = mountDesk()
 
         const text = wrapper.text()
 
         /* The plaque. */
         expect(text).toContain('The Concierge Desk')
-        expect(text).toContain('Keys, coinjoins and quiet corners.')
+        expect(text).toContain('Guest services.')
+        expect(text).toContain('Two quiet ways to move.')
 
         /* The mockup ribbon. */
         expect(text).toContain('Mockup')
-        expect(text).toContain('Front desk · open 24h')
+        expect(text).toContain('Guest services · open 24h')
 
-        /* Suite 02a — classic CashFusion (not in this wallet). */
+        /* Door 01 — Quantumroot (the new orchestration). */
+        expect(text).toContain('Quantumroot')
+        expect(text).toContain('New orchestration')
+        expect(text).toContain('256-bit classical · 128-bit quantum (Grover)')
+        expect(text).toContain('LM-OTS (RFC 8554) · 2,144 B · ~2.5 KB unlock')
+
+        /* Door 02 — CashFusion, Nostr only (no classic pool). */
         expect(text).toContain('CashFusion')
-        expect(text).toContain('Not in this wallet')
-        expect(text).toContain('External server, trusted for round integrity')
+        expect(text).toContain('Nostr only')
+        expect(text).toContain('NIP-59 gift wrap (kind 1059) + NIP-44 v2')
+        expect(text).toContain('None — no existing CashFusion pool')
 
-        /* Suite 02b — the Nostr research wing. */
-        expect(text).toContain('CashFusion over Nostr')
-        expect(text).toContain('NIP-59 gift wrap (kind 1059) + NIP-44 v2 over Nostr relays')
+        /* The classic 02a card + its survey link are gone. */
+        expect(text).not.toContain('Classic coinjoin, arranged by an outside coordinator.')
+        expect(text).not.toContain('Read the survey')
+        expect(text).not.toContain('External server, trusted for round integrity')
+        expect(text).not.toContain('Shielded Pool')
 
-        /* Door chips. */
-        expect(wrapper.vm.services[0].suite).toBe('02a')
-        expect(wrapper.vm.services[1].suite).toBe('02b')
+        /* The two doors share one grid, side by side on desktop. */
+        expect(wrapper.vm.services.map((s) => s.id)).toEqual(['quantumroot', 'cashfusion'])
+        expect(wrapper.vm.services.map((s) => s.suite)).toEqual(['01', '02'])
+
+        const doors = wrapper.findAll('article')
+        expect(doors).toHaveLength(2)
+        expect(doors[0].element.parentElement.className).toContain('md:grid-cols-2')
 
         /* The original bell-service actions are preserved. */
         expect(text).toContain("Open Chat")
@@ -202,22 +223,27 @@ describe('views/Concierge/Lobby — the desk rendering', () => {
         expect(wrapper.text()).toContain('The front desk never asks for a seed phrase')
     })
 
-    it('toggles the dossier open and closed', async () => {
+    it('opens the CashFusion service in place and returns to Guest services', async () => {
         const wrapper = mountDesk()
 
         expect(wrapper.text()).not.toContain('no server to bribe')
+        expect(wrapper.vm.activeService).toBe(null)
 
-        wrapper.vm.toggleDossier('nostr')
-        await wrapper.vm.$nextTick()
+        /* Click the CashFusion door. */
+        await openCashfusion(wrapper)
 
-        expect(wrapper.vm.openDossier).toBe('nostr')
+        expect(wrapper.vm.activeService).toBe('cashfusion')
+        expect(wrapper.text()).toContain('Nostr only')
         expect(wrapper.text()).toContain('no server to bribe')
         expect(wrapper.text()).toContain('DO NOT DISTURB')
+        expect(wrapper.text()).toContain('Tonight’s itinerary')
 
-        wrapper.vm.toggleDossier('nostr')
-        await wrapper.vm.$nextTick()
+        /* The back control returns to the landing. */
+        const back = wrapper.findAll('button').find((button) => button.text().includes('← Guest services'))
+        await back.trigger('click')
 
-        expect(wrapper.vm.openDossier).toBe(null)
+        expect(wrapper.vm.activeService).toBe(null)
+        expect(wrapper.text()).toContain('Two quiet ways to move.')
         expect(wrapper.text()).not.toContain('DO NOT DISTURB')
     })
 
@@ -230,17 +256,15 @@ describe('views/Concierge/Lobby — the desk rendering', () => {
             .toBe('Front desk · a mock concierge will be with you shortly. (Nothing was sent.)')
     })
 
-    it('hands the classic-CashFusion survey to the canonical research page', () => {
-        const open = vi.spyOn(window, 'open').mockImplementation(() => {})
-
+    it('opens the Quantumroot service in place', async () => {
         const wrapper = mountDesk()
 
-        wrapper.vm.openSurvey()
+        const door = wrapper.findAll('article').find((d) => d.text().includes('Quantumroot'))
+        await door.trigger('click')
 
-        expect(open).toHaveBeenCalledTimes(1)
-        expect(open).toHaveBeenCalledWith('https://hushyourmoney.com/research/cashfusion', '_blank', 'noopener,noreferrer')
-
-        open.mockRestore()
+        expect(wrapper.vm.activeService).toBe('quantumroot')
+        expect(wrapper.findComponent(Quantumroot).exists()).toBe(true)
+        expect(wrapper.text()).not.toContain('Two quiet ways to move.')
     })
 })
 
@@ -294,6 +318,7 @@ describe('views/Concierge/Lobby — the demo round (timers)', () => {
 
     it('seats five peers, runs the six phases and settles with the G3 numbers', async () => {
         const wrapper = mountDesk()
+        await openCashfusion(wrapper)
         const vm = wrapper.vm
 
         /* Resting state. */
@@ -343,6 +368,7 @@ describe('views/Concierge/Lobby — the demo round (timers)', () => {
 
     it('ignores re-taps while asking or in session (no duplicate timers)', async () => {
         const wrapper = mountDesk()
+        await openCashfusion(wrapper)
         const vm = wrapper.vm
 
         vm.requestRound()
@@ -363,6 +389,7 @@ describe('views/Concierge/Lobby — the demo round (timers)', () => {
 
     it('resets a settled table from the same button', async () => {
         const wrapper = mountDesk()
+        await openCashfusion(wrapper)
         const vm = wrapper.vm
 
         vm.requestRound()
@@ -389,6 +416,7 @@ describe('views/Concierge/Lobby — the demo round (timers)', () => {
 
     it('clears every demo timer on unmount (no settle after the view is gone)', async () => {
         const wrapper = mountDesk()
+        await openCashfusion(wrapper)
         const vm = wrapper.vm
 
         vm.requestRound()
