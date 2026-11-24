@@ -12,25 +12,24 @@
                 ★ BCH BLAZE 2026
             </div>
 
-            <a
-                :href="tokenUrl"
-                target="_blank"
-                rel="noopener noreferrer"
-                title="Open BLAZE2026-EMBER on Selene Explorer"
-                class="group mt-[6px] flex items-center justify-between gap-[8px] rounded-[8px] bg-secondary px-[10px] py-[6px] text-[11px] leading-[16px] font-semibold text-secondary-fg transition-colors hover:bg-secondary-hover focus-visible:ring-2 focus-visible:ring-ring"
-            >
-                <span>Introducing Shielded Stablecoin Payments on Bitcoin Cash</span>
-                <span class="shrink-0 text-[12px] transition-transform group-hover:translate-x-[2px]">↗</span>
-            </a>
+            <div class="text-[11px] leading-[16px] text-white/85 mt-[2px]">
+                Introducing Shielded Stablecoin Payments on Bitcoin Cash
+            </div>
 
             <div class="mt-[8px] flex flex-col gap-[6px]">
-                <div
-                    :title="emberTitle"
-                    class="flex items-center justify-between rounded-[8px] border border-white/15 px-[10px] py-[6px] text-[11px] leading-[16px]"
+                <a
+                    :href="tokenUrl"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    title="Open BLAZE2026-EMBER on Selene Explorer"
+                    class="group flex items-center justify-between gap-[8px] rounded-[8px] bg-secondary px-[10px] py-[6px] text-[11px] leading-[16px] font-semibold text-secondary-fg transition-colors hover:bg-secondary-hover focus-visible:ring-2 focus-visible:ring-ring"
                 >
-                    <span class="text-white/70">Embers received</span>
-                    <span class="font-semibold tabular-nums text-[#9fd8ff]">{{ emberLabel }}</span>
-                </div>
+                    <span>Embers received</span>
+                    <span class="flex items-center gap-[4px] tabular-nums">
+                        <span>🔥 {{ emberLabel }}</span>
+                        <span class="text-[12px] transition-transform group-hover:translate-x-[2px]">↗</span>
+                    </span>
+                </a>
 
                 <a
                     :href="deckUrl"
