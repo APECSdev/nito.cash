@@ -238,3 +238,22 @@ describe('views/Concierge/Persona — CashID', () => {
         vi.useRealTimers()
     })
 })
+
+describe('views/Concierge/Persona — CashID clipboard', () => {
+    it('writes the response URI to the clipboard when available', async () => {
+        const writeText = vi.fn(async () => {})
+        Object.defineProperty(navigator, 'clipboard', { value: { writeText }, configurable: true })
+        const wrapper = mountPersona()
+        wrapper.vm.cashIdResponse = { request: 'cashid:example/x?d=a:b:0', address: 'bchtest:q', signature: 's' }
+        wrapper.vm.copyCashIdResponse()
+        expect(writeText).toHaveBeenCalledWith('cashid:example/x?d=a:b:0')
+        expect(wrapper.vm.cashIdCopied).toBe(true)
+    })
+
+    it('does nothing when there is no response', () => {
+        const wrapper = mountPersona()
+        wrapper.vm.cashIdResponse = null
+        wrapper.vm.copyCashIdResponse()
+        expect(wrapper.vm.cashIdCopied).toBe(false)
+    })
+})
