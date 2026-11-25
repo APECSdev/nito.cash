@@ -59,6 +59,10 @@
         <!-- ============================================================
              SERVICE — CashFusion (Nostr only). Opened from the landing.
              ============================================================ -->
+        <template v-if="activeService === 'cashshuffle'">
+            <CashShuffle @back="closeService" />
+        </template>
+
         <template v-if="activeService === 'cashfusion'">
 
             <!-- Back to the guest-services landing. -->
@@ -539,12 +543,15 @@ import { Button, Footer } from '@/components'
 
 /* Import the Quantumroot service (the new orchestration). */
 import Quantumroot from './Desk/Quantumroot.vue'
+/* Import the CashShuffle service (the protocol demo). */
+import CashShuffle from './Desk/CashShuffle.vue'
 
 export default {
     components: {
         Button,
         Footer,
         Quantumroot,
+        CashShuffle,
     },
     data: () => {
         return {
@@ -600,6 +607,21 @@ export default {
                         { k: 'Signature', v: 'LM-OTS (RFC 8554) · 2,144 B · ~2.5 KB unlock' },
                         { k: 'Sweep', v: '400+ addresses or 800+ inputs in one <100 KB tx' },
                         { k: 'Status', v: 'Developer preview · May 2026 target' },
+                    ],
+                },
+                {
+                    id: 'cashshuffle',
+                    suite: '03',
+                    name: 'CashShuffle',
+                    tagline: 'Equal-output shuffles over Nostr. The lowest ephemeral pubkey coordinates; blame aborts before broadcast.',
+                    status: 'Protocol live',
+                    tone: 'gold',
+                    action: 'Shuffle round',
+                    facts: [
+                        { k: 'Transport', v: 'NIP-59 gift wrap (kind 1059) + NIP-44 v2' },
+                        { k: 'Coordinator', v: 'Lowest ephemeral pubkey — no server' },
+                        { k: 'Abort', v: 'N-1 blame, before broadcast' },
+                        { k: 'Status', v: 'Protocol core live · transport next' },
                     ],
                 },
                 {
