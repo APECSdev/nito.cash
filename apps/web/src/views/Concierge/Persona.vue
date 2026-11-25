@@ -323,9 +323,21 @@
                 <p class="text-[11px] leading-[16px] text-fg-muted">
                     The Collision Hash is derived from the block that mines the
                     registration, so the preview reads <span class="font-mono">#FFFF.00</span>
-                    until confirmation. Registration lands in phase 1, after the
-                    covenant artifact is compiled and VM-validated.
+                    until confirmation. Registration lands after the covenant
+                    artifact is compiled and VM-validated.
                 </p>
+
+                <div class="mt-[8px] grid gap-[4px] rounded-[10px] bg-frame-border px-[10px] py-[8px] font-mono text-[10px] text-fg-muted">
+                    <div class="flex justify-between gap-[8px]">
+                        <span>commitment</span>
+                        <span>{{ registerCommitmentSize }} B</span>
+                    </div>
+                    <div class="break-all">{{ registerCommitmentHex }}</div>
+                    <div class="mt-[4px] flex justify-between gap-[8px]">
+                        <span>profile OP_RETURN</span>
+                    </div>
+                    <div class="break-all">{{ registerProfileHex }}</div>
+                </div>
 
                 <div class="mt-[10px]">
                     <Button label="Register (soon)" small blank @click.native="mockRegister" />
@@ -428,6 +440,9 @@ import { isValidAccountName, pendingIdentifier } from '@/lib/cashaccount/identif
 import { getCluster } from '@/lib/bch/provider.js'
 import { createCashCode, deriveCashCodeKeys, scanCashCode } from '@/lib/cashaccount/cashcode.js'
 import { buildResponseUri, parseChallenge, signCashIdResponse } from '@/lib/cashaccount/cashid.js'
+import { binToHex } from '@bitauth/libauth'
+import { commitmentLength, encodeCommitment } from '@/lib/cashaccount/commitment.js'
+import { encodeProfile } from '@/lib/cashaccount/profile.js'
 
 /* The live mainnet example: the "Kallisti" registration (ChainGraph). */
 const LIVE_EXAMPLE_TXID = '8267bff0bf6532bfd109ecae1062deb88822166333de5ece52d4309371a42878'
@@ -480,6 +495,38 @@ export default {
             return isValidAccountName(this.registerName)
                 ? pendingIdentifier(this.registerName)
                 : '—'
+        },
+
+        /* The live Identity NFT commitment preview (40 B, no Nostr key yet). */
+        registerCommitment() {
+            if (!this.cashCodeKeys || !isValidAccountName(this.registerName)) return null
+            try {
+                return encodeCommitment({
+                    network: this.getNetwork,
+                    prefix: 0,
+                    scanPubkey: this.cashCodeKeys.scanPubkey,
+                })
+            } catch (err) {
+                return null
+            }
+        },
+
+        registerCommitmentHex() {
+            return this.registerCommitment ? binToHex(this.registerCommitment) : '—'
+        },
+
+        registerCommitmentSize() {
+            return this.registerCommitment ? commitmentLength(false) : '—'
+        },
+
+        /* The profile OP_RETURN preview (the name + the default fields). */
+        registerProfileHex() {
+            if (!isValidAccountName(this.registerName)) return '—'
+            try {
+                return binToHex(encodeProfile({ name: this.registerName }))
+            } catch (err) {
+                return '—'
+            }
         },
 
         /* The CashCode scan/spend keys derived from the wallet entropy. */
