@@ -47,7 +47,10 @@ function unpad(padded) {
 }
 
 function conversationKey(privateKey, publicKey) {
-    const shared = secp256k1.getSharedSecret(privateKey, publicKey)
+    /* Nostr public keys are x-only (32 B); the ECDH needs a compressed point.
+       Prefix 0x02 (the even-y convention) when the caller passes x-only. */
+    const compressed = publicKey.length === 32 ? new Uint8Array([0x02, ...publicKey]) : publicKey
+    const shared = secp256k1.getSharedSecret(privateKey, compressed)
     return shared.slice(1, 33)
 }
 
