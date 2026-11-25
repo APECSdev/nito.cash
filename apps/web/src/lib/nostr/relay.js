@@ -73,7 +73,8 @@ export class Relay {
         this.connect()
         const subId = `nito-${this.nextSubId++}`
         this.subscriptions.set(subId, { filters, onEvent })
-        this.#send(['REQ', subId, ...filters])
+        /* If the socket is still connecting, onopen re-sends the map. */
+        if (this.state === 'open') this.#send(['REQ', subId, ...filters])
         return subId
     }
 
