@@ -257,3 +257,25 @@ describe('views/Concierge/Persona — CashID clipboard', () => {
         expect(wrapper.vm.cashIdCopied).toBe(false)
     })
 })
+
+describe('views/Concierge/Persona — registration preview', () => {
+    it('renders the 40-byte commitment and the profile OP_RETURN', () => {
+        const store = useStore()
+        store.$patch({ profile: { ms: '11'.repeat(32) } })
+        const wrapper = mountPersona()
+        wrapper.vm.registerName = 'Kallisti'
+        expect(wrapper.vm.registerCommitment).toBeInstanceOf(Uint8Array)
+        expect(wrapper.vm.registerCommitment).toHaveLength(40)
+        expect(wrapper.vm.registerCommitmentHex).toMatch(/^0201/)
+        expect(wrapper.vm.registerCommitmentSize).toBe(40)
+        expect(wrapper.vm.registerProfileHex).toMatch(/^6a/)
+    })
+
+    it('returns placeholders without a name or keys', () => {
+        const wrapper = mountPersona()
+        wrapper.vm.registerName = ''
+        expect(wrapper.vm.registerCommitment).toBeNull()
+        expect(wrapper.vm.registerCommitmentHex).toBe('—')
+        expect(wrapper.vm.registerProfileHex).toBe('—')
+    })
+})
