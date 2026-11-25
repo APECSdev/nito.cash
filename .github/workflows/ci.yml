@@ -8,8 +8,9 @@
 #   2. deploy     — runs ONLY after build-test succeeds (on master). Uploads the
 #      pre-built, pre-tested `dist/` to Cloudflare Pages (`nitocash`) via Wrangler
 #      Direct Upload, plus the static BLAZE submission page (`nitocash-blaze`,
-#      served at blaze.nito.cash). Cloudflare does NOT build from git — it only
-#      ever receives a tested artifact.
+#      served at blaze.nito.cash) and the demo portal (`nitocash-demo`, served
+#      at demo.nito.cash). Cloudflare does NOT build from git — it only ever
+#      receives a tested artifact.
 #
 # Mirrors the "Build & Verify" steps in AGENTS.md.
 
@@ -45,6 +46,11 @@ jobs:
       - name: Build web wallet
         run: pnpm build
 
+      # The demo portal frames the built wallet (same-origin) — copy-app.mjs
+      # copies apps/web/dist-vite into apps/demo/dist/app/.
+      - name: Build demo portal
+        run: pnpm --filter @nito.cash/demo build
+
       # Unit tests (Phase C): Vitest + @vue/test-utils v2. Coverage (lcov) is
       # generated at apps/web/coverage/lcov.info for the Codecov upload below.
       - name: Run unit tests
@@ -74,6 +80,14 @@ jobs:
           path: |
             apps/blaze/*.html
             apps/blaze/*.pdf
+          retention-days: 1
+
+      - name: Upload demo artifact (demo-dist)
+        uses: actions/upload-artifact@v4
+        with:
+          name: demo-dist
+          # Portal + the copied wallet bundle (apps/demo/dist/app/).
+          path: apps/demo/dist
           retention-days: 1
 
   deploy:
@@ -111,5 +125,18 @@ jobs:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: 38907316ed118886fa8035039f92056d
           command: pages deploy blaze-dist --project-name=nitocash-blaze
+
+      - name: Download demo artifact (demo-dist)
+        uses: actions/download-artifact@v4
+        with:
+          name: demo-dist
+          path: demo-dist
+
+      - name: Deploy demo portal to Cloudflare Pages (nitocash-demo)
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: 38907316ed118886fa8035039f92056d
+          command: pages deploy demo-dist --project-name=nitocash-demo
 
 

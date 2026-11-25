@@ -1,0 +1,239 @@
+/* apps/demo/src/style.css
+ *
+ * Tailwind v4 entry for the demo portal. Tokens mirror the wallet's own
+ * palette (apps/web/src/App.vue: --bg / --fg / --primary / --secondary) so
+ * the portal and the framed app read as one product.
+ */
+@import "tailwindcss";
+
+@font-face {
+    font-family: 'Poppins';
+    font-style: normal;
+    font-weight: 400;
+    font-display: swap;
+    src: url('./assets/fonts/poppins-regular.woff2') format('woff2');
+}
+
+@font-face {
+    font-family: 'Poppins';
+    font-style: normal;
+    font-weight: 500;
+    font-display: swap;
+    src: url('./assets/fonts/poppins-medium.woff2') format('woff2');
+}
+
+@font-face {
+    font-family: 'Poppins';
+    font-style: normal;
+    font-weight: 600;
+    font-display: swap;
+    src: url('./assets/fonts/poppins-semibold.woff2') format('woff2');
+}
+
+@theme {
+    --font-sans: 'Poppins', ui-sans-serif, system-ui, sans-serif;
+
+    --color-navy: #0a1020;
+    --color-navy2: #0e1526;
+    --color-paper: #f3f6fb;
+    --color-ink: #1b2740;
+    --color-mist: #aebbd2;
+    --color-muted: #5c6d8d;
+    --color-electric: #2f66e0;
+    --color-amber: #ffc555;
+    --color-ok: #10b981;
+}
+
+@layer base {
+    html {
+        scroll-behavior: smooth;
+    }
+
+    body {
+        @apply bg-navy font-sans text-paper antialiased;
+    }
+
+    ::selection {
+        background: #ffc555;
+        color: #0a1020;
+    }
+}
+
+@layer components {
+    .eyebrow {
+        @apply text-[11px] font-semibold uppercase tracking-[0.28em] text-electric;
+    }
+
+    .navlink {
+        @apply rounded-full px-3 py-2 text-[13px] font-medium text-mist transition hover:bg-white/[0.06] hover:text-paper;
+    }
+
+    .chip {
+        @apply rounded-full border border-white/10 bg-white/[0.04] px-3 py-1.5 text-[12px] font-medium text-mist;
+    }
+
+    .btn-primary {
+        @apply inline-flex items-center justify-center gap-2 rounded-full bg-amber px-5 py-3 text-[14px] font-semibold text-navy transition hover:brightness-105 active:scale-[0.99];
+    }
+
+    .btn-ghost {
+        @apply inline-flex items-center justify-center gap-2 rounded-full border border-white/20 px-5 py-3 text-[14px] font-semibold text-paper transition hover:border-white/40 hover:bg-white/[0.04] active:scale-[0.99];
+    }
+
+    .panel {
+        @apply rounded-[26px] bg-paper p-5 text-ink shadow-[0_36px_90px_-46px_rgba(0,0,0,0.9)] sm:p-6;
+    }
+
+    .counter {
+        @apply font-mono text-[11px] font-semibold tracking-[0.18em] text-muted;
+    }
+
+    .bar {
+        @apply h-1.5 w-full overflow-hidden rounded-full bg-ink/10;
+    }
+
+    .bar > i {
+        @apply block h-full rounded-full bg-electric;
+    }
+
+    .iconbtn {
+        @apply flex h-10 w-10 items-center justify-center rounded-full border border-ink/10 bg-white text-ink transition hover:border-ink/25 hover:bg-ink/[0.03];
+    }
+
+    .chap {
+        @apply flex items-center gap-1.5 rounded-full border border-ink/10 px-2.5 py-1.5 text-[11px] font-semibold text-muted transition hover:border-ink/25 hover:text-ink;
+    }
+
+    .chap-on {
+        @apply border-electric/30 bg-electric/[0.08] text-electric;
+    }
+}
+
+/* ---- Decorative backdrop (fixed, behind everything) ---- */
+.bg-ornaments {
+    position: fixed;
+    inset: 0;
+    overflow: hidden;
+    pointer-events: none;
+}
+
+.orb {
+    position: absolute;
+    border-radius: 9999px;
+    filter: blur(110px);
+}
+
+.orb-a {
+    top: -260px;
+    left: -160px;
+    width: 620px;
+    height: 620px;
+    background: #2f66e0;
+    opacity: 0.38;
+}
+
+.orb-b {
+    top: 220px;
+    right: -220px;
+    width: 520px;
+    height: 520px;
+    background: #ffc555;
+    opacity: 0.14;
+}
+
+.grid-bg {
+    position: absolute;
+    inset: 0;
+    background-image:
+        linear-gradient(rgba(147, 165, 196, 0.06) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(147, 165, 196, 0.06) 1px, transparent 1px);
+    background-size: 48px 48px;
+    mask-image: radial-gradient(ellipse at 50% 20%, black 0%, transparent 70%);
+}
+
+/* ---- Live dot ---- */
+.live {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.live i {
+    width: 6px;
+    height: 6px;
+    border-radius: 9999px;
+    background: #10b981;
+    box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.15);
+}
+
+/* ---- Phone frame ---- */
+.phone {
+    position: relative;
+    width: min(360px, 88vw);
+    aspect-ratio: 390 / 844;
+}
+
+.phone-shell {
+    position: absolute;
+    inset: 0;
+    border-radius: 52px;
+    background: #05070d;
+    padding: 10px;
+    box-shadow:
+        0 50px 120px -40px rgba(0, 0, 0, 0.95),
+        inset 0 0 0 1px rgba(255, 255, 255, 0.09);
+}
+
+.phone-screen {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+    border-radius: 42px;
+    background: #f3f6fb;
+}
+
+.phone-screen iframe {
+    display: block;
+    width: 100%;
+    height: 100%;
+    border: 0;
+}
+
+.phone-loading {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    background: #f3f6fb;
+    color: #5c6d8d;
+    font-size: 12px;
+}
+
+.spinner {
+    width: 22px;
+    height: 22px;
+    border: 2px solid #d7dfec;
+    border-top-color: #2f66e0;
+    border-radius: 9999px;
+    animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    html {
+        scroll-behavior: auto;
+    }
+
+    .spinner {
+        animation: none;
+    }
+}
