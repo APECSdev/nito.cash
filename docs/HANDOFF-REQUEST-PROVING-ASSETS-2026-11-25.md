@@ -15,8 +15,16 @@ new proving assets, so it cannot produce a proof and cannot run the acceptance t
 
 ## What we need
 
-The assets that pair with **your** solo-ceremony VK (`05250429…`), not our committed
-PPOT VK (`27f6ea03…`):
+**Two things, not one:** the assets that pair with **your** solo-ceremony VK
+(`05250429…`), not our committed PPOT VK (`27f6ea03…`); AND the witness-encoding
+generator that produced the live role-2 witnesses (the `wip-role2-hook/transaction.mjs`
+`unlockingsFor`, `pool-tx.mjs`, `pool-op-role2.mjs`, `pool-hook.mjs`,
+`pool-refill-role2.mjs`, plus the exact `groth16_cashscript` / `zk-verifier-bench`
+revision). The assets alone are not enough: our `verifier.js` is the old 7-input
+generator and cannot emit the role-2 witness. The live witness pushes
+(`9d9aa97a…`, `5262417b…`, `e54d19fb…`) are the byte-exact oracle.
+
+The asset table:
 
 | asset | expected sha256 |
 |---|---|

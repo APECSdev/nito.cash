@@ -304,6 +304,25 @@ sender, receiver, and amount are all masked. Design decisions locked:
   generator drops the 7-input assumptions); (2) 3-input tx builder (the carrier; the
   tags); (3) the wallet-signed lock tx (2 tagged fuel UTXOs; the FT deposit on out0 for
   shields); (4) off-chain notes; (5) blanks; (6) fee hygiene.
+- THE NITO ROLE-2 TRANSACTION LAYER IS DONE (2026-11-25). `src/lib/pool/role2-carrier.js`
+  (the 169-B carrier, OP_RETURN, deposit tag, big-endian actionHash); `role2-lock.js`
+  (the user-signed P2PKH lock: 2 tagged fuel UTXOs of 15k, the shield FT deposit on out0,
+  FT change, 1 sat/B); `role2-action.js` (the 3-input signature-free action: carrier out0,
+  new state NFT out1, unshield payout out2); `role2-actions.js` (prove-first → tag → lock
+  → atomic broadcast → off-chain notes); `blanks.js` (the exact blank shape, actions
+  remaining, 2 per lock, the vending machine); `verifier-program-role2.js` (the deployed
+  program/guard/vending descriptor). The registry entry `chipnet-pusd-role2` is first,
+  `walletProverCompatible: false`, `status: 'awaiting-proving-assets'`; the old v4/v3 are
+  `deprecated: true`. The `Wallet.vue` shows the blank inventory + vending + the gate.
+  Tests: carrier 6, lock 4, action 3, actions 3, blanks 12.
+- THE PROVING-ASSET HANDOFF IS WRITTEN: `docs/ROLE2-PROVING-ASSETS-HANDOFF-2026-11-25.md`
+  (hushyourmoney repo; commit `f958477`). The block is BOTH the Hush VK/zkey/wasm AND the
+  witness-encoding generator (`wip-role2-hook/transaction.mjs` `unlockingsFor`,
+  `pool-tx.mjs`, `pool-op-role2.mjs`, `pool-hook.mjs`, `pool-refill-role2.mjs`, the exact
+  `groth16_cashscript`/`zk-verifier-bench` revision). The nito `verifier.js` is still the
+  old 7-input generator; the live witness pushes (`9d9aa97a…`, `5262417b…`, `e54d19fb…`)
+  are the byte-exact oracle. The Hush reply is `docs/DAEMONS-NITO-RESPONSE-2026-11-25.md`
+  (commit `3739be7`).
 - THE OLD NOTES ARE NOT KEPT. The `chipnet-pusd-v4` notes came from a WITHDRAWN
   verifier and are ABANDONED — no unshield/re-shield migration, no old-note spend.
   The new role-2 pool starts from its own genesis root; all new notes are created by
@@ -336,11 +355,21 @@ sender, receiver, and amount are all masked. Design decisions locked:
   lock batching composes with the tags. The CashShuffle-over-Nostr design is FINAL
   (docs/CASHSHUFFLE-NOSTR-DESIGN.md): NIP-59 gift wrap (kind 1059) + NIP-44 v2 over a
   relay set, the deterministic lowest-ephemeral-pubkey coordinator, the classic
-  register/pool/announce/shuffle/sign/broadcast/blame phases, Schnorr signatures, 80 ms
-  pacing, equal amounts, and the pool-native lock batching (the round's outputs ARE the
-  tagged fuel UTXOs). Open: the production relay set, NIP-42 policy, the discovery
-  kind, coordinator rotation, the protobuf↔Nostr mapping. Quantumroot Vaults are
-  separate (saving, not payments; distinct from the Transparent Vaults).
+  register/pool/announce/shuffle/VERIFY/sign/broadcast/blame phases, Schnorr signatures,
+  80 ms pacing, equal amounts, and the pool-native lock batching (the round's outputs ARE
+  the tagged fuel UTXOs; 2N outputs — two tagged fuel UTXOs per action, 10 for 5 actions).
+  The implementation is in `src/lib/cashshuffle/` (`protocol.js` — the state machine,
+  coordinator, N-1 blame, VERIFY; `transport.js` — kind-22231 rumors as NIP-59 gift
+  wraps, unicast/broadcast; `round-runner.js` — protocol+transport, explicit peers) and
+  `src/lib/nostr/` (`event.js` — canonical id + BIP-340; `nip44.js` — official v2 padding,
+  2-byte BE + chunks 32..65536; `nip59.js` — rumor→seal→gift wrap, two-day timestamp
+  randomization; `relay.js` — REQ/EVENT/CLOSE/AUTH, per-id OK pending map). The Desk has
+  the CashShuffle service (service 03) with the phase rail, blame tally, live relay
+  opt-in and the round controls. Tests: protocol 11, transport 4, runner 6, NIP-44 6,
+  NIP-59 5, relay 6. Open: the production relay set, NIP-42 policy (the relay client
+  captures the challenge; the transport wiring is the next step), the discovery kind,
+  coordinator rotation, the protobuf↔Nostr mapping, the blackhost daemon. Quantumroot
+  Vaults are separate (saving, not payments; distinct from the Transparent Vaults).
 - THE WEB-PLATFORM CHIPNET TEST IS THE ACCEPTANCE. The new pool must run
   SHIELD → TRANSFER → UNSHIELD successfully FROM THE WEB PLATFORM on chipnet before it
   is considered working (the browser; the new VK/assets; the new shape; the tags; the
@@ -911,9 +940,16 @@ Full review found the app silently bricked since the Vue 3 migration:
 ## Concierge Desk MOCKUP (2026-11-22) — CashFusion + P2P-over-Nostr
 
 `#/concierge` now opens a **hotel-style front desk** instead of the old placeholder Lobby. The
-Lobby tab is renamed **Desk** (`Concierge.vue` `tab: 'Desk'`, `tabs: ['Desk','Earn','Spend']`);
-the component stays `views/Concierge/Lobby.vue` so imports/routes are unchanged. Commits
-`946cea8` (feature) + `3495839` (tests); CI green on the tip run 45029875758.
+tabs are **`['Desk','Persona','Earn','Spend']`** (`Concierge.vue`); the Desk component stays
+`views/Concierge/Lobby.vue` so imports/routes are unchanged. The Desk is the Guest Services
+landing with three doors: **01 Quantumroot** (developer preview), **02 CashFusion** (Nostr only,
+mock), **03 CashShuffle** (protocol live, opt-in relay). The Persona tab is **CashAccounts v2**:
+the CashCode card is live (master-seed derivation, Fulcrum RPA scan), the CashID card is live
+(challenge → tweaked-key signature), the registration card previews the 40-B Identity NFT
+commitment + the profile OP_RETURN, and Register / Nostr remain "Soon" (the compiled covenant
+artifact + the VM gate). Earn is the Vault Desk (shielded-pool dossier + Hush ceremony + the
+local interest counter); Spend is the Courier Desk (the real paste-drop + the shielded-addresses
+dossier + CoinJoin).
 
 **It is a MOCKUP.** Nothing contacts a relay, coordinator or chain; the only side effects are
 local `displayNotification` toasts. Every figure is transcribed from published research:

@@ -32,8 +32,14 @@ until the final broadcast).
 - **Encryption:** NIP-44 v2 payloads inside **NIP-59 gift wrap** (kind `1059`), with a
   fresh ephemeral key per message. The rumor (the actual packet) is unsigned; the seal
   is signed by the sender's ephemeral key; the gift wrap is signed by a throwaway key.
+  Padding is the **official v2** form: a 2-byte big-endian length prefix + the plaintext
+  + zero padding to the next chunk (32, 64, 128, 256, 512, 1024, 2048, 4096, 8192,
+  16384, 32768, 65536). The seal and gift-wrap `created_at` are randomized up to **two
+  days** in the past; the receiver accepts that window.
 - **Authentication:** NIP-42 AUTH when a relay requires it; the AUTH key is a
-  per-session ephemeral key, never the wallet key.
+  per-session ephemeral key, never the wallet key. The relay client captures the
+  challenge and can send the signed AUTH event (kind 22242); wiring the policy into
+  the transport is the remaining step.
 - **Pacing:** 80 ms between publishes (the CashFusion measured pacing); one event per
   packet; no batching (batching leaks timing).
 - **Discovery:** a kind-`22230`-style announcement is DESIGN-ONLY for now (the
@@ -50,7 +56,10 @@ until the final broadcast).
 4. **Shuffle** — each player sends its onion-wrapped output list (unicast to the next
    player, the classic onion). The coordinator relays; the final player broadcasts the
    shuffled list.
-5. **Signing** — each player signs the final transaction (Schnorr, `SIGHASH_ALL|FORKID`);
+5. **Verify** — every peer checks the assembled transaction before signing: the expected
+   output set, `sumOut <= sumIn`, and `fee <= estBytes * 5 sat/B`. A failure aborts the
+   round; nothing is signed.
+6. **Signing** — each player signs the final transaction (Schnorr, `SIGHASH_ALL|FORKID`);
    signatures are unicast to the coordinator.
 6. **Broadcast** — the coordinator assembles and broadcasts the tx; every player can
    independently verify the txid.
@@ -63,11 +72,12 @@ until the final broadcast).
 - Fee is deducted proportionally from every output (the CashShuffle fee model); the
   transaction is built with the exact fee before signing.
 - **Pool-native lock batching (the composition):** a shuffle round whose outputs ARE
-  the role-2 tagged fuel UTXOs. Each participant's shuffled output becomes a
-  15,000-sat tagged fuel UTXO; the tag identifies WHICH fuel output (the action's
-  outpoints reveal that anyway), never which funder. The round therefore pays the
-  pool's lock fee as part of the shuffle, and the pool action's fee privacy is
-  inherited from the equal-output set.
+  the role-2 tagged fuel UTXOs. Each action consumes **two same-tag fuel UTXOs**, so
+  the round produces **2N outputs** (10 outputs for 5 actions): each participant
+  contributes two equal inputs and receives two same-tag outputs. The tag identifies
+  WHICH fuel output (the action's outpoints reveal that anyway), never which funder.
+  The round therefore pays the pool's lock fee as part of the shuffle, and the pool
+  action's fee privacy is inherited from the equal-output set.
 
 ## 5. Threat model
 
@@ -89,13 +99,15 @@ until the final broadcast).
 - The discovery kind/tag schema (kind 22230 is design-only).
 - Whether the coordinator is always the lowest key or rotates per phase.
 - The exact protobuf ↔ Nostr packet mapping (one event per packet is the default).
+- The 2N-output round shape (two tagged fuel UTXOs per action) in the daemon + Desk.
+- The `blackhost` daemon availability (the real multi-peer round is delayed until then).
 - The browser test harness for a multi-peer round (jsdom + mock relays first).
 
 ## 7. Acceptance
 
-A 5-peer chipnet round on the built app: 5 equal inputs → 5 equal outputs, all
+A 5-peer chipnet round on the built app: 5 equal inputs → 10 equal outputs (2N), all
 Schnorr-signed, one broadcast txid, no relay sees a wallet key. Then the same round
 with the pool-native lock batching: the shuffled outputs become the tagged fuel UTXOs
-of 5 role-2 actions.
+of 5 role-2 actions (two same-tag fuel UTXOs each).
 
 — APECSdev / nito.cash, 2026-11-25
