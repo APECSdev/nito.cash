@@ -27,23 +27,32 @@ export const NIP44_SALT = new TextEncoder().encode('nip44-v2')
 const MIN_PLAINTEXT = 1
 const MAX_PLAINTEXT = 65535
 
-/* NIP-44 v2 padding: 4-byte BE length + the plaintext + zero padding to the
-   next chunk boundary (32 bytes for small payloads, then powers of two). */
+/* Official NIP-44 v2 padding: a 2-byte BE length + the plaintext + zero
+   padding to the next chunk boundary. The chunk sizes are 32, 64, 128, 256,
+   512, 1024, 2048, 4096, 8192, 16384, 32768, 65536 (the v2 spec). */
+const CHUNK_SIZES = [32, 64, 128, 256, 512, 1024, 2048, 4096, 8192, 16384, 32768, 65536]
+
+function paddedLength(len) {
+    const needed = len + 2
+    const chunk = CHUNK_SIZES.find((size) => size >= needed)
+    if (!chunk) throw new Error('nip44: plaintext too long')
+    return chunk
+}
+
 function pad(plaintext) {
     const len = plaintext.length
     if (len < MIN_PLAINTEXT || len > MAX_PLAINTEXT) throw new Error('nip44: invalid plaintext length')
-    const nextPower = len <= 32 ? 32 : 2 ** Math.ceil(Math.log2(len))
-    const padded = new Uint8Array(4 + nextPower)
-    new DataView(padded.buffer).setUint32(0, len, false)
-    padded.set(plaintext, 4)
+    const padded = new Uint8Array(paddedLength(len))
+    new DataView(padded.buffer).setUint16(0, len, false)
+    padded.set(plaintext, 2)
     return padded
 }
 
 function unpad(padded) {
     const view = new DataView(padded.buffer, padded.byteOffset, padded.byteLength)
-    const len = view.getUint32(0, false)
-    if (len < MIN_PLAINTEXT || len > MAX_PLAINTEXT || len > padded.length - 4) throw new Error('nip44: invalid padding')
-    return padded.slice(4, 4 + len)
+    const len = view.getUint16(0, false)
+    if (len < MIN_PLAINTEXT || len > MAX_PLAINTEXT || len + 2 > padded.length) throw new Error('nip44: invalid padding')
+    return padded.slice(2, 2 + len)
 }
 
 function conversationKey(privateKey, publicKey) {

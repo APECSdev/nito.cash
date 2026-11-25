@@ -22,6 +22,7 @@ import {
     register,
     shuffle,
     signing,
+    verify,
     snapshot,
 } from './protocol.js'
 
@@ -76,6 +77,9 @@ export class CashShuffleRound {
             } else if (type === 'SHUFFLE') {
                 shuffle(this.round, { from, onion: payload?.onion })
                 if (this.round.phase === 'SHUFFLE' && this.round.players.length === this.round.poolSize) advance(this.round)
+            } else if (type === 'VERIFY') {
+                verify(this.round, { from, transaction: payload?.transaction, expectedOutputs: payload?.expectedOutputs })
+                if (this.round.phase === 'VERIFY') advance(this.round)
             } else if (type === 'SIGNING') {
                 signing(this.round, { from, signature: payload?.signature })
                 if (this.round.phase === 'SIGNING' && this.round.players.length === this.round.poolSize) advance(this.round)

@@ -20,6 +20,13 @@ import { decrypt, encrypt } from './nip44.js'
 
 export const SEAL_KIND = 13
 export const GIFT_WRAP_KIND = 1059
+export const TWO_DAYS = 2 * 24 * 60 * 60
+
+/* NIP-59: the sender randomizes the seal and gift-wrap created_at up to two
+   days in the past, so a relay cannot correlate the wrap with the round. */
+export function randomizeCreatedAt(base = Math.floor(Date.now() / 1000), window = TWO_DAYS) {
+    return base - Math.floor(Math.random() * window)
+}
 
 function toBytes(value) {
     return value instanceof Uint8Array ? value : hexToBytes(String(value).replace(/^0x/, ''))
@@ -34,7 +41,7 @@ export function sealRumor(rumor, senderPrivateKey, senderPublicKey, recipientPub
         tags: [],
         privateKey: toBytes(senderPrivateKey),
         publicKey: toBytes(senderPublicKey),
-        createdAt: rumor.created_at,
+        createdAt: randomizeCreatedAt(rumor.created_at),
     })
 }
 
@@ -50,6 +57,7 @@ export function giftWrap(seal, recipientPublicKey, throwawayPrivateKey, throwawa
         tags: [['p', recipientHex]],
         privateKey: toBytes(throwawayPrivateKey),
         publicKey: toBytes(throwawayPublicKey),
+        createdAt: randomizeCreatedAt(),
     })
 }
 
@@ -63,6 +71,10 @@ export function wrapRumor({ rumor, senderPrivateKey, senderPublicKey, recipientP
 export function unwrapGift({ gift, recipientPrivateKey, senderPublicKey }) {
     if (gift.kind !== GIFT_WRAP_KIND) throw new Error('nip59: not a gift wrap')
     if (!verifyEvent(gift)) throw new Error('nip59: invalid gift-wrap signature')
+    /* The receiver accepts the NIP-59 two-day backdating window. */
+    if (typeof gift.created_at === 'number' && Math.abs(Math.floor(Date.now() / 1000) - gift.created_at) > TWO_DAYS) {
+        throw new Error('nip59: gift wrap outside the two-day window')
+    }
     const seal = JSON.parse(decrypt(gift.content, toBytes(recipientPrivateKey), hexToBytes(gift.pubkey)))
     if (seal.kind !== SEAL_KIND) throw new Error('nip59: not a seal')
     if (!verifyEvent(seal)) throw new Error('nip59: invalid seal signature')

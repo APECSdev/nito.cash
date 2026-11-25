@@ -15,6 +15,7 @@ import {
     signing,
     snapshot,
     shuffle,
+    verify,
 } from '@/lib/cashshuffle/protocol'
 
 const keys = ['cc', 'aa', 'ee', 'bb', 'dd']
@@ -32,7 +33,7 @@ describe('lib/cashshuffle/protocol', () => {
     })
 
     it('walks the phases in order', () => {
-        expect(PHASES).toEqual(['REGISTER', 'POOL', 'ANNOUNCEMENT', 'SHUFFLE', 'SIGNING', 'BROADCAST'])
+        expect(PHASES).toEqual(['REGISTER', 'POOL', 'ANNOUNCEMENT', 'SHUFFLE', 'VERIFY', 'SIGNING', 'BROADCAST'])
         expect(nextPhase('REGISTER')).toBe('POOL')
         expect(nextPhase('BROADCAST')).toBeNull()
         expect(() => nextPhase('NOPE')).toThrow('unknown phase')
@@ -52,6 +53,7 @@ describe('lib/cashshuffle/protocol', () => {
         announcement(round, { from: 'aa' })
         expect(round.phase).toBe('SHUFFLE')
         shuffle(round, { from: 'bb', onion: 'onion-1' })
+        advance(round)
         advance(round)
         signing(round, { from: 'bb', signature: 'sig-1' })
         advance(round)
@@ -97,5 +99,31 @@ describe('lib/cashshuffle/protocol', () => {
         expect(view.aborted).toBe(false)
         expect(view.txid).toBeNull()
         expect(view.log.length).toBeGreaterThan(0)
+    })
+})
+
+describe('lib/cashshuffle/protocol — VERIFY', () => {
+    it('accepts a conserving transaction under the fee bound', () => {
+        const round = fullRound()
+        announcement(round, { from: 'aa' })
+        advance(round)
+        const tx = { inputs: [{ value: 200000 }], outputs: [{ value: 199000 }], estBytes: 300 }
+        expect(() => verify(round, { from: 'bb', transaction: tx })).not.toThrow()
+        expect(round.log.some((entry) => entry.type === 'verify')).toBe(true)
+    })
+
+    it('rejects sumOut > sumIn and a fee above 5 sat/B', () => {
+        const round = fullRound()
+        announcement(round, { from: 'aa' })
+        advance(round)
+        expect(() => verify(round, { from: 'bb', transaction: { inputs: [{ value: 100 }], outputs: [{ value: 200 }], estBytes: 300 } })).toThrow('sumOut')
+        expect(() => verify(round, { from: 'bb', transaction: { inputs: [{ value: 200000 }], outputs: [{ value: 100000 }], estBytes: 300 } })).toThrow('5 sat/B')
+    })
+
+    it('rejects a wrong output count', () => {
+        const round = fullRound()
+        announcement(round, { from: 'aa' })
+        advance(round)
+        expect(() => verify(round, { from: 'bb', transaction: { inputs: [{ value: 200000 }], outputs: [{ value: 199000 }], estBytes: 300 }, expectedOutputs: 5 })).toThrow('expected 5 outputs')
     })
 })

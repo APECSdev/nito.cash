@@ -60,6 +60,7 @@ describe('lib/cashshuffle/round-runner', () => {
         await runner.onMessage({ type: 'ANNOUNCEMENT', from: bytesToHex(actor.publicKey) })
         expect(runner.snapshot().phase).toBe('SHUFFLE')
         await runner.onMessage({ type: 'SHUFFLE', from: bytesToHex(other.publicKey), payload: { onion: 'o' } })
+        await runner.onMessage({ type: 'VERIFY', from: bytesToHex(actor.publicKey), payload: { transaction: { inputs: [{ value: 200000 }], outputs: [{ value: 199000 }], estBytes: 300 } } })
         await runner.onMessage({ type: 'SIGNING', from: bytesToHex(other.publicKey), payload: { signature: 's' } })
         await runner.onMessage({ type: 'BROADCAST', from: bytesToHex(actor.publicKey), payload: { txid: 'tx' } })
         expect(runner.snapshot().phase).toBe('BROADCAST')

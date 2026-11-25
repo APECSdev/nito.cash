@@ -19,6 +19,7 @@ export const PHASES = Object.freeze([
     'POOL',
     'ANNOUNCEMENT',
     'SHUFFLE',
+    'VERIFY',
     'SIGNING',
     'BROADCAST',
 ])
@@ -102,6 +103,31 @@ export function shuffle(round, { from, onion }) {
     requirePhase(round, 'SHUFFLE')
     if (!onion) throw new Error('cashshuffle: a shuffle packet needs an onion')
     round.log.push({ type: 'shuffle', from: String(from).toLowerCase(), onion })
+    return round
+}
+
+/*
+ * verify — check the assembled transaction BEFORE anyone signs.
+ *
+ * The classic CashShuffle VERIFY phase: every peer checks the output set it
+ * expected, conservation (sumOut <= sumIn), and the fee bound
+ * (fee <= estBytes * 5 sat/B). A failure aborts the round; nothing is signed.
+ */
+export function verify(round, { from, transaction, expectedOutputs = null }) {
+    requirePhase(round, 'VERIFY')
+    if (!transaction || !Array.isArray(transaction.inputs) || !Array.isArray(transaction.outputs)) {
+        throw new Error('cashshuffle: a VERIFY packet needs a transaction')
+    }
+    const sumIn = transaction.inputs.reduce((sum, input) => sum + BigInt(input.value ?? input.satoshis ?? 0), 0n)
+    const sumOut = transaction.outputs.reduce((sum, output) => sum + BigInt(output.value ?? output.satoshis ?? 0), 0n)
+    if (sumOut > sumIn) throw new Error('cashshuffle: sumOut exceeds sumIn')
+    const fee = sumIn - sumOut
+    const estBytes = BigInt(transaction.estBytes ?? 0)
+    if (estBytes > 0n && fee > estBytes * 5n) throw new Error('cashshuffle: fee exceeds the 5 sat/B bound')
+    if (expectedOutputs && transaction.outputs.length !== expectedOutputs) {
+        throw new Error(`cashshuffle: expected ${expectedOutputs} outputs, got ${transaction.outputs.length}`)
+    }
+    round.log.push({ type: 'verify', from: String(from).toLowerCase(), fee: fee.toString() })
     return round
 }
 
