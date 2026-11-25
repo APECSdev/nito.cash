@@ -140,7 +140,7 @@ describe('views/Concierge — the Desk tab', () => {
 })
 
 describe('views/Concierge/Lobby — the desk rendering', () => {
-    it('renders the Guest Services landing with the two side-by-side doors', () => {
+    it('renders the Guest Services landing with the three service doors', () => {
         const wrapper = mountDesk()
 
         const text = wrapper.text()
@@ -172,12 +172,12 @@ describe('views/Concierge/Lobby — the desk rendering', () => {
         expect(text).not.toContain('External server, trusted for round integrity')
         expect(text).not.toContain('Shielded Pool')
 
-        /* The two doors share one grid, side by side on desktop. */
-        expect(wrapper.vm.services.map((s) => s.id)).toEqual(['quantumroot', 'cashfusion'])
-        expect(wrapper.vm.services.map((s) => s.suite)).toEqual(['01', '02'])
+        /* The service doors share one grid, side by side on desktop. */
+        expect(wrapper.vm.services.map((s) => s.id)).toEqual(['quantumroot', 'cashshuffle', 'cashfusion'])
+        expect(wrapper.vm.services.map((s) => s.suite)).toEqual(['01', '03', '02'])
 
         const doors = wrapper.findAll('article')
-        expect(doors).toHaveLength(2)
+        expect(doors).toHaveLength(3)
         expect(doors[0].element.parentElement.className).toContain('md:grid-cols-2')
 
         /* The original bell-service actions are preserved. */
