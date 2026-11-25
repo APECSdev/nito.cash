@@ -24,6 +24,15 @@ const { cluster, getClusterMock } = vi.hoisted(() => {
         broadcast: vi.fn(async () => 'txid'),
         estimateFee: vi.fn(async () => 0.00001),
         relayFee: vi.fn(async () => 0.00001),
+
+        /* CashCode RPA scan surface. */
+        request: vi.fn(async (method) => (method === 'blockchain.headers.subscribe'
+            ? { height: 100 }
+            : { rpa: { starting_height: 100 } })),
+        rpaGetHistory: vi.fn(async () => []),
+        rpaGetMempool: vi.fn(async () => []),
+        getTransaction: vi.fn(async () => '00'),
+        subscribeHeaders: vi.fn(async () => ({ height: 100 })),
     }
 
     return { cluster, getClusterMock: vi.fn(async () => cluster) }
@@ -32,7 +41,7 @@ const { cluster, getClusterMock } = vi.hoisted(() => {
 vi.mock('@/lib/bch/provider.js', () => ({
     getCluster: getClusterMock,
     closeAllClusters: vi.fn(async () => {}),
-    ElectrumMethods: {},
+    ElectrumMethods: { subscribeHeaders: 'blockchain.headers.subscribe' },
     FulcrumCluster: class {},
 }))
 
@@ -114,6 +123,37 @@ describe('views/Concierge/Persona — the persona desk rendering', () => {
 
         await inputs[1].setValue('bad name')
         expect(wrapper.vm.registerPreview).toBe('—')
+    })
+
+    it('derives the wallet CashCode and copies it', async () => {
+        getStoreFacade().commit('profile/setMasterSeed', 'ab'.repeat(32))
+
+        const writeText = vi.fn(async () => {})
+        Object.defineProperty(navigator, 'clipboard', { value: { writeText }, configurable: true })
+
+        const wrapper = mountPersona()
+
+        expect(wrapper.vm.cashCode).toBeTruthy()
+        expect(wrapper.vm.cashCode.encoded.startsWith('cashcode:')).toBe(true)
+        expect(wrapper.text()).toContain('CashCode')
+
+        await wrapper.vm.copyCashCode()
+
+        expect(writeText).toHaveBeenCalledWith(wrapper.vm.cashCode.encoded)
+        expect(wrapper.vm.cashCodeCopied).toBe(true)
+    })
+
+    it('scans the RPA index for CashCode payments', async () => {
+        getStoreFacade().commit('profile/setMasterSeed', 'ab'.repeat(32))
+
+        const wrapper = mountPersona()
+
+        await wrapper.vm.scanPayments()
+
+        expect(cluster.rpaGetHistory).toHaveBeenCalled()
+        expect(cluster.rpaGetMempool).toHaveBeenCalled()
+        expect(wrapper.vm.cashCodeMatches).toEqual([])
+        expect(getStoreFacade().state.system.nm).toContain('0 CashCode payment(s) found')
     })
 
     it('keeps the account card hidden until an account resolves', () => {

@@ -28,7 +28,7 @@
              ============================================================ -->
         <div class="flex items-center justify-between gap-[10px] pt-[10px]">
             <span class="inline-flex items-center gap-[6px] rounded-full bg-secondary px-[10px] py-[3px] text-[9px] font-bold uppercase tracking-[0.18em] text-secondary-fg">
-                Preview
+                Live
             </span>
 
             <span class="text-[9px] font-semibold uppercase tracking-[0.18em] text-fg-muted">
@@ -220,6 +220,78 @@
         </section>
 
         <!-- ============================================================
+             CASHCODE — LIVE (the reusable payment code).
+             ============================================================ -->
+        <section class="shrink-0 mt-[12px] overflow-hidden rounded-[18px] border border-hr bg-box-bg">
+            <div class="flex items-center justify-between gap-[10px] p-[14px]">
+                <div class="text-[9px] font-bold uppercase tracking-[0.22em] text-fg-muted">
+                    CashCode
+                </div>
+
+                <span class="rounded-full bg-secondary px-[8px] py-[2px] text-[8px] font-bold uppercase tracking-[0.16em] text-secondary-fg">
+                    Live
+                </span>
+            </div>
+
+            <div class="px-[14px] pb-[14px]">
+                <p class="text-[11px] leading-[16px] text-fg-muted">
+                    A reusable payment code derived from your wallet. Payers derive
+                    one-time addresses; Fulcrum&rsquo;s RPA index discovers each payment.
+                </p>
+
+                <div v-if="cashCode" class="mt-[8px] break-all rounded-[10px] bg-frame-border px-[10px] py-[8px] font-mono text-[10px] text-fg-muted">
+                    {{ cashCode.encoded }}
+                </div>
+
+                <div v-else class="mt-[8px] rounded-[10px] bg-frame-border px-[10px] py-[8px] text-[10px] text-fg-muted">
+                    Unlock a wallet to derive your CashCode.
+                </div>
+
+                <div v-if="cashCode" class="mt-[6px] flex flex-wrap items-center gap-[6px] text-[10px] text-fg-muted">
+                    <span>Scan prefix {{ cashCode.scanPrefix }}</span>
+                    <span>&middot;</span>
+                    <span>{{ cashCode.paycode.expiry ? 'Expiry ' + cashCode.paycode.expiry : 'No expiry' }}</span>
+                </div>
+
+                <div class="mt-[10px] flex gap-[10px]">
+                    <Button
+                        :label="cashCodeCopied ? 'Copied ✓' : 'Copy CashCode'"
+                        small
+                        :disabled="!cashCode"
+                        @click="copyCashCode" />
+
+                    <Button
+                        label="Scan for payments"
+                        small
+                        blank
+                        :loading="scanning"
+                        :disabled="!cashCode || scanning"
+                        @click="scanPayments" />
+                </div>
+
+                <div v-if="cashCodeError" class="mt-[8px] text-[11px] text-warning-text">
+                    {{ cashCodeError }}
+                </div>
+
+                <div v-if="cashCodeMatches.length" class="mt-[10px] flex flex-col gap-[6px]">
+                    <div
+                        v-for="match of cashCodeMatches"
+                        :key="match.txid + ':' + match.outputIndex"
+                        class="rounded-[10px] border border-hr px-[10px] py-[8px] text-[10px]">
+                        <div class="flex justify-between gap-[8px]">
+                            <span class="min-w-0 break-all font-mono">{{ match.txid }}</span>
+                            <span class="shrink-0 font-semibold">{{ match.valueSatoshis }} sats</span>
+                        </div>
+
+                        <div class="mt-[2px] break-all text-fg-muted">
+                            Output {{ match.outputIndex }} &middot; {{ match.address }}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ============================================================
              REGISTER — MOCK (phase 1).
              ============================================================ -->
         <section class="shrink-0 mt-[12px] overflow-hidden rounded-[18px] border border-dashed border-hr bg-box-bg">
@@ -339,6 +411,10 @@ import { Button } from '@/components'
 /* Import the pure identifier helpers (no chain). */
 import { isValidAccountName, pendingIdentifier } from '@/lib/cashaccount/identifier.js'
 
+/* Import the live CashCode integration. */
+import { getCluster } from '@/lib/bch/provider.js'
+import { createCashCode, deriveCashCodeKeys, scanCashCode } from '@/lib/cashaccount/cashcode.js'
+
 /* The live mainnet example: the "Kallisti" registration (ChainGraph). */
 const LIVE_EXAMPLE_TXID = '8267bff0bf6532bfd109ecae1062deb88822166333de5ece52d4309371a42878'
 
@@ -350,6 +426,13 @@ export default {
         return {
             query: '',
             registerName: '',
+
+            /* CashCode copy feedback + RPA scan state. */
+            cashCodeCopied: false,
+            cashCodeCopiedTimer: null,
+            cashCodeMatches: [],
+            cashCodeError: null,
+            scanning: false,
         }
     },
     computed: {
@@ -357,6 +440,11 @@ export default {
             'getAccount',
             'getStatus',
             'getError',
+        ]),
+
+        ...mapGetters('profile', [
+            'getMasterSeed',
+            'getNetwork',
         ]),
 
         account() {
@@ -373,6 +461,34 @@ export default {
                 ? pendingIdentifier(this.registerName)
                 : '—'
         },
+
+        /* The CashCode scan/spend keys derived from the wallet entropy. */
+        cashCodeKeys() {
+            const entropyHex = this.getMasterSeed
+
+            if (!entropyHex) {
+                return null
+            }
+
+            try {
+                return deriveCashCodeKeys({ entropyHex })
+            } catch (e) {
+                return null
+            }
+        },
+
+        /* The wallet's live CashCode (network-aware). */
+        cashCode() {
+            if (!this.cashCodeKeys) {
+                return null
+            }
+
+            try {
+                return createCashCode({ keys: this.cashCodeKeys, network: this.getNetwork })
+            } catch (e) {
+                return null
+            }
+        },
     },
     methods: {
         ...mapActions('cashaccount', [
@@ -381,6 +497,7 @@ export default {
         ]),
 
         ...mapActions([
+            'displayError',
             'displayNotification',
         ]),
 
@@ -420,6 +537,77 @@ export default {
         },
 
         /**
+         * Copy the live CashCode to the clipboard.
+         */
+        async copyCashCode() {
+            if (!this.cashCode) {
+                return
+            }
+
+            try {
+                await navigator.clipboard.writeText(this.cashCode.encoded)
+
+                this.cashCodeCopied = true
+
+                clearTimeout(this.cashCodeCopiedTimer)
+
+                this.cashCodeCopiedTimer = setTimeout(() => {
+                    this.cashCodeCopied = false
+                }, 1600)
+
+                this.displayNotification('Persona desk · CashCode copied.')
+            } catch (e) {
+                this.displayError('Persona desk · could not copy the CashCode.')
+            }
+        },
+
+        /**
+         * Discover CashCode payments through Fulcrum's RPA index.
+         */
+        async scanPayments() {
+            if (!this.cashCode || !this.cashCodeKeys || this.scanning) {
+                return
+            }
+
+            this.scanning = true
+            this.cashCodeError = null
+
+            try {
+                const cluster = await getCluster(this.getNetwork)
+
+                /* Start at the RPA index's activation height when advertised. */
+                let fromHeight = 0
+
+                try {
+                    const features = await cluster.request('server.features')
+                    fromHeight = Number(features && features.rpa && features.rpa.starting_height)
+                } catch (e) {
+                    fromHeight = 0
+                }
+
+                if (!Number.isInteger(fromHeight) || fromHeight < 0) {
+                    fromHeight = 0
+                }
+
+                const result = await scanCashCode({
+                    cluster,
+                    keys: this.cashCodeKeys,
+                    paycode: this.cashCode.paycode,
+                    fromHeight,
+                })
+
+                this.cashCodeMatches = result.matches
+
+                this.displayNotification(`Persona desk · ${result.matches.length} CashCode payment(s) found.`)
+            } catch (e) {
+                this.cashCodeError = e.message
+                this.displayError(e.message)
+            } finally {
+                this.scanning = false
+            }
+        },
+
+        /**
          * Mock the registration path.
          */
         mockRegister() {
@@ -443,6 +631,9 @@ export default {
         mockNostr() {
             this.displayNotification('Persona desk · kind-0 publishing lands in phase 1. (No relay was contacted.)')
         },
+    },
+    beforeUnmount() {
+        clearTimeout(this.cashCodeCopiedTimer)
     },
 }
 </script>
