@@ -65,6 +65,32 @@
                     </div>
                 </div>
 
+                <!-- Role-2 tagged pool (the current pool): blank inventory,
+                     vending machine, and the proving-asset gate. -->
+                <div v-if="role2Pool" class="mt-[16px] p-[14px] rounded-[8px] bg-box-bg">
+                    <div class="text-[13px] font-semibold text-fg">
+                        {{role2Pool.name}}
+                    </div>
+                    <div class="mt-[6px] flex items-center justify-between text-[12px] font-semibold text-muted">
+                        <span>Blanks held</span>
+                        <span class="text-fg">{{poolBlankInfo ? poolBlankInfo.blanks : '—'}}</span>
+                    </div>
+                    <div class="mt-[4px] flex items-center justify-between text-[12px] font-semibold text-muted">
+                        <span>Actions remaining</span>
+                        <span class="text-fg">{{poolBlankInfo ? poolBlankInfo.actions : '—'}}</span>
+                    </div>
+                    <div class="mt-[4px] flex items-center justify-between text-[12px] font-semibold text-muted">
+                        <span>Vending price</span>
+                        <span class="text-fg">{{role2Pool.vending.priceSats}} sats / blank</span>
+                    </div>
+                    <div class="mt-[4px] text-[11px] font-medium text-muted break-all">
+                        Machine {{role2Pool.vending.lockingBytecode}}
+                    </div>
+                    <p v-if="!role2Pool.walletProverCompatible" class="mt-[8px] text-[12px] font-semibold text-warning-text leading-[18px]">
+                        Awaiting the Hush proving assets — the web-platform chipnet SHIELD → TRANSFER → UNSHIELD acceptance is pending.
+                    </p>
+                </div>
+
                 <!-- Action flow (blocker #4): scan → witness → prove → verify
                      → build → broadcast, against a wallet-prover-compatible
                      pool (registry.js getProverPool). -->
@@ -215,7 +241,9 @@ import { getTokenCategory } from '@/lib/bch/networks'
 
 /* Import the shielded-pool registry + the pool key material (the same
    domain-separated key the scan + action flows use). */
-import { getProverPool } from '@/lib/pool/registry'
+import { getPools, getProverPool } from '@/lib/pool/registry'
+import { blankSummary } from '@/lib/pool/blanks'
+import { getCluster } from '@/lib/bch/provider'
 import { deriveSpendKey } from '@/lib/pool/notes'
 import { deriveDeliveryPoint } from '@/lib/pool/carrier'
 import { bytesToHex, hexToBytes } from '@/lib/bch/crypto'
@@ -245,6 +273,7 @@ export default {
             actionResult: null,
             deliveryPointHex: '',
             deliveryPointCopied: false,
+            poolBlankInfo: null,
         }
     },
     computed: {
@@ -258,6 +287,7 @@ export default {
         ...mapGetters('wallets', [
             'getBalance',
             'getTokenBalance',
+            'getAddresses',
         ]),
 
         ...mapGetters('profile', [
@@ -313,6 +343,12 @@ export default {
            both deployed pools are flagged false today). */
         proverPool() {
             return getProverPool(this.getNetwork)
+        },
+
+        /* The role-2 tagged pool (the current target; its flag is false
+           until the Hush proving assets arrive). */
+        role2Pool() {
+            return getPools(this.getNetwork).find((pool) => pool.id === 'chipnet-pusd-role2') || null
         },
 
         /* The active action's submit-button label (busy state included). */
@@ -457,6 +493,21 @@ export default {
             } catch (err) {
                 console.error('SOL balance fetch failed:', err) // eslint-disable-line no-console
                 this.solBalance = null
+            }
+        }
+
+        /* Role-2 blank inventory: fetch the wallet's token UTXOs and count
+           the exact blank shape (pool category + mutable NFT + empty
+           commitment + 0 FT). 2 blanks per lock. */
+        if (this.role2Pool && this.getMasterSeed) {
+            try {
+                const addresses = (this.getAddresses('nito-cash') || []).map((a) => a.address)
+                const cluster = await getCluster(this.getNetwork)
+                const utxos = (await Promise.all(addresses.map((address) => cluster.getUtxosWithTokens(address)))).flat()
+                this.poolBlankInfo = blankSummary(utxos, this.role2Pool.assetCategory)
+            } catch (err) {
+                console.error('Blank inventory fetch failed:', err) // eslint-disable-line no-console
+                this.poolBlankInfo = null
             }
         }
 
