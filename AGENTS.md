@@ -281,6 +281,50 @@ the BCH Blaze 2026 submission):
 The flagship new feature: the **first shielded pool for ParyonUSD (PUSD) on BCH Chipnet** —
 sender, receiver, and amount are all masked. Design decisions locked:
 
+**CURRENT STATE (2026-11-25, role-2 tagged pool — supersedes the 2026-11-23 covenant-at-0 text below, which is history):**
+
+- THE NEW ROLE-2 TAGGED POOL IS LIVE ON CHIPNET. Handoff:
+  `../hushyourmoney/docs/POOL-HANDOFF-2026-11-24-NITO-ROLE2-TAGGED.md`; sources
+  `../pusd-shielded-pool/wip-role2-hook/` (`STATUS.md`, `REVIEW.md`, `pool-hook.mjs`,
+  `pool-deploy-role2.mjs`, `minting-guard.mjs`, `pool-op-role2.mjs`, the tagged reports).
+  Category `480e30ff1d3f5f0b6fe9dd2dbe363b1776f61566f29a395628d0b50abd01b9d0`;
+  anchor/mint/deploy `480e30ff…`/`5ea499ff…`/`2eaeb97f…`; program P2SH32 `aa203e40…`;
+  minting guard `aa2066a2…`; VK `05250429…`; genesis root `551108f6…510f`; lifecycle
+  SHIELD `9d9aa97a…` → TRANSFER `5262417b…` → UNSHIELD `e54d19fb…`; gates 20/20
+  acceptance, 146/0 red team, 69/0 sweep. The 3-input signature-free shape (fuel 0,
+  fuel 1, state 2); the 169-B OP_RETURN carrier; the deposit tags
+  `SHA256(nf0_LE ‖ nf1_LE)` as mutable-NFT commitments on BOTH fuel UTXOs; off-chain
+  notes; fees prepaid in the fuel; the minting guard (burn/FT-mint consensus-impossible).
+- THE OLD `chipnet-pusd-v4` (`0d31da75…`) IS SUPERSEDED. The old verifier was
+  WITHDRAWN/REDACTED; the old 7-input `DEPLOYED_PROGRAM`, `walletProverCompatible`,
+  `verifier-program`, `build`, `actions` and the old `lib/pool` integration are history.
+  Replace them with the role-2 shape.
+- NITO ROLE 2 — the nito.cash client is the FINAL APPROVAL. Work items: (1) proving-asset
+  swap (`27f6ea03…` → `05250429…`; new `pool.wasm`/`pool_final.zkey`; the witness
+  generator drops the 7-input assumptions); (2) 3-input tx builder (the carrier; the
+  tags); (3) the wallet-signed lock tx (2 tagged fuel UTXOs; the FT deposit on out0 for
+  shields); (4) off-chain notes; (5) blanks; (6) fee hygiene.
+- THE OLD NOTES ARE NOT LEFT. The one-time migration is old-pool UNSHIELD (the
+  `chipnet-pusd-v4` notes → transparent PUSD, via the old pool's prover/VK/`UNSHIELD`
+  path) followed by new-pool SHIELD (transparent PUSD → the role-2 pool). The old notes
+  are spent; the new tags/blanks/notes/fees apply. Do not strand the old notes.
+- BLANKS MUST BE USER-HELD (AND GENERATED). The guard is the only minter (K per batch;
+  the 100M supply frozen); the user's wallet generates the blank addresses/requests;
+  the operator runs the guard batch to the user's P2PKH; the user holds the blanks; 2 per
+  lock; the operator-held 90 reserve is NOT relied on; the operator cannot censor.
+- THE DESK MIXERS. CashShuffle is the preferred mixer (simplicity; browser; the
+  CashShuffle-style relay round; onion-blinded; the pool fee privacy). Desktop CashFusion
+  TCP+Tor is unreachable from a browser. The Nostr editions are REQUIRED:
+  CashShuffle-over-Nostr and CashFusion-over-Nostr (the `hushyourmoney`
+  `web/pages/research/coinjoin.vue` wire spec; the NIP-59/44 research). The pool-native
+  lock batching composes with the tags. Quantumroot Vaults are separate (saving, not
+  payments; distinct from the Transparent Vaults).
+- THE WEB-PLATFORM CHIPNET TEST IS THE ACCEPTANCE. The new pool must run
+  SHIELD → TRANSFER → UNSHIELD successfully FROM THE WEB PLATFORM on chipnet before it
+  is considered working (the browser; the new VK/assets; the new shape; the tags; the
+  user-held blanks; the notes; the fees; the scan; the migration; the Nito client final
+  approval).
+
 **CURRENT STATE (2026-11-23, covenant-at-0 session — supersedes the NEXT-MISSION /
 POOL-V2 / FOLLOW-UP-SESSION text below, which is history):**
 
