@@ -115,10 +115,45 @@
             </div>
         </section>
 
+        <!-- Live relay (opt-in). The transport is real; the round stays a demo. -->
+        <section class="mt-[12px] shrink-0 overflow-hidden rounded-[16px] border border-hr bg-box-bg">
+            <div class="flex items-center justify-between gap-[10px] p-[14px]">
+                <div>
+                    <div class="text-[9px] font-bold uppercase tracking-[0.22em] text-fg-muted">
+                        Live relay
+                    </div>
+                    <div class="text-[12px] text-fg-muted">
+                        NIP-59 gift wrap over NIP-44 v2. The relay sees ciphertext only.
+                    </div>
+                </div>
+                <span class="shrink-0 rounded-full px-[8px] py-[2px] text-[8px] font-bold uppercase tracking-[0.12em]"
+                    :class="liveState === 'on' ? 'bg-secondary text-secondary-fg' : 'border border-hr text-fg-muted'">
+                    {{ liveState === 'on' ? 'Connected' : 'Off' }}
+                </span>
+            </div>
+
+            <div class="border-t border-hr p-[12px]">
+                <label class="block text-[11px] font-semibold text-fg-muted">Relay</label>
+                <input v-model="liveRelay" type="text" spellcheck="false" :disabled="liveState === 'on'"
+                    class="mt-[4px] w-full rounded-[8px] border border-input-border bg-input-bg px-[10px] py-[8px] text-[12px] font-semibold text-fg" />
+
+                <p v-if="liveError" class="mt-[8px] text-[11px] font-semibold text-warning-text">{{ liveError }}</p>
+
+                <div class="mt-[10px] flex flex-wrap gap-[8px]">
+                    <Button v-if="liveState !== 'on'" label="Connect" @click.native="connectLive" />
+                    <Button v-else label="Disconnect" @click.native="disconnectLive" />
+                </div>
+
+                <p v-if="liveState === 'on'" class="mt-[8px] text-[11px] text-fg-muted break-all">
+                    Session key {{ liveKey }} · round {{ liveRoundId }}
+                </p>
+            </div>
+        </section>
+
         <Footer>
             <p class="text-[11px] leading-[15px] text-fg-muted">
-                Protocol demo only. No relay is contacted, no transaction is built, and no coin
-                leaves this device. The Nostr transport (NIP-59/NIP-44) is the next layer.
+                Protocol demo only. The live relay is opt-in and carries only gift-wrapped packets;
+                no transaction is built and no coin leaves this device.
             </p>
         </Footer>
     </div>
@@ -126,6 +161,9 @@
 
 <script>
 import { Button, Footer } from '@/components'
+import { bytesToHex, randomBytes } from '@noble/hashes/utils.js'
+import { schnorr } from '@noble/curves/secp256k1.js'
+import { CashShuffleTransport } from '@/lib/cashshuffle/transport'
 import {
     PHASES,
     blame,
@@ -152,6 +190,13 @@ export default {
         ],
         round: snapshot(createRound({ roundId: 'r-1', relay: 'wss://relay.example', poolSize: 5 })),
         _round: createRound({ roundId: 'r-1', relay: 'wss://relay.example', poolSize: 5 }),
+        liveRelay: 'wss://relay.damus.io',
+        liveState: 'off',
+        liveError: null,
+        liveKey: '',
+        liveRoundId: '',
+        _transport: null,
+        _keys: null,
     }),
     methods: {
         sync() { this.round = snapshot(this._round) },
@@ -171,6 +216,47 @@ export default {
             }
             this.sync()
         },
+        connectLive() {
+            this.liveError = null
+            if (!this.liveRelay.startsWith('wss://') && !this.liveRelay.startsWith('ws://')) {
+                this.liveError = 'A ws:// or wss:// relay URL is required.'
+                return
+            }
+            try {
+                const privateKey = randomBytes(32)
+                const publicKey = schnorr.getPublicKey(privateKey)
+                this._keys = { privateKey, publicKey }
+                this.liveKey = bytesToHex(publicKey).slice(0, 16) + '…'
+                this.liveRoundId = `desk-${Date.now()}`
+                this._transport = new CashShuffleTransport({
+                    relays: [this.liveRelay],
+                    keys: this._keys,
+                    roundId: this.liveRoundId,
+                    onMessage: this.onLiveMessage,
+                })
+                this._transport.connect()
+                this.liveState = 'on'
+            } catch (err) {
+                this.liveError = err.message
+                this.liveState = 'off'
+                this._transport = null
+            }
+        },
+        disconnectLive() {
+            if (this._transport) this._transport.close()
+            this._transport = null
+            this._keys = null
+            this.liveState = 'off'
+            this.liveKey = ''
+            this.liveRoundId = ''
+        },
+        onLiveMessage(packet) {
+            /* The transport is live; the round remains a local demo. */
+            console.log('CashShuffle live packet:', packet) // eslint-disable-line no-console
+        },
+    },
+    beforeUnmount() {
+        this.disconnectLive()
     },
 }
 </script>
