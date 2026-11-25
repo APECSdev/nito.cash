@@ -43,6 +43,9 @@ importers:
       '@ledgerhq/hw-transport-webusb':
         specifier: 6.35.0
         version: 6.35.0
+      '@noble/ciphers':
+        specifier: ^2.1.1
+        version: 2.1.1
       '@noble/curves':
         specifier: ^2.4.0
         version: 2.4.0
