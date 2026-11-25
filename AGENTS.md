@@ -312,9 +312,18 @@ sender, receiver, and amount are all masked. Design decisions locked:
   the 100M supply frozen); the user's wallet generates the blank addresses/requests;
   the operator runs the guard batch to the user's P2PKH; the user holds the blanks; 2 per
   lock; the operator-held 90 reserve is NOT relied on; the operator cannot censor.
-  Blank-generation design is still under discussion (the options: the wallet-generated
-  request + guard batch; the user-as-operator self-mint; the postage-stamp market; the
-  deterministic blank derivation + guard attestation).
+  Blanks are acquired PERMISSIONLESSLY via the vending covenant (`blank-vending.mjs`,
+  suite 18/18; handoff §4.1): the operator loads blanks into the P2SH32 machine
+  (`aa206b51…`, redeem 157 B, price 1,000 sats, category-pinned); a buyer pays the exact
+  price from a tokenless funding input to the pinned operator P2PKH; the blank (category
+  + mutable NFT + EMPTY commitment + 0 FT, float preserved) is delivered to the funding
+  input's own locking; tokenless change to the buyer; no operator signature. Live record:
+  load `460a6f2a…` (block 345,663), stranger buys `bc2c326e…` (345,664) + `49b184f5…`
+  (345,666). Blanks are the buyer's plain P2PKH UTXOs — resellable, giftable; any
+  blank-holder can run their own machine with the same published script. The wallet must
+  recognize the exact blank shape, count held blanks as "actions remaining", treat the
+  vending locking as a buyable UTXO source, and spend 2 per lock. Operator reserve: 88
+  blanks; the machine is empty — reload with `pool-vend-load-role2.mjs`.
 - THE PROVING ASSETS ARE NOT IN THE NITO REPO. The Hush team must hand over the new
   role-2 zkey/wasm/VK/circuit/ceremony transcript (the VK `05250429…`, zkey
   `4a4e2543…`, wasm `8595b434…`); a HANDOFF/email request is prepared. The Nito
