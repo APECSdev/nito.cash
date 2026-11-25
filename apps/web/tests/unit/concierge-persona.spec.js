@@ -116,7 +116,7 @@ describe('views/Concierge/Persona — the persona desk rendering', () => {
         const wrapper = mountPersona()
         const inputs = wrapper.findAll('input')
 
-        expect(inputs).toHaveLength(2)
+        expect(inputs).toHaveLength(3)
 
         await inputs[1].setValue('Kallisti')
         expect(wrapper.vm.registerPreview).toBe('Kallisti#FFFF.00')
@@ -180,7 +180,7 @@ describe('views/Concierge/Persona — the persona desk rendering', () => {
         expect(text).toContain('Kallisti.cash🍏')
     })
 
-    it('keeps the staged actions local (displayNotification only)', () => {
+    it('keeps the staged actions local (displayNotification only)', async () => {
         const wrapper = mountPersona()
         const dispatch = vi.spyOn(getStoreFacade(), 'dispatch')
 
@@ -188,8 +188,9 @@ describe('views/Concierge/Persona — the persona desk rendering', () => {
         wrapper.vm.mockRegister()
         expect(dispatch).toHaveBeenCalledWith('displayNotification', expect.stringContaining('Kallisti#FFFF.00'))
 
-        wrapper.vm.mockCashId()
-        expect(dispatch).toHaveBeenCalledWith('displayNotification', expect.stringContaining('CashID'))
+        /* The CashID card is LIVE now: with no resolved account it errors locally. */
+        await wrapper.vm.signCashId()
+        expect(wrapper.vm.cashIdError).toBe('Resolve a CashAccount first.')
 
         wrapper.vm.mockNostr()
         expect(dispatch).toHaveBeenCalledWith('displayNotification', expect.stringContaining('kind-0'))
@@ -200,5 +201,40 @@ describe('views/Concierge/Persona — the persona desk rendering', () => {
         const key = '03cc053f481413acc58895bf8be09eb67b4b4cfb0ace8b7be9f7867c5bce36873d'
 
         expect(wrapper.vm.shortKey(key)).toBe('03cc053f481413acc5…ce36873d')
+    })
+})
+
+describe('views/Concierge/Persona — CashID', () => {
+    it('rejects an invalid challenge locally', async () => {
+        const wrapper = mountPersona()
+        wrapper.vm.cashIdChallenge = 'not-a-cashid-uri'
+        await wrapper.vm.signCashId()
+        expect(wrapper.vm.cashIdError).toBeTruthy()
+        expect(wrapper.vm.cashIdResponse).toBeNull()
+    })
+
+    it('signs a valid challenge when an account is resolved', async () => {
+        const store = useStore()
+        store.$patch({ cashaccount: { account: accountFromRegistration(KALLISTI_TX) } })
+        store.$patch({ profile: { ms: '11'.repeat(32) } })
+        const wrapper = mountPersona()
+        wrapper.vm.cashIdChallenge = 'cashid:concierge.nito.cash/cashid?x=102132435465768798a9bacbdcedfe0f'
+        await wrapper.vm.signCashId()
+        expect(wrapper.vm.cashIdError).toBeNull()
+        expect(wrapper.vm.cashIdResponse).toBeTruthy()
+        expect(wrapper.vm.cashIdResponse.request).toContain('&d=')
+        expect(wrapper.vm.cashIdResponse.signature).toBeTruthy()
+        expect(wrapper.vm.cashIdResponse.address).toMatch(/^(bitcoincash|bchtest):/)
+    })
+
+    it('copies the response and resets the copied flag', async () => {
+        vi.useFakeTimers()
+        const wrapper = mountPersona()
+        wrapper.vm.cashIdResponse = { request: 'cashid:example/x?d=a:b:0', address: 'bchtest:q', signature: 's' }
+        wrapper.vm.copyCashIdResponse()
+        expect(wrapper.vm.cashIdCopied).toBe(true)
+        vi.advanceTimersByTime(2100)
+        expect(wrapper.vm.cashIdCopied).toBe(false)
+        vi.useRealTimers()
     })
 })

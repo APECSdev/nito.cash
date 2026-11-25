@@ -334,32 +334,45 @@
         </section>
 
         <!-- ============================================================
-             CASHID — MOCK (phase 1).
+             CASHID — LIVE (the service challenge → the signed response).
              ============================================================ -->
-        <section class="shrink-0 mt-[12px] overflow-hidden rounded-[18px] border border-dashed border-hr bg-box-bg">
+        <section class="shrink-0 mt-[12px] overflow-hidden rounded-[18px] border border-hr bg-box-bg">
             <div class="flex items-center justify-between gap-[10px] p-[14px]">
                 <div class="text-[9px] font-bold uppercase tracking-[0.22em] text-fg-muted">
                     Sign in with a CashAccount
                 </div>
 
-                <span class="rounded-full bg-frame-border px-[8px] py-[2px] text-[8px] font-bold uppercase tracking-[0.16em] text-fg-muted">
-                    Soon
+                <span class="rounded-full bg-secondary px-[8px] py-[2px] text-[8px] font-bold uppercase tracking-[0.16em] text-secondary-fg">
+                    Live
                 </span>
             </div>
 
             <div class="px-[14px] pb-[14px]">
                 <p class="text-[11px] leading-[16px] text-fg-muted">
-                    The service issues a challenge; the wallet signs the exact
-                    response URI with a key tweaked from the account&rsquo;s
-                    CashCode spend key. No transaction is broadcast.
+                    Paste the service&rsquo;s CashID challenge. The wallet signs the exact
+                    response URI with a key tweaked from the account&rsquo;s CashCode spend
+                    key. No transaction is broadcast.
                 </p>
 
-                <code class="mt-[8px] block break-all rounded-[10px] bg-frame-border px-[10px] py-[8px] font-mono text-[10px] text-fg-muted">
-                    cashid:concierge.nito.cash/cashid?x=102132435465768798a9bacbdcedfe0f
-                </code>
+                <label class="mt-[8px] block text-[10px] font-semibold uppercase tracking-[0.16em] text-fg-muted">
+                    Challenge URI
+                </label>
+                <input v-model="cashIdChallenge" type="text" spellcheck="false" :disabled="cashIdBusy"
+                    placeholder="cashid:concierge.nito.cash/cashid?x=…"
+                    class="mt-[4px] w-full rounded-[8px] border border-input-border bg-input-bg px-[10px] py-[8px] font-mono text-[10px] text-fg break-all" />
 
-                <div class="mt-[10px]">
-                    <Button label="Sign in (soon)" small blank @click.native="mockCashId" />
+                <p v-if="cashIdError" class="mt-[8px] text-[11px] font-semibold text-warning-text">{{ cashIdError }}</p>
+
+                <div class="mt-[10px] flex flex-wrap gap-[8px]">
+                    <Button :label="cashIdBusy ? 'Signing…' : 'Sign in'" small :disabled="cashIdBusy || !account" @click.native="signCashId" />
+                    <Button v-if="cashIdResponse" :label="cashIdCopied ? 'Copied ✓' : 'Copy response'" small blank @click.native="copyCashIdResponse" />
+                </div>
+
+                <div v-if="cashIdResponse" class="mt-[8px] break-all rounded-[10px] bg-frame-border px-[10px] py-[8px] font-mono text-[10px] text-fg-muted">
+                    {{ cashIdResponse.request }}
+                </div>
+                <div v-if="cashIdResponse" class="mt-[6px] break-all rounded-[10px] bg-frame-border px-[10px] py-[8px] font-mono text-[10px] text-fg-muted">
+                    {{ cashIdResponse.address }} · {{ cashIdResponse.signature }}
                 </div>
             </div>
         </section>
@@ -414,6 +427,7 @@ import { isValidAccountName, pendingIdentifier } from '@/lib/cashaccount/identif
 /* Import the live CashCode integration. */
 import { getCluster } from '@/lib/bch/provider.js'
 import { createCashCode, deriveCashCodeKeys, scanCashCode } from '@/lib/cashaccount/cashcode.js'
+import { buildResponseUri, parseChallenge, signCashIdResponse } from '@/lib/cashaccount/cashid.js'
 
 /* The live mainnet example: the "Kallisti" registration (ChainGraph). */
 const LIVE_EXAMPLE_TXID = '8267bff0bf6532bfd109ecae1062deb88822166333de5ece52d4309371a42878'
@@ -432,6 +446,12 @@ export default {
             cashCodeCopiedTimer: null,
             cashCodeMatches: [],
             cashCodeError: null,
+            cashIdChallenge: '',
+            cashIdResponse: null,
+            cashIdError: null,
+            cashIdBusy: false,
+            cashIdCopied: false,
+            cashIdCopiedTimer: null,
             scanning: false,
         }
     },
@@ -619,10 +639,53 @@ export default {
         },
 
         /**
-         * Mock the CashID path.
+         * Sign a CashID challenge with the account's CashCode spend key.
          */
-        mockCashId() {
-            this.displayNotification('Persona desk · CashID sign-in lands in phase 1. (No challenge was issued.)')
+        async signCashId() {
+            this.cashIdError = null
+            this.cashIdResponse = null
+            if (!this.account) {
+                this.cashIdError = 'Resolve a CashAccount first.'
+                return
+            }
+            let challenge
+            try {
+                challenge = parseChallenge(this.cashIdChallenge)
+            } catch (err) {
+                this.cashIdError = err.message
+                return
+            }
+            this.cashIdBusy = true
+            try {
+                const responseUri = buildResponseUri(challenge, {
+                    category: this.account.category,
+                    txid: this.account.txid,
+                    vout: this.account.vout,
+                })
+                this.cashIdResponse = await signCashIdResponse({
+                    spendPrivateKey: this.cashCodeKeys.spendPrivateKey,
+                    spendPubkey: this.cashCodeKeys.spendPubkey,
+                    responseUri,
+                    network: this.getNetwork,
+                })
+                this.displayNotification('Persona desk · CashID response signed. (No transaction was broadcast.)')
+            } catch (err) {
+                this.cashIdError = err.message
+                this.displayError(err.message)
+            } finally {
+                this.cashIdBusy = false
+            }
+        },
+        copyCashIdResponse() {
+            if (!this.cashIdResponse) return
+            try {
+                navigator.clipboard.writeText(this.cashIdResponse.request).catch(() => {})
+            } catch (err) {
+                /* clipboard unavailable */
+            }
+            this.cashIdCopied = true
+            clearTimeout(this.cashIdCopiedTimer)
+            this.cashIdCopiedTimer = setTimeout(() => { this.cashIdCopied = false }, 2000)
         },
 
         /**
@@ -634,6 +697,7 @@ export default {
     },
     beforeUnmount() {
         clearTimeout(this.cashCodeCopiedTimer)
+        clearTimeout(this.cashIdCopiedTimer)
     },
 }
 </script>
