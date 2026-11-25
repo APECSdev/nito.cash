@@ -137,6 +137,13 @@
                 <input v-model="liveRelay" type="text" spellcheck="false" :disabled="liveState === 'on'"
                     class="mt-[4px] w-full rounded-[8px] border border-input-border bg-input-bg px-[10px] py-[8px] text-[12px] font-semibold text-fg" />
 
+                <label class="mt-[10px] block text-[11px] font-semibold text-fg-muted">
+                    Explicit peers (x-only keys, comma-separated — the out-of-band invite)
+                </label>
+                <input v-model="livePeers" type="text" spellcheck="false" :disabled="liveState === 'on'"
+                    placeholder="hex, hex, hex…"
+                    class="mt-[4px] w-full rounded-[8px] border border-input-border bg-input-bg px-[10px] py-[8px] text-[11px] font-semibold text-fg break-all" />
+
                 <p v-if="liveError" class="mt-[8px] text-[11px] font-semibold text-warning-text">{{ liveError }}</p>
 
                 <div class="mt-[10px] flex flex-wrap gap-[8px]">
@@ -147,6 +154,15 @@
                 <p v-if="liveState === 'on'" class="mt-[8px] text-[11px] text-fg-muted break-all">
                     Session key {{ liveKey }} · round {{ liveRoundId }}
                 </p>
+
+                <div v-if="liveState === 'on'" class="mt-[10px] flex flex-wrap gap-[8px]">
+                    <Button label="Join" @click.native="joinLive" />
+                    <Button label="Announce" :disabled="!isLiveCoordinator" @click.native="announceLive" />
+                    <Button label="Shuffle" @click.native="shuffleLive" />
+                    <Button label="Sign" @click.native="signLive" />
+                    <Button label="Broadcast" :disabled="!isLiveCoordinator" @click.native="broadcastLive" />
+                    <Button label="Blame" @click.native="blameLive" />
+                </div>
             </div>
         </section>
 
@@ -164,6 +180,7 @@ import { Button, Footer } from '@/components'
 import { bytesToHex, randomBytes } from '@noble/hashes/utils.js'
 import { schnorr } from '@noble/curves/secp256k1.js'
 import { CashShuffleTransport } from '@/lib/cashshuffle/transport'
+import { CashShuffleRound } from '@/lib/cashshuffle/round-runner'
 import {
     PHASES,
     blame,
@@ -195,9 +212,16 @@ export default {
         liveError: null,
         liveKey: '',
         liveRoundId: '',
+        livePeers: '',
+        liveRunner: null,
         _transport: null,
         _keys: null,
     }),
+    computed: {
+        isLiveCoordinator() {
+            return this.liveRunner ? this.liveRunner.isCoordinator : false
+        },
+    },
     methods: {
         sync() { this.round = snapshot(this._round) },
         openRound() {
@@ -235,6 +259,13 @@ export default {
                     onMessage: this.onLiveMessage,
                 })
                 this._transport.connect()
+                this.liveRunner = new CashShuffleRound({
+                    transport: this._transport,
+                    keys: this._keys,
+                    roundId: this.liveRoundId,
+                    onUpdate: (view) => { this.round = view },
+                })
+                this.liveRunner.peers = this.livePeers.split(',').map((p) => p.trim()).filter(Boolean)
                 this.liveState = 'on'
             } catch (err) {
                 this.liveError = err.message
@@ -243,7 +274,9 @@ export default {
             }
         },
         disconnectLive() {
+            if (this.liveRunner) this.liveRunner.close()
             if (this._transport) this._transport.close()
+            this.liveRunner = null
             this._transport = null
             this._keys = null
             this.liveState = 'off'
@@ -251,8 +284,25 @@ export default {
             this.liveRoundId = ''
         },
         onLiveMessage(packet) {
-            /* The transport is live; the round remains a local demo. */
-            console.log('CashShuffle live packet:', packet) // eslint-disable-line no-console
+            if (this.liveRunner) this.liveRunner.onMessage(packet)
+        },
+        async joinLive() {
+            try { await this.liveRunner.join(100000n) } catch (err) { this.liveError = err.message }
+        },
+        async announceLive() {
+            try { await this.liveRunner.announce() } catch (err) { this.liveError = err.message }
+        },
+        async shuffleLive() {
+            try { await this.liveRunner.contribute('onion-' + Date.now()) } catch (err) { this.liveError = err.message }
+        },
+        async signLive() {
+            try { await this.liveRunner.sign('sig-' + Date.now()) } catch (err) { this.liveError = err.message }
+        },
+        async broadcastLive() {
+            try { await this.liveRunner.publish('live-' + Date.now()) } catch (err) { this.liveError = err.message }
+        },
+        async blameLive() {
+            try { await this.liveRunner.accuse(this.liveRunner.peers[0], 'timeout') } catch (err) { this.liveError = err.message }
         },
     },
     beforeUnmount() {
