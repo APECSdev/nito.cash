@@ -33,6 +33,7 @@ import { binToHex, lockingBytecodeToCashAddress, sha256 } from '@bitauth/libauth
 import { DEPLOYED_PROGRAM, STEP_LOCKINGS, WALLET_PROGRAM, WALLET_STEP_LOCKINGS } from './verifier-program.js'
 import { GENERALIZED_WALLET_PROGRAM, GENERALIZED_WALLET_STEP_LOCKINGS } from './verifier-program-generalized.js'
 import { BENCH_PROGRAM, BENCH_STEP_LOCKINGS } from './verifier-program-bench.js'
+import { ROLE2_GUARD, ROLE2_PROGRAM, ROLE2_VENDING } from './verifier-program-role2.js'
 
 import { getNetwork } from '../bch/networks.js'
 
@@ -77,6 +78,50 @@ const POOLS = {
 
     chipnet: [
         {
+            id: 'chipnet-pusd-role2',
+            name: 'Chipnet PUSD pool — role-2 tagged (permissionless blanks)',
+            network: 'chipnet',
+            lockingBytecode: 'aa203e40b64cff154d4b3305e8c8cc4e3174bc595ad74342a8445a9a7798b7be3a2987',
+            assetCategory: '480e30ff1d3f5f0b6fe9dd2dbe363b1776f61566f29a395628d0b50abd01b9d0',
+            genesisRootLE: '551108f63731bcc628dda2697d70219d103a8c1bf203f2d4aaec6bbea5b4510f',
+            genesisLeafCount: 2,
+            /* THE PROVING ASSETS ARE NOT IN THIS REPO YET (the Hush solo-ceremony
+               VK 05250429…, zkey 4a4e2543…, wasm 8595b434…). The flag flips only
+               after the handover AND the web-platform chipnet SHIELD → TRANSFER
+               → UNSHIELD acceptance run. */
+            walletProverCompatible: false,
+            status: 'awaiting-proving-assets',
+            deployTxid: '2eaeb97f…',
+            categoryAnchorTxid: '480e30ff1d3f5f0b6fe9dd2dbe363b1776f61566f29a395628d0b50abd01b9d0',
+            mintTxid: '5ea499ff…',
+            genesisLeaves: [
+                '12351826192886546690885792605915790291283848718645116437899738538537062803555',
+                '7398522746693646650328110604928791171707350116246498951314945102068585381447',
+            ],
+            bootstrapNotes: [
+                {
+                    note: { value: '0', ownerPub: '5299619240641551281634865583518297030282874472190772894086521144482721001553', rho: '130842949111883530073146641958534655280', r: '153387697958148631644100398335583547244' },
+                    nk: '1',
+                    index: 0,
+                },
+                {
+                    note: { value: '0', ownerPub: '5299619240641551281634865583518297030282874472190772894086521144482721001553', rho: '130842949111883530073146641958534655281', r: '153387697958149840569920012964758253420' },
+                    nk: '1',
+                    index: 1,
+                },
+            ],
+            stepLockings: [],
+            program: ROLE2_PROGRAM,
+            guard: ROLE2_GUARD,
+            vending: ROLE2_VENDING,
+            shape: 'role2-tagged',
+            txInputCount: 3,
+            carrierBytes: 169,
+            fuelSats: 15000,
+            blanksPerLock: 2,
+            notes: 'THE ROLE-2 TAGGED POOL — deployed 2026-11-24 (anchor 480e30ff… = the category; mint 5ea499ff…; deploy 2eaeb97f… block 345,467; the minting NFT passed forward into the guard aa2066a2…). 3 inputs (fuel 0, fuel 1, state 2), NO signatures; 169-B OP_RETURN carrier; deposit tags SHA256(nf0_LE ‖ nf1_LE) on both fuel UTXOs; 2 blanks per lock; 15,000 sats per fuel UTXO (1 sat/B). Lifecycle confirmed: SHIELD 9d9aa97a… → TRANSFER 5262417b… → UNSHIELD e54d19fb…. The old v4/v3 are RETIRED and their notes came from a WITHDRAWN verifier — the old notes are ABANDONED (no unshield/re-shield migration). The Hush proving assets are missing; the flag stays false until the handover + the web-platform acceptance.',
+        },
+        {
             id: "chipnet-pusd-v4",
             name: "Chipnet PUSD pool v4 (bench program, wallet-generated witness)",
             network: "chipnet",
@@ -85,7 +130,8 @@ const POOLS = {
             assetCategory: "0d31da753c6855b830ea683ac11552404139008bfbfac97801fe30d31a42d664",
             genesisRootLE: "551108f63731bcc628dda2697d70219d103a8c1bf203f2d4aaec6bbea5b4510f",
             genesisLeafCount: 2,
-            walletProverCompatible: true,
+            walletProverCompatible: false,
+            deprecated: true,
             deployTxid: "efd3314edb42bddd7f7438be5dfba5ffd3da378ab13082610edd68426f38357c",
             categoryAnchorTxid: "0d31da753c6855b830ea683ac11552404139008bfbfac97801fe30d31a42d664",
             mintTxid: "a5d251e4146dbb887afc185c712007ba578d9766f81b7fd95df406cc1e36a906",
@@ -132,7 +178,8 @@ const POOLS = {
                byte-exactly per pool-verifier.spec's pinned ground-truth test.
                This is the fix for the v2 five-input fixture layout described
                in the entry below. */
-            walletProverCompatible: true,
+            walletProverCompatible: false,
+            deprecated: true,
             deployTxid: '37b26a779c5b26c75197336e2e85633d315480e95e4eae68c7957b724af7f97b',
             categoryAnchorTxid: '22d060bd8ccdfdc0aa76fe6d15d38c16740110fe27e85207994c3f51d958ce2d',
             mintTxid: 'cd4585c142f9a14acdbe38e45b56a6dc013c804666f62183233dace5c6c1c159',

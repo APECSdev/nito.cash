@@ -25,7 +25,7 @@ import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
 
 import { buildActionTx, buildCovenantUnlocking } from '@/lib/pool/build'
-import { getDefaultPool } from '@/lib/pool/registry'
+import { getPools } from '@/lib/pool/registry'
 import { actionHash } from '@/lib/pool/notes'
 import { hdNodeFromEntropy, derivePath, toCashAddress, toPrivateKeyBytes, toPublicKeyBytes } from '@/lib/bch/crypto'
 
@@ -39,7 +39,9 @@ const LIVE = JSON.parse(readFileSync(`${FIX}/gate3-covenant-live.json`, 'utf8'))
 const FIXTURES = JSON.parse(readFileSync(`${FIX}/pusd-public-fixtures.json`, 'utf8'))
 const BENCH_VK = FIXTURES.vk
 
-const POOL = getDefaultPool('chipnet')
+/* The v4 7-input builder; the role-2 registry entry is the 3-input shape (its
+   own builder is the separate rewrite). Select the v4 explicitly. */
+const POOL = getPools('chipnet').find((pool) => pool.id === 'chipnet-pusd-v4')
 
 /* eval-proofs' covenant fields are 32-byte LE VM-number hex strings. */
 const leHexToBig = (h) => BigInt('0x' + h.match(/../g).reverse().join(''))
