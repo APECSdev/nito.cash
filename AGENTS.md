@@ -333,10 +333,14 @@ sender, receiver, and amount are all masked. Design decisions locked:
   TCP+Tor is unreachable from a browser. The Nostr editions are REQUIRED:
   CashShuffle-over-Nostr and CashFusion-over-Nostr (the `hushyourmoney`
   `web/pages/research/coinjoin.vue` wire spec; the NIP-59/44 research). The pool-native
-  lock batching composes with the tags. The CashShuffle-over-Nostr design is still to be
-  finalized (the relay set, NIP-42 AUTH, peer discovery, the coordinator/blame mapping,
-  the browser transport). Quantumroot Vaults are separate (saving, not payments;
-  distinct from the Transparent Vaults).
+  lock batching composes with the tags. The CashShuffle-over-Nostr design is FINAL
+  (docs/CASHSHUFFLE-NOSTR-DESIGN.md): NIP-59 gift wrap (kind 1059) + NIP-44 v2 over a
+  relay set, the deterministic lowest-ephemeral-pubkey coordinator, the classic
+  register/pool/announce/shuffle/sign/broadcast/blame phases, Schnorr signatures, 80 ms
+  pacing, equal amounts, and the pool-native lock batching (the round's outputs ARE the
+  tagged fuel UTXOs). Open: the production relay set, NIP-42 policy, the discovery
+  kind, coordinator rotation, the protobuf↔Nostr mapping. Quantumroot Vaults are
+  separate (saving, not payments; distinct from the Transparent Vaults).
 - THE WEB-PLATFORM CHIPNET TEST IS THE ACCEPTANCE. The new pool must run
   SHIELD → TRANSFER → UNSHIELD successfully FROM THE WEB PLATFORM on chipnet before it
   is considered working (the browser; the new VK/assets; the new shape; the tags; the
