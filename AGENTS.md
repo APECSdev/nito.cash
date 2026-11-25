@@ -304,26 +304,36 @@ sender, receiver, and amount are all masked. Design decisions locked:
   generator drops the 7-input assumptions); (2) 3-input tx builder (the carrier; the
   tags); (3) the wallet-signed lock tx (2 tagged fuel UTXOs; the FT deposit on out0 for
   shields); (4) off-chain notes; (5) blanks; (6) fee hygiene.
-- THE OLD NOTES ARE NOT LEFT. The one-time migration is old-pool UNSHIELD (the
-  `chipnet-pusd-v4` notes → transparent PUSD, via the old pool's prover/VK/`UNSHIELD`
-  path) followed by new-pool SHIELD (transparent PUSD → the role-2 pool). The old notes
-  are spent; the new tags/blanks/notes/fees apply. Do not strand the old notes.
+- THE OLD NOTES ARE NOT KEPT. The `chipnet-pusd-v4` notes came from a WITHDRAWN
+  verifier and are ABANDONED — no unshield/re-shield migration, no old-note spend.
+  The new role-2 pool starts from its own genesis root; all new notes are created by
+  SHIELD actions against the new pool. The old pool is retired.
 - BLANKS MUST BE USER-HELD (AND GENERATED). The guard is the only minter (K per batch;
   the 100M supply frozen); the user's wallet generates the blank addresses/requests;
   the operator runs the guard batch to the user's P2PKH; the user holds the blanks; 2 per
   lock; the operator-held 90 reserve is NOT relied on; the operator cannot censor.
+  Blank-generation design is still under discussion (the options: the wallet-generated
+  request + guard batch; the user-as-operator self-mint; the postage-stamp market; the
+  deterministic blank derivation + guard attestation).
+- THE PROVING ASSETS ARE NOT IN THE NITO REPO. The Hush team must hand over the new
+  role-2 zkey/wasm/VK/circuit/ceremony transcript (the VK `05250429…`, zkey
+  `4a4e2543…`, wasm `8595b434…`); a HANDOFF/email request is prepared. The Nito
+  `prover.js` paths and the `prover.nito.cash` mirror need the new assets.
 - THE DESK MIXERS. CashShuffle is the preferred mixer (simplicity; browser; the
   CashShuffle-style relay round; onion-blinded; the pool fee privacy). Desktop CashFusion
   TCP+Tor is unreachable from a browser. The Nostr editions are REQUIRED:
   CashShuffle-over-Nostr and CashFusion-over-Nostr (the `hushyourmoney`
   `web/pages/research/coinjoin.vue` wire spec; the NIP-59/44 research). The pool-native
-  lock batching composes with the tags. Quantumroot Vaults are separate (saving, not
-  payments; distinct from the Transparent Vaults).
+  lock batching composes with the tags. The CashShuffle-over-Nostr design is still to be
+  finalized (the relay set, NIP-42 AUTH, peer discovery, the coordinator/blame mapping,
+  the browser transport). Quantumroot Vaults are separate (saving, not payments;
+  distinct from the Transparent Vaults).
 - THE WEB-PLATFORM CHIPNET TEST IS THE ACCEPTANCE. The new pool must run
   SHIELD → TRANSFER → UNSHIELD successfully FROM THE WEB PLATFORM on chipnet before it
   is considered working (the browser; the new VK/assets; the new shape; the tags; the
-  user-held blanks; the notes; the fees; the scan; the migration; the Nito client final
-  approval).
+  user-held blanks; the notes; the fees; the scan; the new pool's notes; the Nito client
+  final approval). Proceed with the test after the `lib/pool` role-2 rewrite and the
+  proving-asset handover.
 
 **CURRENT STATE (2026-11-23, covenant-at-0 session — supersedes the NEXT-MISSION /
 POOL-V2 / FOLLOW-UP-SESSION text below, which is history):**
