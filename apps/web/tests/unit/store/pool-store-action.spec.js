@@ -35,11 +35,12 @@ const SCAN_RESULT = {
     spent: [],
 }
 
-const { submitMock, scanPoolMock, proverPoolMock, defaultPoolMock, clusterMock } = vi.hoisted(() => ({
+const { submitMock, scanPoolMock, proverPoolMock, defaultPoolMock, poolsMock, clusterMock } = vi.hoisted(() => ({
     submitMock: vi.fn(),
     scanPoolMock: vi.fn(),
     proverPoolMock: vi.fn(),
     defaultPoolMock: vi.fn(),
+    poolsMock: vi.fn(() => []),
     clusterMock: vi.fn(async () => ({})),
 }))
 
@@ -48,6 +49,7 @@ vi.mock('@/lib/pool/scan', () => ({ scanPool: scanPoolMock }))
 vi.mock('@/lib/pool/registry', () => ({
     getDefaultPool: defaultPoolMock,
     getProverPool: proverPoolMock,
+    getPools: poolsMock,
 }))
 vi.mock('@/lib/bch/provider', () => ({ getCluster: clusterMock }))
 
@@ -80,6 +82,8 @@ describe('store/modules/pool submitPoolAction', () => {
         scanPoolMock.mockReset()
         proverPoolMock.mockReset()
         defaultPoolMock.mockReset()
+        poolsMock.mockReset()
+        poolsMock.mockReturnValue([])
         clusterMock.mockClear()
 
         /* Defaults: a scan target exists, but NO prover-compatible pool. */
@@ -214,5 +218,36 @@ describe('store/modules/pool submitPoolAction', () => {
             .rejects.toThrow()
 
         expect(submitMock).not.toHaveBeenCalled()
+    })
+
+    it('submitRole2Action: rejects (displayError) without a wallet seed', async () => {
+        const facade = getStoreFacade()
+
+        facade.commit('profile/setMasterSeed', null)
+
+        await expect(facade.dispatch('pool/submitRole2Action', { action: 'shield', amount: '1000' }))
+            .rejects.toThrow('Open your wallet first')
+
+        expect(scanPoolMock).not.toHaveBeenCalled()
+    })
+
+    it('submitRole2Action: rejects when the role-2 pool is not registered', async () => {
+        const facade = getStoreFacade()
+
+        await expect(facade.dispatch('pool/submitRole2Action', { action: 'shield', amount: '1000' }))
+            .rejects.toThrow('role-2 pool is not registered')
+
+        expect(scanPoolMock).not.toHaveBeenCalled()
+    })
+
+    it('submitRole2Action: rejects until the pool is walletProverCompatible', async () => {
+        const facade = getStoreFacade()
+
+        poolsMock.mockReturnValue([{ id: 'chipnet-pusd-role2', walletProverCompatible: false }])
+
+        await expect(facade.dispatch('pool/submitRole2Action', { action: 'shield', amount: '1000' }))
+            .rejects.toThrow('not wallet-prover-compatible')
+
+        expect(scanPoolMock).not.toHaveBeenCalled()
     })
 })

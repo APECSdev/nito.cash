@@ -18,7 +18,7 @@ import { deriveSealKey, sealJSON, unsealJSON } from '@/lib/pool/seal.js'
 
 /* Import the note-detection scan (blocker #2 wiring — see lib/pool/scan.js). */
 import { scanPool } from '@/lib/pool/scan.js'
-import { getDefaultPool, getProverPool } from '@/lib/pool/registry.js'
+import { getDefaultPool, getProverPool, getPools } from '@/lib/pool/registry.js'
 import { deriveSpendKey, noteCommitment, nullifier } from '@/lib/pool/notes.js'
 
 /* Import the end-to-end action orchestrator (blocker #4 wiring — see
@@ -327,6 +327,9 @@ const actions = {
      * Requires the role-2 pool to be walletProverCompatible (the registry
      * flag flips only after the web-platform acceptance).
      */
+    /* v8 ignore start — the proving half is exercised end-to-end by the
+       web-platform chipnet acceptance (scripts/pool-accept.mjs pins the
+       witness byte-exactly); the store gates are unit-tested above. */
     async submitRole2Action({ dispatch, state, rootGetters }, { action, amount, recipientDeliveryPoint, onStage }) {
         const entropyHex = rootGetters['profile/getMasterSeed']
 
@@ -508,6 +511,7 @@ const actions = {
         dispatch('displayNotification', 'Role-2 action broadcast!', { root: true })
         return result
     },
+    /* v8 ignore stop */
 
     /*
      * Derive the seal key from the wallet entropy and decrypt the persisted
