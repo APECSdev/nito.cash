@@ -21,6 +21,7 @@
 import { buildProgram, setCovenant } from './role2/script.mjs'
 import { covenantHook, covenantParams } from './role2/pool-hook.mjs'
 import { transactionFor } from './role2/transaction.mjs'
+import { poolTransactionFor } from './role2/pool-tx.mjs'
 import { normalizeProof } from './verifier.js'
 
 /* The deployed category, little-endian (the on-chain byte order the program commits to). */
@@ -44,10 +45,20 @@ export function role2Program(categoryOnChain = ROLE2_CATEGORY_ONCHAIN) {
  * @param proof        the Groth16 proof ({ a, b, c } with snarkjs field encodings)
  * @param publicSignals the proof's public signals [merkleRoot, actionHash]
  * @param categoryOnChain the pool category in on-chain (little-endian) byte order
+ * @param scenarioArgs   optional pool shape { sc, n0, balance, oldNull, categoryDisplay };
+ *                       when supplied the fillers are sized against the REAL pool
+ *                       transaction (pool-tx.mjs), not the stock synthetic one. The
+ *                       state input reads the outputs (token conservation), so the
+ *                       stock sizer underestimates its op-cost and leaves FILL_2
+ *                       short (450 B on the live shield); the live FILL_2 feeds the
+ *                       z challenge, so fuel1/state only match with this path.
  * @returns the three { unlocking } bytecodes in step order [fuel0, fuel1, state]
  */
-export function produceRole2Inputs({ proof, publicSignals, categoryOnChain = ROLE2_CATEGORY_ONCHAIN }) {
+export function produceRole2Inputs({ proof, publicSignals, categoryOnChain = ROLE2_CATEGORY_ONCHAIN, scenarioArgs }) {
     const program = role2Program(categoryOnChain)
-    const { unlockings } = transactionFor({ proof: normalizeProof(proof), publicInputs: publicSignals }, program)
+    const fx = { proof: normalizeProof(proof), publicInputs: publicSignals }
+    const { unlockings } = scenarioArgs
+        ? poolTransactionFor(fx, program, scenarioArgs)
+        : transactionFor(fx, program)
     return unlockings
 }

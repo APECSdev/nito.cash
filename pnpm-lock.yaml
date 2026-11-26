@@ -32,8 +32,8 @@ importers:
   apps/web:
     dependencies:
       '@bitauth/libauth':
-        specifier: ^3.0.0
-        version: 3.0.0
+        specifier: 3.1.0-next.8
+        version: 3.1.0-next.8
       '@electrum-cash/network':
         specifier: ^4.4.8
         version: 4.4.8(supports-color@7.2.0)

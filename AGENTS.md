@@ -334,11 +334,21 @@ sender, receiver, and amount are all masked. Design decisions locked:
   category's code hash, NOT the deployed identity; the deployed `480e30ff…` code hash is
   `f12f90947e09a635f98a2938fedac58b7548c36edead44aecc38564967bce116` (`sweepCodePin`
   keeps the old value). The `pool-accept.mjs` role-2 branch reads the live 642-B STMT from
-  the state input and compares the three unlockings. REMAINING: the `sizeFills` (the
-  op-budget filler) needs `createVirtualMachineBch2026` from `@bitauth/libauth@3.1.0-next.8`
-  (the repo has `^3.0.0`; upgrade + lockfile on the build host); then the byte-exact live
-  witness test, the prover swap (`prover.js` + the `prover.nito.cash` mirror), and the
-  web-platform SHIELD → TRANSFER → UNSHIELD acceptance.
+  the state input and compares the three unlockings.
+- **ROLE-2 WITNESS ACCEPTANCE: PASS (2026-11-26).** `node scripts/pool-accept.mjs --pool
+  role2 --txid 9d9aa97a` reports ALL THREE unlockings BYTE-EXACT (fuel0 9481 B, fuel1
+  9483 B, state 8695 B) against the live shield on chipnet. The key was the POOL-AWARE
+  fill sizer: the stock `sizeFills` evaluates a tokenless synthetic tx, so the state
+  input (which reads the outputs for token conservation) sees a tiny op-cost and leaves
+  `FILL_2` 450 B short; `role2/pool-tx.mjs` (`poolTransactionFor`) evaluates the real
+  pool shape (the carrier + the tagged fuel tokens + the new state), and `FILL_2` feeds
+  the z challenge, so fuel1/state only match through it. `produceRole2Inputs` takes the
+  optional `scenarioArgs` (`{sc, n0, balance, oldNull, categoryDisplay}`); the harness
+  builds them from the live tx (the carrier, the state prevout, the new-state category).
+  `@bitauth/libauth` upgraded to `3.1.0-next.8` for `createVirtualMachineBch2026` (the
+  lockfile regenerated on the apecsdev VM). REMAINING: the prover swap (`prover.js` +
+  the `prover.nito.cash` mirror to the Hush assets), and the web-platform SHIELD →
+  TRANSFER → UNSHIELD acceptance.
 - THE OLD NOTES ARE NOT KEPT. The `chipnet-pusd-v4` notes came from a WITHDRAWN
   verifier and are ABANDONED — no unshield/re-shield migration, no old-note spend.
   The new role-2 pool starts from its own genesis root; all new notes are created by

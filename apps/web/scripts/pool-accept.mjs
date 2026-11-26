@@ -174,7 +174,39 @@ if (POOL === 'role2') {
     console.log(`live inputs: ${tx.inputs.map((i, idx) => idx + ':' + i.unlockingBytecode.length).join('  ')}`)
     console.log(`publicSignals n0=0x${publicSignals[0].toString(16)}`)
     console.log(`               n1=0x${publicSignals[1].toString(16)}`)
-    const produced = produceRole2Inputs({ proof, publicSignals })
+
+    /* The pool shape for the fill sizer: the carrier (out0) + the state prevout
+       (the source token amount + the old nullifier) + the new-state category.
+       The state input reads the outputs, so the stock sizer leaves FILL_2 short. */
+    const carrier = tx.outputs[0].lockingBytecode.slice(3)
+    if (carrier.length !== 169) throw new Error(`role2: carrier is ${carrier.length}B, expected 169`)
+    const sc = {
+        nf0: le(carrier.slice(0, 32)), nf1: le(carrier.slice(32, 64)),
+        cm0: le(carrier.slice(64, 96)), cm1: le(carrier.slice(96, 128)),
+        newRoot: le(carrier.slice(128, 160)), pv: le(carrier.slice(160, 168)), sign: BigInt(carrier[168]),
+    }
+    const stateInput = tx.inputs[2]
+    const prevTxid = binToHex(stateInput.outpointTransactionHash)
+    /* the harness disconnected the read client above; reconnect for the prevout */
+    const prevClient = new ElectrumClient('nito.cash', '1.5', pool.server.host, { port: pool.server.port, encrypted: true })
+    await prevClient.connect()
+    const prevRaw = await prevClient.request('blockchain.transaction.get', prevTxid)
+    try { await prevClient.disconnect(true) } catch {}
+    const prevTx = decodeTransaction(hexToBin(prevRaw))
+    if (typeof prevTx === 'string') throw new Error('role2: undecodable state prevout ' + prevTxid)
+    const statePrev = prevTx.outputs[stateInput.outpointIndex]
+    const stateToken = statePrev.token
+    if (!stateToken?.nft?.commitment || stateToken.nft.commitment.length !== 64) throw new Error('role2: state prevout has no 64-B commitment')
+    const scenarioArgs = {
+        sc,
+        n0: publicSignals[0],
+        balance: stateToken.amount,
+        oldNull: stateToken.nft.commitment.slice(32),
+        categoryDisplay: tx.outputs[1].token.category,
+    }
+    console.log(`state prevout ${prevTxid}:${stateInput.outpointIndex} balance=${scenarioArgs.balance} oldNull=${binToHex(scenarioArgs.oldNull).slice(0, 16)}…`)
+
+    const produced = produceRole2Inputs({ proof, publicSignals, scenarioArgs })
     const names = ['fuel0', 'fuel1', 'state']
     let allPass = true
     for (let i = 0; i < 3; i++) {
