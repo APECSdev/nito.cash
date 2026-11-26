@@ -140,11 +140,11 @@ function json(body, status = 200) {
  */
 const RELEASE_ASSETS = {
   "pool.wasm":
-    "https://github.com/APECSdev/nito.cash/releases/download/proving-assets-v1/pool.wasm",
+    "https://github.com/APECSdev/pusd-shielded-pool/releases/download/role2-proving-assets-v1/pool.wasm",
   "pool_final.zkey":
-    "https://github.com/APECSdev/nito.cash/releases/download/proving-assets-v1/pool_final.zkey",
+    "https://github.com/APECSdev/pusd-shielded-pool/releases/download/role2-proving-assets-v1/pool_final.zkey",
   "verification_key.json":
-    "https://github.com/APECSdev/nito.cash/releases/download/proving-assets-v1/verification_key.json",
+    "https://github.com/APECSdev/pusd-shielded-pool/releases/download/role2-proving-assets-v1/verification_key.json",
 };
 
 async function handleAsset(url) {

@@ -55,8 +55,8 @@ export const VERIFYING_KEY = 'proving/verification_key.json'
  * the LOCAL-DEV override: with the files dropped into `public/proving/`,
  * pass those paths instead.
  */
-export const RELEASE_TAG = 'proving-assets-v1'
-export const RELEASE_BASE = `https://github.com/APECSdev/nito.cash/releases/download/${RELEASE_TAG}/`
+export const RELEASE_TAG = 'role2-proving-assets-v1'
+export const RELEASE_BASE = `https://github.com/APECSdev/pusd-shielded-pool/releases/download/${RELEASE_TAG}/`
 export const ASSETS_BASE = 'https://prover.nito.cash/assets/'
 export const PROVING_WASM_URL = ASSETS_BASE + 'pool.wasm'
 export const PROVING_ZKEY_URL = ASSETS_BASE + 'pool_final.zkey'
