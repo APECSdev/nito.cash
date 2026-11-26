@@ -366,9 +366,11 @@ sender, receiver, and amount are all masked. Design decisions locked:
   randomization; `relay.js` — REQ/EVENT/CLOSE/AUTH, per-id OK pending map). The Desk has
   the CashShuffle service (service 03) with the phase rail, blame tally, live relay
   opt-in and the round controls. Tests: protocol 11, transport 4, runner 6, NIP-44 6,
-  NIP-59 5, relay 6. Open: the production relay set, NIP-42 policy (the relay client
-  captures the challenge; the transport wiring is the next step), the discovery kind,
-  coordinator rotation, the protobuf↔Nostr mapping, the blackhost daemon. Quantumroot
+  NIP-59 5, relay 6. Open: the production relay set, the discovery kind,
+  coordinator rotation, the protobuf↔Nostr mapping, the blackhost daemon. NIP-42 is
+  wired: the transport answers the relay's challenge with the session key (kind 22242,
+  the relay + challenge tags) under `authPolicy: 'none'|'optional'|'required'`; a failed
+  AUTH is recorded and, under `required`, refuses to publish. Quantumroot
   Vaults are separate (saving, not payments; distinct from the Transparent Vaults).
 - THE WEB-PLATFORM CHIPNET TEST IS THE ACCEPTANCE. The new pool must run
   SHIELD → TRANSFER → UNSHIELD successfully FROM THE WEB PLATFORM on chipnet before it

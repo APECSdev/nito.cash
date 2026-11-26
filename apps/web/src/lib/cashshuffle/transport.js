@@ -13,14 +13,16 @@
 // 1059 ciphertext with a `p` tag. The transport is relay-injectable for tests.
 
 import { Relay } from '../nostr/relay.js'
+import { createEvent } from '../nostr/event.js'
 import { createRumor, unwrapGift, wrapRumor } from '../nostr/nip59.js'
 import { bytesToHex, randomBytes } from '@noble/hashes/utils.js'
 import { schnorr } from '@noble/curves/secp256k1.js'
 
 export const CASHSHUFFLE_KIND = 22231
+export const NIP42_KIND = 22242
 
 export class CashShuffleTransport {
-    constructor({ relays, keys, roundId, onMessage, WebSocketImpl } = {}) {
+    constructor({ relays, keys, roundId, onMessage, WebSocketImpl, authPolicy = 'optional' } = {}) {
         if (!Array.isArray(relays) || relays.length === 0) throw new Error('transport: at least one relay is required')
         if (!keys?.privateKey || !keys?.publicKey) throw new Error('transport: session keys are required')
         if (!roundId) throw new Error('transport: roundId is required')
@@ -29,8 +31,10 @@ export class CashShuffleTransport {
         this.roundId = roundId
         this.onMessage = onMessage || (() => {})
         this.WebSocketImpl = WebSocketImpl
+        this.authPolicy = authPolicy
         this.clients = []
         this.subscriptions = []
+        this.authenticated = new Map()
     }
 
     connect() {
@@ -38,6 +42,7 @@ export class CashShuffleTransport {
             const relay = new Relay(url, {
                 WebSocketImpl: this.WebSocketImpl,
                 onEvent: (event) => this.#receive(event),
+                onAuth: (challenge) => this.#authenticate(relay, url, challenge),
             })
             relay.connect()
             this.clients.push(relay)
@@ -50,6 +55,30 @@ export class CashShuffleTransport {
         const tag = bytesToHex(this.keys.publicKey)
         for (const relay of this.clients) {
             this.subscriptions.push(relay.subscribe([{ kinds: [1059], '#p': [tag] }]))
+        }
+    }
+
+    /*
+     * NIP-42: answer the relay's AUTH challenge with the session key.
+     * The AUTH event is kind 22242 with the relay + challenge tags; the
+     * relay's own `authenticate` signs/sends it. A failed AUTH is recorded,
+     * not fatal (the round can continue on a relay that does not require it).
+     */
+    async #authenticate(relay, url, challenge) {
+        if (this.authPolicy === 'none') return
+        try {
+            const event = createEvent({
+                kind: NIP42_KIND,
+                content: '',
+                tags: [['relay', url], ['challenge', challenge]],
+                privateKey: this.keys.privateKey,
+                publicKey: this.keys.publicKey,
+            })
+            await relay.authenticate(async () => event)
+            this.authenticated.set(url, true)
+        } catch (err) {
+            this.authenticated.set(url, false)
+            this.lastAuthError = err.message
         }
     }
 
@@ -84,6 +113,9 @@ export class CashShuffleTransport {
         })
         const relay = this.clients[0]
         if (!relay) throw new Error('transport: not connected')
+        if (this.authPolicy === 'required' && this.authenticated.get(relay.url) !== true) {
+            throw new Error('transport: relay authentication is required but failed')
+        }
         return relay.publish(gift)
     }
 

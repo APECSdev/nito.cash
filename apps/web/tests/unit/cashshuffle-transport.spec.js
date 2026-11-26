@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from 'vitest'
 import { schnorr } from '@noble/curves/secp256k1.js'
 import { bytesToHex, randomBytes } from '@noble/hashes/utils.js'
 
-import { CASHSHUFFLE_KIND, CashShuffleTransport } from '@/lib/cashshuffle/transport'
+import { CASHSHUFFLE_KIND, CashShuffleTransport, NIP42_KIND } from '@/lib/cashshuffle/transport'
 import { unwrapGift, wrapRumor } from '@/lib/nostr/nip59'
 
 class MockWebSocket {
@@ -96,6 +96,60 @@ describe('lib/cashshuffle/transport', () => {
         const other = wrapRumor({ rumor: { ...rumor, content: JSON.stringify({ round: 'other' }) }, senderPrivateKey: bob.privateKey, senderPublicKey: bob.publicKey, recipientPublicKey: alice.publicKey, throwawayPrivateKey: throwaway.privateKey, throwawayPublicKey: throwaway.publicKey })
         socket.receive(['EVENT', 'nito-1', other])
         expect(received).toHaveLength(1)
+    })
+
+    it('answers a NIP-42 AUTH challenge with the session key', async () => {
+        const alice = key()
+        const transport = new CashShuffleTransport({
+            relays: ['wss://relay.example'],
+            keys: alice,
+            roundId: 'r-4',
+            WebSocketImpl: MockWebSocket,
+        })
+        transport.connect()
+        const socket = MockWebSocket.instances.at(-1)
+        socket.open()
+        socket.receive(['AUTH', 'challenge-123'])
+        await new Promise((resolve) => setTimeout(resolve, 0))
+        const auth = socket.sent.find((m) => m[0] === 'AUTH')
+        expect(auth).toBeTruthy()
+        expect(auth[1].kind).toBe(NIP42_KIND)
+        expect(auth[1].tags).toContainEqual(['challenge', 'challenge-123'])
+        expect(auth[1].tags).toContainEqual(['relay', 'wss://relay.example'])
+        expect(auth[1].pubkey).toBe(bytesToHex(alice.publicKey))
+        expect(transport.authenticated.get('wss://relay.example')).toBe(true)
+    })
+
+    it('does not answer AUTH under the none policy', async () => {
+        const alice = key()
+        const transport = new CashShuffleTransport({
+            relays: ['wss://relay.example'],
+            keys: alice,
+            roundId: 'r-5',
+            WebSocketImpl: MockWebSocket,
+            authPolicy: 'none',
+        })
+        transport.connect()
+        const socket = MockWebSocket.instances.at(-1)
+        socket.open()
+        socket.receive(['AUTH', 'challenge-123'])
+        await new Promise((resolve) => setTimeout(resolve, 0))
+        expect(socket.sent.find((m) => m[0] === 'AUTH')).toBeUndefined()
+    })
+
+    it('refuses to publish under the required policy until authenticated', async () => {
+        const alice = key()
+        const transport = new CashShuffleTransport({
+            relays: ['wss://relay.example'],
+            keys: alice,
+            roundId: 'r-6',
+            WebSocketImpl: MockWebSocket,
+            authPolicy: 'required',
+        })
+        transport.connect()
+        const socket = MockWebSocket.instances.at(-1)
+        socket.open()
+        await expect(transport.send(bytesToHex(key().publicKey), 'REGISTER', {})).rejects.toThrow('authentication is required')
     })
 
     it('requires relays, keys and a roundId', () => {
