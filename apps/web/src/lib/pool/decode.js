@@ -37,6 +37,14 @@ import { parseCarrierLockingBytecode } from './carrier'
 export const PROVEN_N0_OFFSET = 1825
 export const PROVEN_N1_OFFSET = 1792
 
+/* Role-2 (3-input bn-native-sound): the state input (input 2) carries the
+   642-B STMT push; n0/n1 live at STMT bytes 256..288 / 288..320 (LE). The
+   action's public values are ALSO in the 169-B OP_RETURN carrier out0. */
+export const ROLE2_STMT_SIZE = 642
+export const ROLE2_CARRIER_SIZE = 169
+export const ROLE2_STMT_N0_OFFSET = 256
+export const ROLE2_STMT_N1_OFFSET = 288
+
 /*
  * The verifier genesis input's INDEX is a BUILDER choice and differs between
  * pool deployments — do NOT hardcode it. The live gate3 SHIELD (f5927a0b)
@@ -46,6 +54,60 @@ export const PROVEN_N1_OFFSET = 1792
  * is therefore FOUND by its marker profile (verified live: only the true
  * genesis matches).
  */
+export function findRole2StateIndex(tx) {
+    return tx.inputs.findIndex((input) =>
+        scriptPushes(input.unlockingBytecode).some((push) => push && push.length === ROLE2_STMT_SIZE))
+}
+
+/*
+ * Decode one role-2 action (the 3-input signature-free shape). Returns null
+ * when the tx is not a role-2 action. `args` mirrors the old covenant-arg
+ * shape but is sourced from the 169-B carrier: nf0|nf1|cm0|cm1|newRoot|
+ * pv(8B LE)|sign(1B); `proven` is the STMT's n0/n1.
+ */
+export function decodeRole2Action(raw) {
+    const tx = typeof raw === 'string' ? decodeTransaction(hexToBin(raw)) : raw
+    if (typeof tx === 'string') return null
+    /* The role-2 shape is EXACTLY 3 inputs with the state (the 642-B STMT)
+       at index 2; the retired 5-input pools also carry a 642-B STMT in their
+       genesis input, so the shape gate is required. */
+    if (tx.inputs.length !== 3) return null
+    const stateIndex = findRole2StateIndex(tx)
+    if (stateIndex !== 2) return null
+
+    const stmt = scriptPushes(tx.inputs[stateIndex].unlockingBytecode)
+        .find((push) => push && push.length === ROLE2_STMT_SIZE)
+
+    const carrier = tx.outputs
+        .map((output) => output.lockingBytecode)
+        .find((b) => b.length === 3 + ROLE2_CARRIER_SIZE && b[0] === 0x6a && b[1] === 0x4c && b[2] === ROLE2_CARRIER_SIZE)
+
+    let args = null
+    if (carrier) {
+        const payload = carrier.slice(3)
+        args = {
+            nf0: leToBig(payload.slice(0, 32)),
+            nf1: leToBig(payload.slice(32, 64)),
+            cm0: leToBig(payload.slice(64, 96)),
+            cm1: leToBig(payload.slice(96, 128)),
+            newMerkleRoot: leToBig(payload.slice(128, 160)),
+            publicValueAbs: leToBig(payload.slice(160, 168)),
+            isUnshield: BigInt(payload[168]),
+        }
+    }
+
+    return {
+        covenantInputIndex: stateIndex,
+        prevoutTxid: txidHexOf(tx.inputs[stateIndex].outpointTransactionHash),
+        args,
+        carriers: [],
+        proven: {
+            merkleRoot: leToBig(stmt.slice(ROLE2_STMT_N0_OFFSET, ROLE2_STMT_N0_OFFSET + 32)),
+            actionHash: leToBig(stmt.slice(ROLE2_STMT_N1_OFFSET, ROLE2_STMT_N1_OFFSET + 32)),
+        },
+    }
+}
+
 export function findVerifierGenesisIndex(tx) {
     return tx.inputs.findIndex((input) =>
         input.unlockingBytecode.length > PROVEN_N0_OFFSET + 32 &&

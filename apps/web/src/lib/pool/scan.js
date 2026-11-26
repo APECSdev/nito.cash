@@ -32,7 +32,7 @@
 
 import { actionHash, nullifier } from './notes'
 import { decryptPacket } from './carrier'
-import { decodePoolAction } from './decode'
+import { decodePoolAction, decodeRole2Action } from './decode'
 import { poolAddress, poolScripthash } from './registry'
 
 /**
@@ -76,7 +76,9 @@ export async function scanPoolActions({ cluster, pool, networkId }) {
     for (const entry of confirmed) {
         const rawTx = await cluster.getTransaction(entry.tx_hash)
 
-        const decoded = decodePoolAction(rawTx)
+        /* Role-2 first (the 642-B STMT / the 169-B carrier); the old 5-input
+           decoder is the fallback for the retired pools. */
+        const decoded = decodeRole2Action(rawTx) || decodePoolAction(rawTx)
 
         if (decoded) {
             actions.push({ txid: entry.tx_hash, height: entry.height, ...decoded })
