@@ -32,17 +32,19 @@ const SPENT_NOTE = {
     nk: '7', cm: '999', nf: '888',
 }
 
-const { scanPoolMock, defaultPoolMock } = vi.hoisted(() => ({
+const { scanPoolMock, defaultPoolMock, getPoolsMock } = vi.hoisted(() => ({
     scanPoolMock: vi.fn(),
     defaultPoolMock: vi.fn(),
+    getPoolsMock: vi.fn(),
 }))
 
 vi.mock('@/lib/pool/scan', () => ({ scanPool: scanPoolMock }))
-vi.mock('@/lib/pool/registry', () => ({ getDefaultPool: defaultPoolMock }))
+vi.mock('@/lib/pool/registry', () => ({ getDefaultPool: defaultPoolMock, getPools: getPoolsMock }))
 vi.mock('@/lib/bch/provider', () => ({ getCluster: vi.fn(async () => ({})) }))
 
-/* The registry pool fixture (only fields the store action reads). */
+/* The registry pool fixtures (only fields the store action reads). */
 const POOL = { id: 'test-pool', genesisLeafCount: 2 }
+const OTHER_POOL = { id: 'test-pool-3out', genesisLeafCount: 2, outputs: 3 }
 
 function fixtureScan(overrides = {}) {
     return {
@@ -80,7 +82,9 @@ describe('store/modules/pool scanPool', () => {
 
         scanPoolMock.mockReset()
         defaultPoolMock.mockReset()
+        getPoolsMock.mockReset()
         defaultPoolMock.mockReturnValue(POOL)
+        getPoolsMock.mockReturnValue([POOL, OTHER_POOL])
     })
 
     it('records received notes with their real leaf indices + checkpoints the scan', async () => {
@@ -108,6 +112,27 @@ describe('store/modules/pool scanPool', () => {
         expect(scanPoolMock).toHaveBeenCalledTimes(1)
         expect(scanPoolMock.mock.calls[0][0].pool).toEqual(POOL)
         expect(scanPoolMock.mock.calls[0][0].networkId).toEqual('mainnet')
+    })
+
+    it('scans the SELECTED pool when the payload names one (the 3-out selector)', async () => {
+        const facade = getStoreFacade()
+
+        scanPoolMock.mockResolvedValue(fixtureScan())
+
+        await facade.dispatch('pool/scanPool', { poolId: OTHER_POOL.id })
+
+        expect(scanPoolMock.mock.calls[0][0].pool).toEqual(OTHER_POOL)
+        expect(defaultPoolMock).not.toHaveBeenCalled()
+    })
+
+    it('falls back to the network default pool when the payload names none', async () => {
+        const facade = getStoreFacade()
+
+        scanPoolMock.mockResolvedValue(fixtureScan())
+
+        await facade.dispatch('pool/scanPool')
+
+        expect(scanPoolMock.mock.calls[0][0].pool).toEqual(POOL)
     })
 
     it('is idempotent: a rescan does not double-record (dedupe by cm)', async () => {

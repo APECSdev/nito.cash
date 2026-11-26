@@ -364,15 +364,20 @@ sender, receiver, and amount are all masked. Design decisions locked:
   optional `poolId` and branches on `pool.outputs === 3` (3-out witness, 3-out
   assets, 3-out unlockings, `leafIndexBase * 3`); the registry entry
   `chipnet-pusd-role2-3out` is present with `walletProverCompatible: false`
-  (awaiting the browser store acceptance). Tests **695/695**; coverage 89.04%
-  statements / 89.99% lines (both above the ratchet); `pnpm build` OK. REMAINING:
-  the 3-out proving assets on the `prover.nito.cash` mirror
-  (`pool3.wasm`/`pool3_final.zkey`) — now published in the
-  `role2-proving-assets-3out-v1` release and served at
-  `https://prover.nito.cash/assets/` (pool3.wasm 3,380,815 B, pool3_final.zkey
-  98,190,141 B, verification_key_3out.json 3,111 B; Worker deployed 2026-11-26,
-  version 34e48677…), the UI pool selector, 3-out blanks/vending, and the
-  browser SHIELD → TRANSFER → UNSHIELD acceptance.
+  (awaiting the browser store acceptance). Tests **692/692**; coverage 89.04%
+  statements / 89.99% lines (both above the ratchet); `pnpm build` OK. The
+  3-out proving assets are published in the `role2-proving-assets-3out-v1`
+  release and served at `https://prover.nito.cash/assets/` (pool3.wasm
+  3,380,815 B, pool3_final.zkey 98,190,141 B, verification_key_3out.json
+  3,111 B; Worker deployed 2026-11-26). THE REVIEW OF THE HUSH 3-OUT COMMITS
+  (2026-11-26, docs/POOL-3OUT-HANDOFF-REVIEW-2026-11-26.md): the commits were
+  ADOPTED, but two store-path gaps were fixed on our side — `scanPool` DROPPED
+  its `{ poolId }` payload (the dispatch passed it; the action ignored it and
+  scanned the 2-out default) and `assembleLeaves` was 2-out-only (hard-coded
+  ×2, no cm2 → a 3-out tree THREW "incomplete leaf list"). Both are fixed with
+  tests; the Wallet pool selector (2-out / 3-out v3) + the registry vending
+  data are live. REMAINING: the browser SHIELD → TRANSFER → UNSHIELD
+  acceptance (the 3-out flip after it).
 - THE OLD NOTES ARE NOT KEPT. The `chipnet-pusd-v4` notes came from a WITHDRAWN
   verifier and are ABANDONED — no unshield/re-shield migration, no old-note spend.
   The new role-2 pool starts from its own genesis root; all new notes are created by

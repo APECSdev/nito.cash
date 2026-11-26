@@ -99,6 +99,13 @@ describe('assembleLeaves (the witness tree)', () => {
         expect(assembleLeaves(scan, pool)).toEqual([7n, 8n, 9n, 10n])
     })
 
+    it('assembles a 3-out v3 tree (three leaves per action, cm2 included)', () => {
+        const pool = { genesisLeafCount: 2, genesisLeaves: ['7', '8'], outputs: 3 }
+        const scan = { actions: [{ leafIndexBase: 2, carrierBytes: 201, args: { cm0: 9n, cm1: 10n, cm2: 11n } }] }
+
+        expect(assembleLeaves(scan, pool)).toEqual([7n, 8n, 9n, 10n, 11n])
+    })
+
     it('works for an unseeded pool (genesisLeafCount 0, no genesisLeaves)', () => {
         const pool = {}
         const scan = { actions: [{ leafIndexBase: 0, args: { cm0: 1n, cm1: 2n } }] }

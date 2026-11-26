@@ -67,7 +67,8 @@ export const MIN_FUNDING_SATS = 50000n
  * the registry genesis leaves (a Path-A pool PUBLISHES its seed-leaf
  * commitments as `genesisLeaves`; the deployed pools do not — see the
  * registry genesis-tree honesty note) followed by every action's cm0/cm1
- * at the scan-assigned global leaf indices (leafIndexBase, leafIndexBase+1).
+ * (and cm2 on a 3-out v3 pool) at the scan-assigned global leaf indices
+ * (leafIndexBase, +1, +2).
  *
  * THROWS when a leaf position is unfilled — a seeded pool without published
  * genesisLeaves can never produce a complete tree, which is exactly the
@@ -76,7 +77,12 @@ export const MIN_FUNDING_SATS = 50000n
 export function assembleLeaves(scan, pool) {
     const genesisLeaves = pool.genesisLeaves || []
 
-    const total = (pool.genesisLeafCount || genesisLeaves.length) + (scan.actions.length * 2)
+    /* A 3-out v3 action appends THREE leaves (cm0/cm1/cm2); a 2-out two.
+       The pool's own shape is authoritative; the per-action carrier length
+       covers a scan whose pool object lacks `outputs`. */
+    const outs = pool.outputs === 3 || scan.actions.some((action) => action.carrierBytes === 201) ? 3 : 2
+
+    const total = (pool.genesisLeafCount || genesisLeaves.length) + (scan.actions.length * outs)
 
     /* fill(undefined): a bare new Array(total) is HOLEY and some() skips
        holes — the missing-leaf guard below would never fire. */
@@ -91,6 +97,10 @@ export function assembleLeaves(scan, pool) {
 
         leaves[base] = action.args.cm0
         leaves[base + 1] = action.args.cm1
+
+        if (outs === 3) {
+            leaves[base + 2] = action.args.cm2
+        }
     }
 
     if (leaves.some((leaf) => leaf === undefined)) {

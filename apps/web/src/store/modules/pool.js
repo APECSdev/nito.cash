@@ -117,17 +117,19 @@ const actions = {
      * received notes are deduped by commitment, spend marks by nullifier.
      * Requires the wallet seed (no seed -> no-op, like unlockPool).
      */
-    async scanPool({ commit, state, dispatch, rootGetters }) {
+    async scanPool({ commit, state, dispatch, rootGetters }, payload = {}) {
         const entropyHex = rootGetters['profile/getMasterSeed']
 
         if (!entropyHex) {
             return null
         }
 
-        /* Set the (active) network's default pool. */
+        /* Set the (active) network's pool: the SELECTED one when the caller
+           names it (the 3-out / 2-out selector — the scan's state UTXO, action
+           chain and leaves all come from THIS pool), else the default. */
         const network = rootGetters['profile/getNetwork']
 
-        const pool = getDefaultPool(network)
+        const pool = (payload.poolId && getPools(network).find((p) => p.id === payload.poolId)) || getDefaultPool(network)
 
         if (!pool) {
             return null
