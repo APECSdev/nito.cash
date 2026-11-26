@@ -4,7 +4,7 @@
 //
 //   Fp12 = Fp[X]/M(X), M = X^12 - 18 X^6 + 82, X = w (noble tower: u^2 = -1, v = w^2, v^3 = 9 + u),
 //   u = X^6 - 9; an Fp2 element a0 + a1 u maps to Phi(a) = (a0 - 9 a1) + a1 X^6.
-import assert from 'node:assert/strict';
+import assert from 'node:assert';
 import {readFileSync} from 'node:fs';
 import {bn254} from '@noble/curves/bn254.js';
 import {psiFrobenius} from '@noble/curves/abstract/tower.js';

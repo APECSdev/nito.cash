@@ -18,7 +18,7 @@
 // Kernels: a DAG over named stack items (read-only "env" items are PICKed, "input" items are
 // consumed at their last use) is scheduled by local search on the exact bch-spec op-cost model
 // (100/instruction + pushed bytes + lenA*lenB for MUL/MOD/DIV + 2*len(result) for arithmetic).
-import assert from 'node:assert/strict';
+import assert from 'node:assert';
 import {bigIntToVmNumber, encodeDataPush} from '@bitauth/libauth';
 
 export const OP = {

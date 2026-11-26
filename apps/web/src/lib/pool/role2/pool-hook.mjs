@@ -26,7 +26,7 @@
 //   out0  OP_RETURN <169-byte carrier>   nf0‖nf1‖cm0‖cm1‖newRoot‖pv(8B LE)‖sign(1B)
 //   out1  new state, locked to P2SH32(R)  category+0x01, commitment = newRoot‖newNull, amount = newBalance
 //   out2  (unshield only) public payout   bare category, amount = pv
-import assert from 'node:assert/strict';
+import assert from 'node:assert';
 import { OP } from './asm.mjs';
 import { sha } from './protocol.mjs';
 

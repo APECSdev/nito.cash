@@ -1,6 +1,6 @@
 // SI-GLS protocol: witness layout, transcript, the honest prover, and a value-level reference
 // verifier that mirrors the script step by step (used to test the protocol and to debug the script).
-import assert from 'node:assert/strict';
+import assert from 'node:assert';
 import {createHash} from 'node:crypto';
 import {bn254} from '@noble/curves/bn254.js';
 import {p, r, mod, inv, F2, F12, Fp6, f2, g1, g2, BN_X, DIGITS, NE, NADD, LAMBDA, N6R, PI, GLS_BITS, GLS_OFFSET, PI_SUM_OFFSET, glsDecompose, glsFactorPoly,

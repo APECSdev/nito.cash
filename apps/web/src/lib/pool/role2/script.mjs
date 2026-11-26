@@ -2,7 +2,7 @@
 // OP_INPUTINDEX into 3 role programs, and the 3-input redeem R that loads, authenticates and runs it.
 // See README.md for the protocol, the layout and the soundness argument. Every item is named on the
 // assembler's symbolic stack (asm.mjs); shared code lives in OP_DEFINE functions.
-import assert from 'node:assert/strict';
+import assert from 'node:assert';
 import {Asm, Kernel, OP, pushNum, pushData} from './asm.mjs';
 import {kADblN, kAAddN, kDStep, kEval, kTable} from './kernels.mjs';
 import {p, r, ETA, GAMMA1, PSI, B_TWIST, VKC, PI_SUM_OFFSET} from './sound-si-gls/math.mjs';

@@ -6,7 +6,7 @@
 //   - the B lines are the affine lines (1, -lambda, lambda x - y) instead of the projective ones (Fp2 multiples
 //     of the same lines, so the states -- classes in Fp12*/Fp6* -- are SI-GLS's, asserted by build.mjs);
 //   - the program runs as 3 roles (one per input) over the event ranges CUTS, chained by handovers.
-import assert from 'node:assert/strict';
+import assert from 'node:assert';
 import {encodeDataPush} from '@bitauth/libauth';
 import {bn254} from '@noble/curves/bn254.js';
 import {p, r, mod, F2, F12, f2, g1, g2, DIGITS, NE, NADD, LAMBDA, N6R, PI, GLS_BITS, GLS_OFFSET, glsDecompose, glsFactorPoly,

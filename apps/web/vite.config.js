@@ -45,6 +45,10 @@ export default defineConfig({
                The regex anchors an EXACT match so `vuex-persistedstate` and
                other `vuex*` packages are NOT clobbered. */
             { find: /^vuex$/, replacement: fileURLToPath(new URL('./src/store/vuex-shim.js', import.meta.url)) },
+
+            /* The vendored role-2 bench modules import `node:assert/strict`;
+               the node polyfill only exposes the bare `assert` entry. */
+            { find: /^node:assert$/, replacement: 'assert' },
         ],
         /* The codebase imports SFCs extensionless (`@/views/Splash`). Webpack
            resolves `.vue` automatically; Vite does not, so add it here. */
