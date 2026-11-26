@@ -82,7 +82,7 @@ function sourceOf(utxo, categoryBytes) {
  * @param {object}   opts.pool          registry pool (program.lockingBytecode, assetCategory)
  * @param {Uint8Array} opts.tag         the 32-byte deposit tag (depositTag(carrier))
  * @param {bigint}   [opts.shield]      the FT deposit (pv) for a SHIELD; 0 otherwise
- * @param {object}   opts.fundingUtxo   a plain (tokenless) BCH UTXO for the fuel sats
+ * @param {object|object[]} opts.fundingUtxo  plain (tokenless) BCH UTXO(s) for the fuel sats
  * @param {object[]} opts.blanks        exactly TWO blank UTXOs (user P2PKH)
  * @param {object}   [opts.supplyUtxo]  a pool-category FT UTXO for the shield deposit
  * @param {string}   opts.changeAddress the user's CashAddress
@@ -104,7 +104,8 @@ export async function buildRole2Lock({
     if (!pool?.program?.lockingBytecode) throw new Error('role2-lock: pool program locking missing')
     if (!tag || tag.length !== 32) throw new Error('role2-lock: a 32-byte deposit tag is required')
     if (!Array.isArray(blanks) || blanks.length !== 2) throw new Error('role2-lock: exactly TWO blanks are required')
-    if (!fundingUtxo) throw new Error('role2-lock: a funding UTXO is required')
+    const fundingUtxos = Array.isArray(fundingUtxo) ? fundingUtxo : [fundingUtxo]
+    if (fundingUtxos.length === 0 || !fundingUtxos[0]) throw new Error('role2-lock: a funding UTXO is required')
 
     const sha256 = await instantiateSha256()
     const secp = await instantiateSecp256k1()
@@ -119,7 +120,7 @@ export async function buildRole2Lock({
     if (deposit > 0n && !supplyUtxo) throw new Error('role2-lock: a shield deposit needs a supply FT UTXO')
     if (deposit > 0n && supplyAmount < deposit) throw new Error('role2-lock: the supply UTXO is smaller than the deposit')
 
-    const inputs = [outpointOf(fundingUtxo), outpointOf(blanks[0]), outpointOf(blanks[1])]
+    const inputs = [...fundingUtxos.map(outpointOf), outpointOf(blanks[0]), outpointOf(blanks[1])]
     if (supplyUtxo) inputs.push(outpointOf(supplyUtxo))
 
     const outputs = [
@@ -145,7 +146,7 @@ export async function buildRole2Lock({
 
     const transaction = { version: 2, locktime: 0, inputs, outputs }
     const sources = [
-        { lockingBytecode: changeLocking, valueSatoshis: toBigInt(fundingUtxo.sats ?? fundingUtxo.value) },
+        ...fundingUtxos.map((utxo) => ({ lockingBytecode: changeLocking, valueSatoshis: toBigInt(utxo.sats ?? utxo.value) })),
         ...[blanks[0], blanks[1]].map((utxo) => ({
             lockingBytecode: changeLocking,
             valueSatoshis: toBigInt(utxo.sats ?? utxo.value),

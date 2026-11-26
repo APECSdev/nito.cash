@@ -89,8 +89,8 @@ const POOLS = {
                VK 05250429…, zkey 4a4e2543…, wasm 8595b434…). The flag flips only
                after the handover AND the web-platform chipnet SHIELD → TRANSFER
                → UNSHIELD acceptance run. */
-            walletProverCompatible: false,
-            status: 'awaiting-proving-assets',
+            walletProverCompatible: true,
+            status: 'live',
             deployTxid: '2eaeb97f…',
             categoryAnchorTxid: '480e30ff1d3f5f0b6fe9dd2dbe363b1776f61566f29a395628d0b50abd01b9d0',
             mintTxid: '5ea499ff…',
@@ -119,7 +119,7 @@ const POOLS = {
             carrierBytes: 169,
             fuelSats: 15000,
             blanksPerLock: 2,
-            notes: 'THE ROLE-2 TAGGED POOL — deployed 2026-11-24 (anchor 480e30ff… = the category; mint 5ea499ff…; deploy 2eaeb97f… block 345,467; the minting NFT passed forward into the guard aa2066a2…). 3 inputs (fuel 0, fuel 1, state 2), NO signatures; 169-B OP_RETURN carrier; deposit tags SHA256(nf0_LE ‖ nf1_LE) on both fuel UTXOs; 2 blanks per lock; 15,000 sats per fuel UTXO (1 sat/B). Lifecycle confirmed: SHIELD 9d9aa97a… → TRANSFER 5262417b… → UNSHIELD e54d19fb…. The old v4/v3 are RETIRED and their notes came from a WITHDRAWN verifier — the old notes are ABANDONED (no unshield/re-shield migration). The Hush proving assets are missing; the flag stays false until the handover + the web-platform acceptance.',
+            notes: 'THE ROLE-2 TAGGED POOL — deployed 2026-11-24 (anchor 480e30ff… = the category; mint 5ea499ff…; deploy 2eaeb97f… block 345,467; the minting NFT passed forward into the guard aa2066a2…). 3 inputs (fuel 0, fuel 1, state 2), NO signatures; 169-B OP_RETURN carrier; deposit tags SHA256(nf0_LE ‖ nf1_LE) on both fuel UTXOs; 2 blanks per lock; 15,000 sats per fuel UTXO (1 sat/B). Lifecycle confirmed: SHIELD 9d9aa97a… → TRANSFER 5262417b… → UNSHIELD e54d19fb…. THE WEB-PLATFORM ACCEPTANCE PASSED 2026-11-26 through the browser Wallet view: SHIELD 1ca58773… (348,247) → TRANSFER 50644d00… (348,249) → UNSHIELD f52008f4… (348,253); walletProverCompatible is true and status live. The old v4/v3 are RETIRED and their notes came from a WITHDRAWN verifier — the old notes are ABANDONED (no unshield/re-shield migration).',
         },
         {
             id: "chipnet-pusd-v4",

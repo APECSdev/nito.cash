@@ -23,7 +23,8 @@ import { deriveSpendKey, noteCommitment, nullifier } from '@/lib/pool/notes.js'
 
 /* Import the end-to-end action orchestrator (blocker #4 wiring — see
    lib/pool/actions.js). */
-import { assembleLeaves, selectInNotes, submitPoolAction } from '@/lib/pool/actions.js'
+import { assembleLeaves, parseDeliveryPoint, selectInNotes, submitPoolAction } from '@/lib/pool/actions.js'
+import { ownerPubFromDeliveryPoint } from '@/lib/pool/carrier.js'
 
 /* The role-2 (3-input tagged pool) pipeline: the orchestrator, the real prover
    chain, the witness generator, the carrier, and the blank selection. */
@@ -35,7 +36,7 @@ import { encodeRole2Carrier } from '@/lib/pool/role2-carrier.js'
 import { selectBlanks } from '@/lib/pool/blanks.js'
 
 /* Import byte helpers + the Fulcrum provider (quorum-verified chain data). */
-import { hexToBytes } from '@/lib/bch/crypto.js'
+import { derivePath, hexToBytes, toPrivateKeyBytes, toPublicKeyBytes } from '@/lib/bch/crypto.js'
 import { getCluster } from '@/lib/bch/provider.js'
 
 /* Runtime-only seal key — never persisted, never part of store state. */
@@ -297,10 +298,20 @@ const actions = {
      * room for the NP01 packet, so the wallet keeps them locally; a later scan
      * reconciles by commitment).
      */
-    async recordRole2Notes({ dispatch, state }, { outNotes }) {
-        for (const n of outNotes || []) {
+    async recordRole2Notes({ dispatch, state }, { outNotes, leafIndexBase = null }) {
+        for (const [index, n] of (outNotes || []).entries()) {
+            /* A transfer's RECIPIENT note has no `nk` (it is the recipient's
+               key) — only the wallet's own notes are recorded locally. */
+            if (n.nk === undefined || n.nk === null) continue
+
             const cm = await noteCommitment(BigInt(n.value), BigInt(n.ownerPub), BigInt(n.rho), BigInt(n.r))
             const nf = await nullifier(BigInt(n.nk), BigInt(n.rho))
+
+            /* The GLOBAL tree index (the genesis leaves + every prior
+               action's cm0/cm1). `state.leaves` is only the wallet's own
+               list — using it as the index mis-points the Merkle path (the
+               transfer's circuit membership check fails, Pool_255:147). */
+            const leafIndex = leafIndexBase !== null ? leafIndexBase + index : state.leaves.length
 
             await dispatch('recordNote', {
                 value: String(n.value),
@@ -310,7 +321,7 @@ const actions = {
                 nk: String(n.nk),
                 cm: String(cm),
                 nf: String(nf),
-                leafIndex: state.leaves.length,
+                leafIndex,
                 spent: false,
             })
         }
@@ -373,9 +384,12 @@ const actions = {
         }
 
         const cluster = await getCluster(network)
-        const spendKey = deriveSpendKey(hexToBytes(entropyHex))
         const changeAddress = rootGetters['wallets/getChangeAddress']('BCH')
-        const payoutAddress = (rootGetters['wallets/getAddresses']('BCH')?.[0]?.address) || changeAddress
+        const hdNode = rootGetters['wallets/getHDNode']
+        const accounts = rootGetters['wallets/getAddresses']('BCH') || []
+        const derivationPath = rootGetters['wallets/getDerivationPath']('BCH')
+        const accountBase = derivationPath.split('/').slice(0, 4).join('/')
+        const payoutAddress = (accounts[0] && accounts[0].address) || changeAddress
 
         /* Fulcrum UTXOs (tx_hash / tx_pos / value / token_data) normalized to
            the builders' shape (txid / vout / sats / token). */
@@ -396,19 +410,24 @@ const actions = {
         const poolUtxos = (await cluster.getUtxosWithTokens(scanned.scan.address)).map(normalize)
 
         /* The blanks are USER-HELD (the lock signs them as P2PKH) — they must
-           be selected from the wallet's own UTXOs, never the pool address. */
-        const walletUtxos = (await cluster.getUtxosWithTokens(changeAddress)).map(normalize)
-        const blanks = selectBlanks(walletUtxos, pool.assetCategory)
+           be selected from the wallet's own UTXOs, never the pool address.
+           The lock signs EVERY input with ONE key, so the blanks + funding +
+           supply must all sit at the SAME wallet address: group by address
+           and pick the first group that can fund the whole lock. */
+        const walletUtxos = []
 
-        if (blanks.length < 2) {
-            const error = new Error('Two blanks are required — buy them from the vending machine first.')
+        for (const account of accounts) {
+            const utxos = await cluster.getUtxosWithTokens(account.address)
 
-            dispatch('displayError', error, { root: true })
-
-            throw error
+            for (const utxo of utxos || []) {
+                walletUtxos.push({ ...normalize(utxo), address: account.address, account })
+            }
         }
 
-        const shield = action === 'shield' ? BigInt(amount) : 0n
+        /* The PUBLIC value: the deposit for SHIELD and the payout for
+           UNSHIELD (sign=1); a TRANSFER's public value is 0. */
+        const shield = action === 'shield' || action === 'unshield' ? BigInt(amount) : 0n
+        const transferAmount = action === 'transfer' ? BigInt(amount) : 0n
         const sign = action === 'unshield' ? 1n : 0n
 
         /* The state UTXO is the tip action's out1 (the new state NFT). */
@@ -426,30 +445,67 @@ const actions = {
         }
 
         /* A plain BCH UTXO funds the lock: 2 x 15,000 fuel sats + the lock fee
-           (the placeholder policy measures the signed size; 2,000 is margin). */
-        const funding = walletUtxos.find((u) => !u.token && u.sats >= 32000n)
+           (the blanks and the supply add their own sats to the lock's inputs). */
+        const byAddress = new Map()
 
-        if (!funding) {
-            const error = new Error('No plain BCH UTXO with 32,000 sats is available for the lock fee.')
+        for (const utxo of walletUtxos) {
+            if (!byAddress.has(utxo.address)) byAddress.set(utxo.address, [])
+
+            byAddress.get(utxo.address).push(utxo)
+        }
+
+        let lockSet = null
+
+        for (const [address, utxos] of byAddress) {
+            const blanks = selectBlanks(utxos, pool.assetCategory)
+
+            /* Accumulate the plain UTXOs (largest first) until the fuel +
+               fee fit — the lock signs every input with the same key. */
+            const funding = []
+            let fundTotal = 0n
+
+            for (const u of utxos.filter((c) => !c.token).sort((a, b) => (a.sats < b.sats ? 1 : -1))) {
+                funding.push(u)
+                fundTotal += u.sats
+                if (fundTotal >= 32000n) break
+            }
+
+            /* Only a SHIELD deposits FT through the lock; an UNSHIELD's
+               payout comes from the STATE (a deposit would double the FT and
+               break the program's conservation check). */
+            const supply = action === 'shield' && shield > 0n
+                ? utxos.find((u) => u.token && u.token.category === pool.assetCategory && !u.token.nft && u.token.amount >= shield)
+                : null
+
+            if (!blanks) continue
+
+            if (funding.length === 0 || fundTotal < 30000n) continue
+
+            if (action === 'shield' && shield > 0n && !supply) continue
+
+            lockSet = { address, account: funding[0].account, blanks, funding, supply }
+            break
+        }
+
+        if (!lockSet) {
+            const error = new Error(shield > 0n
+                ? 'The lock needs ONE wallet address holding 2 blanks + 30,000 sats of plain BCH + a ' + pool.assetCategory.slice(0, 8) + '… FT UTXO covering the deposit.'
+                : 'The lock needs ONE wallet address holding 2 blanks + 30,000 sats of plain BCH.')
 
             dispatch('displayError', error, { root: true })
 
             throw error
         }
 
-        /* A SHIELD's FT deposit rides the lock's out0; the supply UTXO must
-           carry the deposit and sit at the wallet (the lock signs it). */
-        const supply = shield > 0n
-            ? walletUtxos.find((u) => u.token && u.token.category === pool.assetCategory && !u.token.nft && u.token.amount >= shield)
-            : null
+        const { blanks, funding, supply } = lockSet
 
-        if (shield > 0n && !supply) {
-            const error = new Error('No ' + pool.assetCategory.slice(0, 8) + '… FT UTXO covers the shield deposit.')
-
-            dispatch('displayError', error, { root: true })
-
-            throw error
-        }
+        /* The lock signs with the selected address's HD key — the pool spend
+           key is NOT a BCH key and must never sign P2PKH inputs. */
+        const lockPath = lockSet.account.branch === 1
+            ? `${accountBase}/1/${lockSet.account.index}`
+            : `${derivationPath}/${lockSet.account.index}`
+        const lockNode = derivePath(hdNode, lockPath)
+        const lockKey = { privateKey: toPrivateKeyBytes(lockNode), publicKey: toPublicKeyBytes(lockNode) }
 
         const prove = async () => {
             /* The FULL witness tree: the registry genesis leaves followed by
@@ -460,7 +516,7 @@ const actions = {
                with the pool's published bootstrap notes for a first deposit. */
             const { picked: inNotes } = selectInNotes({
                 action,
-                amount: shield,
+                amount: BigInt(amount),
                 ownNotes: state.notes,
                 bootstrapNotes: pool.bootstrapNotes,
             })
@@ -482,12 +538,30 @@ const actions = {
             const outSum = inSum + (sign ? -shield : shield)
             if (outSum < 0n) throw new Error('The selected notes do not cover the unshield amount.')
 
-            const out0v = (outSum * 3n) / 5n
-            const out1v = outSum - out0v
-            const outNotes = []
-            for (const value of [out0v, out1v]) {
+            /* The fixed 2-out shape (value-conserved):
+               shield   : out0 = SELF (total + amount)  out1 = SELF 0
+               transfer : out0 = RECIPIENT (amount)     out1 = SELF (total - amount)
+               unshield : out0 = SELF (total - amount)  out1 = SELF 0 */
+            const selfNote = async (value) => {
                 const nk = await rnd()
-                outNotes.push({ value, ownerPub: pubOf(nk), rho: await rnd(), r: await rnd(), nk })
+                return { value, ownerPub: pubOf(nk), rho: await rnd(), r: await rnd(), nk }
+            }
+
+            let outNotes
+
+            if (action === 'transfer') {
+                if (outSum < transferAmount) throw new Error('The selected notes do not cover the transfer amount.')
+
+                const recipientOwnerPub = await ownerPubFromDeliveryPoint(parseDeliveryPoint(recipientDeliveryPoint))
+
+                outNotes = [
+                    { value: transferAmount, ownerPub: recipientOwnerPub, rho: await rnd(), r: await rnd() },
+                    await selfNote(outSum - transferAmount),
+                ]
+            } else if (action === 'shield') {
+                outNotes = [await selfNote(outSum), await selfNote(0n)]
+            } else {
+                outNotes = [await selfNote(outSum), await selfNote(0n)]
             }
 
             const witness = await buildPoolWitness({
@@ -511,7 +585,10 @@ const actions = {
             const cm1 = BigInt(witness.cm[1])
             const carrier = encodeRole2Carrier({ nf0, nf1, cm0, cm1, newRoot: BigInt(newRoot), pv: shield, sign })
             const sha256 = async (bytes) => new Uint8Array(await crypto.subtle.digest('SHA-256', bytes))
-            const newNull = await sha256(new Uint8Array([...oldNull, ...nf0.toString(16).padStart(64, '0').match(/../g).map((h) => parseInt(h, 16)), ...nf1.toString(16).padStart(64, '0').match(/../g).map((h) => parseInt(h, 16))]))
+            /* The new nullifier set: SHA256(oldNull ‖ nf0 ‖ nf1) with nf0/nf1
+               in the carrier's LE byte order — the program recomputes it from
+               exactly those bytes (the pool-hook's check 7). */
+            const newNull = await sha256(new Uint8Array([...oldNull, ...carrier.slice(0, 64)]))
             const scenarioArgs = {
                 sc: { nf0, nf1, cm0, cm1, newRoot: BigInt(newRoot), pv: shield, sign },
                 n0: BigInt(publicSignals[0]),
@@ -539,13 +616,25 @@ const actions = {
                 blanks,
                 funding,
                 supply,
-                shield,
-                changeAddress,
-                privateKey: spendKey,
+                /* The lock's DEPOSIT (a shield only) — the public value rides
+                   the proof/carrier separately. */
+                shield: action === 'shield' ? shield : 0n,
+                changeAddress: lockSet.address,
+                privateKey: lockKey.privateKey,
                 prove,
-                broadcast: (hex) => cluster.broadcast(hex),
+                broadcast: (hex) => {
+                    /* Acceptance debug: the harness evaluates the captured tx on
+                       the BCH-2026 VM when a broadcast is rejected. */
+                    if (typeof window !== 'undefined') window.__lastBroadcastHex = hex
+                    return cluster.broadcast(hex)
+                },
                 onStage,
-                saveNotes: async (notes) => { await dispatch('recordRole2Notes', notes) },
+                saveNotes: async (notes) => {
+                    await dispatch('recordRole2Notes', {
+                        ...notes,
+                        leafIndexBase: (pool.genesisLeafCount || (pool.genesisLeaves || []).length) + scanned.scan.actions.length * 2,
+                    })
+                },
                 payoutAddress,
             })
         } catch (error) {

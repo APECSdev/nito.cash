@@ -404,6 +404,26 @@ sender, receiver, and amount are all masked. Design decisions locked:
   user-held blanks; the notes; the fees; the scan; the new pool's notes; the Nito client
   final approval). Proceed with the test after the `lib/pool` role-2 rewrite and the
   proving-asset handover.
+- **THE WEB-PLATFORM ACCEPTANCE PASSED (2026-11-26).** The browser (the portable Chrome
+  on the apecsdev VM, `apps/web/scripts/role2-browser-accept.mjs all 1000 <delivery point>`)
+  ran the full lifecycle through the Wallet view against chipnet: SHIELD `1ca58773…`
+  (block 348,247) → TRANSFER `50644d00…` (348,249) → UNSHIELD `f52008f4…` (348,253).
+  The registry `chipnet-pusd-role2` is now `walletProverCompatible: true` / `status: 'live'`
+  (`getProverPool('chipnet')` returns it; mainnet stays null). Fixes that made the store
+  action browser-runnable: Fulcrum UTXO normalization (tx_hash/tx_pos/value/token_data →
+  txid/vout/sats/token); blanks selected from the WALLET's own UTXOs (the lock signs them
+  as P2PKH — the pool address was wrong); the lock funding accumulates plain UTXOs from
+  ONE address (the multi-input lock); the SHIELD supply UTXO is selected + passed; the
+  witness tree is `assembleLeaves` (genesisLeaves + the scan chain) and the in-notes
+  `selectInNotes` (own + bootstrap); the recorded notes carry the GLOBAL leafIndex (the
+  own-list index mis-pointed the Merkle path — the transfer failed Pool_255:147); CSPRNG
+  note secrets (the old tx-derived seed was public); the Worker-mirror proving URLs (the
+  local 97 MB zkey cannot ship); the state NFT's 32-byte LE newRoot; the newNull from the
+  carrier's LE nf bytes (the BE form failed OP_EQUALVERIFY); the UNSHIELD's public value
+  = the amount (it was 0 → no payout token) and the payout output = 1,000 sats (546 is
+  below the token dust threshold); the unshield's lock deposit = 0 (the payout comes from
+  the state — a deposit double-counted the FT). Demo economics: every action burns 30,000
+  fuel sats + 2 blanks; the wallet needs ~35,000 plain sats + 2 blanks per action.
 
 **CURRENT STATE (2026-11-23, covenant-at-0 session — supersedes the NEXT-MISSION /
 POOL-V2 / FOLLOW-UP-SESSION text below, which is history):**

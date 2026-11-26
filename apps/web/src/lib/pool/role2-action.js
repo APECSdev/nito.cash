@@ -103,7 +103,10 @@ export async function buildRole2Action({
     if (sign === 1n) {
         const locking = payoutLocking || (payoutAddress ? cashAddressToLockingBytecode(payoutAddress).bytecode : null)
         if (!locking) throw new Error('role2-action: an unshield needs a payout address')
-        outputs.push({ lockingBytecode: locking, valueSatoshis: 0n, token: { category: categoryBytes, amount: pvValue } })
+        /* The token output needs the TOKEN dust minimum — 546 sats is still
+           rejected ("dust", code 64: the token prefix raises the threshold);
+           the live Hush unshield uses 1,000. The sats ride the fuel. */
+        outputs.push({ lockingBytecode: locking, valueSatoshis: 1000n, token: { category: categoryBytes, amount: pvValue } })
     }
 
     /* Fee rides the fuel: in0 + in1 + in2.float − out1.float (the state float is conserved). */

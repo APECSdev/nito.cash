@@ -114,10 +114,12 @@ describe('lib/pool/registry — the role-2 tagged pool', () => {
         expect(role2.bootstrapNotes).toHaveLength(2)
     })
 
-    it('is gated until the Hush proving assets + the web-platform acceptance', () => {
-        expect(role2.walletProverCompatible).toBe(false)
-        expect(role2.status).toBe('awaiting-proving-assets')
-        expect(getProverPool('chipnet')).toBeNull()
+    it('is LIVE after the Hush proving assets + the web-platform acceptance', () => {
+        /* The browser SHIELD -> TRANSFER -> UNSHIELD passed on chipnet
+           (1ca58773... -> 50644d00... -> f52008f4...) — the flag flips. */
+        expect(role2.walletProverCompatible).toBe(true)
+        expect(role2.status).toBe('live')
+        expect(getProverPool('chipnet')).toBe(role2)
         expect(getProverPool('mainnet')).toBeNull()
     })
 
