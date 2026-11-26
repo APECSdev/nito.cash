@@ -516,7 +516,7 @@ describe('views/Wallet', () => {
     })
 
     it('runs the flow against a compatible pool and renders the broadcast txid', async () => {
-        getPoolsMock.mockReturnValue([{ id: 'chipnet-pusd-role2', walletProverCompatible: true }])
+        getPoolsMock.mockReturnValue([{ id: 'chipnet-pusd-role2', name: 'Role-2 pool', walletProverCompatible: true, vending: { priceSats: 1000, lockingBytecode: 'aa' } }])
 
         /* Stub the STORE action (the view dispatches pool/submitRole2Action);
            the proving half is covered by the acceptance harness. */
@@ -559,7 +559,7 @@ describe('views/Wallet', () => {
     })
 
     it('validates the amount + recipient locally BEFORE dispatching', async () => {
-        getPoolsMock.mockReturnValue([{ id: 'chipnet-pusd-role2', walletProverCompatible: true }])
+        getPoolsMock.mockReturnValue([{ id: 'chipnet-pusd-role2', name: 'Role-2 pool', walletProverCompatible: true, vending: { priceSats: 1000, lockingBytecode: 'aa' } }])
         const facade = getStoreFacade()
         const origDispatch = facade.dispatch.bind(facade)
         const dispatchSpy = vi.spyOn(facade, 'dispatch').mockImplementation(async (type, payload) => {
