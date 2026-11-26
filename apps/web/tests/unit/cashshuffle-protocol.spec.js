@@ -126,4 +126,40 @@ describe('lib/cashshuffle/protocol — VERIFY', () => {
         advance(round)
         expect(() => verify(round, { from: 'bb', transaction: { inputs: [{ value: 200000 }], outputs: [{ value: 199000 }], estBytes: 300 }, expectedOutputs: 5 })).toThrow('expected 5 outputs')
     })
+
+    it('rejects a transaction that omits (or duplicates) the peer\'s own output', () => {
+        const round = fullRound()
+        announcement(round, { from: 'aa' })
+        advance(round)
+        const tx = {
+            inputs: [{ txid: 'a', vout: 0, value: 200000 }],
+            outputs: [{ address: 'addr-a', value: 100000 }, { address: 'addr-b', value: 99000 }],
+            estBytes: 300,
+        }
+        expect(() => verify(round, { from: 'bb', transaction: tx, ownOutput: { address: 'addr-c', value: 100000 } })).toThrow('own output')
+        const dup = {
+            inputs: [{ txid: 'a', vout: 0, value: 200000 }],
+            outputs: [{ address: 'addr-a', value: 100000 }, { address: 'addr-a', value: 100000 }],
+            estBytes: 300,
+        }
+        expect(() => verify(round, { from: 'bb', transaction: dup, ownOutput: { address: 'addr-a', value: 100000 } })).toThrow('own output')
+    })
+
+    it('rejects duplicate input outpoints and output addresses', () => {
+        const round = fullRound()
+        announcement(round, { from: 'aa' })
+        advance(round)
+        const tx = {
+            inputs: [{ txid: 'a', vout: 0, value: 100000 }, { txid: 'a', vout: 0, value: 100000 }],
+            outputs: [{ address: 'addr-a', value: 199000 }],
+            estBytes: 300,
+        }
+        expect(() => verify(round, { from: 'bb', transaction: tx })).toThrow('duplicate input')
+        const tx2 = {
+            inputs: [{ txid: 'a', vout: 0, value: 200000 }],
+            outputs: [{ address: 'addr-a', value: 99500 }, { address: 'addr-a', value: 99500 }],
+            estBytes: 300,
+        }
+        expect(() => verify(round, { from: 'bb', transaction: tx2 })).toThrow('duplicate output')
+    })
 })

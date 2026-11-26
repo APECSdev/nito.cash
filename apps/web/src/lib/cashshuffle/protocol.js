@@ -113,7 +113,7 @@ export function shuffle(round, { from, onion }) {
  * expected, conservation (sumOut <= sumIn), and the fee bound
  * (fee <= estBytes * 5 sat/B). A failure aborts the round; nothing is signed.
  */
-export function verify(round, { from, transaction, expectedOutputs = null }) {
+export function verify(round, { from, transaction, expectedOutputs = null, ownOutput = null }) {
     requirePhase(round, 'VERIFY')
     if (!transaction || !Array.isArray(transaction.inputs) || !Array.isArray(transaction.outputs)) {
         throw new Error('cashshuffle: a VERIFY packet needs a transaction')
@@ -127,6 +127,20 @@ export function verify(round, { from, transaction, expectedOutputs = null }) {
     if (expectedOutputs && transaction.outputs.length !== expectedOutputs) {
         throw new Error(`cashshuffle: expected ${expectedOutputs} outputs, got ${transaction.outputs.length}`)
     }
+    /* The peer's own output must be present EXACTLY ONCE at the expected
+       amount/address — a malicious coordinator must not be able to omit or
+       duplicate it (the classic CashShuffle VERIFY check). */
+    if (ownOutput) {
+        const matches = transaction.outputs.filter((output) =>
+            output.address === ownOutput.address
+            && BigInt(output.value ?? output.satoshis ?? 0) === BigInt(ownOutput.value))
+        if (matches.length !== 1) throw new Error(`cashshuffle: own output must appear exactly once (found ${matches.length})`)
+    }
+    /* No duplicate input outpoints or output addresses (the classic checks). */
+    const outpoints = transaction.inputs.map((input) => `${input.txid}:${input.vout}`)
+    if (new Set(outpoints).size !== outpoints.length) throw new Error('cashshuffle: duplicate input outpoints')
+    const addresses = transaction.outputs.map((output) => output.address)
+    if (new Set(addresses).size !== addresses.length) throw new Error('cashshuffle: duplicate output addresses')
     round.log.push({ type: 'verify', from: String(from).toLowerCase(), fee: fee.toString() })
     return round
 }
