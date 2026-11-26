@@ -98,13 +98,10 @@ const S = (x) => BigInt(x).toString(10)
  *   leaves   — the current note-commitment leaves (membership paths + merkleRoot
  *               are computed against THIS list, before the outputs are appended)
  *   publicValueAbs / publicValueSign / assetCategory — the action's public value
- *               (sign 0 = shield/deposit, 1 = unshield/withdrawal). `assetCategory`
- *               is passed as a single field element, matching the DEPLOYED circuit
- *               (build/verification_key.json). NOTE: the repo's current pool.circom
- *               (Oct 20) generalizes this to assetCategoryHi/Lo limbs for arbitrary
- *               256-bit categories — a not-yet-deployed circuit; if the pool is
- *               re-deployed with it, this witness must emit Hi/Lo instead (see
- *               pusd-shielded-pool GENERALIZED-SHIELDING.md).
+ *               (sign 0 = shield/deposit, 1 = unshield/withdrawal). The circuit
+ *               takes the 256-bit category as TWO 128-bit limbs
+ *               (`assetCategoryHi`/`assetCategoryLo` — the role-2 `pool.circom`);
+ *               the actionHash still binds the single 256-bit `assetCategory`.
  *
  * Value conservation (enforced in-circuit):
  *   inValue0 + inValue1 + (sign ? -publicValueAbs : +publicValueAbs)
@@ -145,6 +142,10 @@ export async function buildPoolWitness({
         publicValueAbs, publicValueSign, assetCategory, newMerkleRoot,
     })
 
+    /* The circuit's 128-bit category limbs (the role-2 pool.circom). */
+    const assetCategoryHi = assetCategory >> 128n
+    const assetCategoryLo = assetCategory & ((1n << 128n) - 1n)
+
     return {
         merkleRoot: S(merkleRoot),
         actionHash: S(aHash),
@@ -152,7 +153,8 @@ export async function buildPoolWitness({
         cm: [ S(cm[0]), S(cm[1]) ],
         publicValueAbs: S(publicValueAbs),
         publicValueSign: S(publicValueSign),
-        assetCategory: S(assetCategory),
+        assetCategoryHi: S(assetCategoryHi),
+        assetCategoryLo: S(assetCategoryLo),
         newMerkleRoot: S(newMerkleRoot),
         inValue: [ S(inNotes[0].note.value), S(inNotes[1].note.value) ],
         inOwnerPub: [ S(inNotes[0].note.ownerPub), S(inNotes[1].note.ownerPub) ],
