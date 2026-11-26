@@ -145,6 +145,14 @@ const RELEASE_ASSETS = {
     "https://github.com/APECSdev/pusd-shielded-pool/releases/download/role2-proving-assets-v1/pool_final.zkey",
   "verification_key.json":
     "https://github.com/APECSdev/pusd-shielded-pool/releases/download/role2-proving-assets-v1/verification_key.json",
+  /* 3-out v3 (2026-11-26): the 3-out demo setup. Same Worker, same CORS
+     proxy; the 201-B carrier client fetches these by name. */
+  "pool3.wasm":
+    "https://github.com/APECSdev/pusd-shielded-pool/releases/download/role2-proving-assets-3out-v1/pool3.wasm",
+  "pool3_final.zkey":
+    "https://github.com/APECSdev/pusd-shielded-pool/releases/download/role2-proving-assets-3out-v1/pool3_final.zkey",
+  "verification_key_3out.json":
+    "https://github.com/APECSdev/pusd-shielded-pool/releases/download/role2-proving-assets-3out-v1/verification_key_3out.json",
 };
 
 async function handleAsset(url) {

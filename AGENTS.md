@@ -367,8 +367,12 @@ sender, receiver, and amount are all masked. Design decisions locked:
   (awaiting the browser store acceptance). Tests **695/695**; coverage 89.04%
   statements / 89.99% lines (both above the ratchet); `pnpm build` OK. REMAINING:
   the 3-out proving assets on the `prover.nito.cash` mirror
-  (`pool3.wasm`/`pool3_final.zkey`), the UI pool selector, 3-out blanks/vending,
-  and the browser SHIELD → TRANSFER → UNSHIELD acceptance.
+  (`pool3.wasm`/`pool3_final.zkey`) — now published in the
+  `role2-proving-assets-3out-v1` release and served at
+  `https://prover.nito.cash/assets/` (pool3.wasm 3,380,815 B, pool3_final.zkey
+  98,190,141 B, verification_key_3out.json 3,111 B; Worker deployed 2026-11-26,
+  version 34e48677…), the UI pool selector, 3-out blanks/vending, and the
+  browser SHIELD → TRANSFER → UNSHIELD acceptance.
 - THE OLD NOTES ARE NOT KEPT. The `chipnet-pusd-v4` notes came from a WITHDRAWN
   verifier and are ABANDONED — no unshield/re-shield migration, no old-note spend.
   The new role-2 pool starts from its own genesis root; all new notes are created by
