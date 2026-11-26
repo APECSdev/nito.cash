@@ -97,7 +97,7 @@ describe('pool prover (witness assembly)', () => {
 describe('pool prover (release asset distribution)', () => {
     it('pins the canonical Release tag and the Worker-mirror asset URLs', () => {
         /* The canonical storage: this repo's proving-assets release. */
-        expect(RELEASE_BASE).toBe(`https://github.com/APECSdev/nito.cash/releases/download/${RELEASE_TAG}/`)
+        expect(RELEASE_BASE).toBe(`https://github.com/APECSdev/pusd-shielded-pool/releases/download/${RELEASE_TAG}/`)
 
         /* The browser-fetchable default: the prover Worker's CORS-enabled
            proxy of that release (GitHub assets send NO ACAO — the Worker

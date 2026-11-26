@@ -77,6 +77,8 @@ import { deriveDeliveryPoint } from '@/lib/pool/carrier'
 const FIX = fileURLToPath(new URL('../../fixtures/pool/', import.meta.url))
 const EVAL_PROOFS = JSON.parse(readFileSync(`${FIX}/eval-proofs.json`, 'utf8'))
 const FIXTURES = JSON.parse(readFileSync(`${FIX}/pusd-public-fixtures.json`, 'utf8'))
+/* The role-2 (Hush) bench-shape key: the committed snarkjs JSON is its encoding. */
+const ROLE2_VK = JSON.parse(readFileSync(fileURLToPath(new URL('../../../src/lib/pool/role2/our.fixtures.json', import.meta.url)), 'utf8')).vk
 const VK = JSON.parse(readFileSync(fileURLToPath(new URL('../../../public/proving/verification_key.json', import.meta.url)), 'utf8'))
 
 const ENTROPY = 'ab'.repeat(32)
@@ -308,9 +310,9 @@ describe('buildOutNotes (value conservation) + parseDeliveryPoint', () => {
 
 describe('toBenchVk (the two vkey shapes are ONE key)', () => {
     it('converts the committed snarkjs JSON to the bench shape byte-identically', () => {
-        /* The committed verification_key.json and the bench fixture vk are the
-           SAME key in two encodings — the conversion must be lossless. */
-        expect(toBenchVk(VK)).toEqual(FIXTURES.vk)
+        /* The committed verification_key.json and the role-2 bench fixture vk are
+           the SAME key in two encodings — the conversion must be lossless. */
+        expect(toBenchVk(VK)).toEqual(ROLE2_VK)
     })
 })
 
@@ -509,8 +511,8 @@ describe('submitPoolAction orchestration (witness → proof → assembly → bro
         expect(call.proof).toBe(EVAL_PROOFS[0].proof)
 
         /* The vk is the BENCH shape of the committed key (byte-identical to
-           the bench fixture vk — the toBenchVk test above). */
-        expect(call.vk).toEqual(FIXTURES.vk)
+           the role-2 bench fixture vk — the toBenchVk test above). */
+        expect(call.vk).toEqual(ROLE2_VK)
 
         /* The covenant args are EXACTLY the proven witness values. */
         expect(call.args).toEqual({

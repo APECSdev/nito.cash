@@ -33,6 +33,8 @@ const VECTORS = JSON.parse(readFileSync(`${FIX}/bench-vectors-steps.json`, 'utf8
 const OLD_FIXTURES = JSON.parse(readFileSync(`${FIX}/bench-public-fixtures.json`, 'utf8'))
 const NEW_FIXTURES = JSON.parse(readFileSync(`${FIX}/pusd-public-fixtures.json`, 'utf8'))
 const COMMITTED_VK = JSON.parse(readFileSync(fileURLToPath(new URL('../../../public/proving/verification_key.json', import.meta.url)), 'utf8'))
+/* The role-2 (Hush) bench-shape key: the committed snarkjs JSON is its encoding. */
+const ROLE2_VK = JSON.parse(readFileSync(fileURLToPath(new URL('../../../src/lib/pool/role2/our.fixtures.json', import.meta.url)), 'utf8')).vk
 
 /* push parser (same shape as lib/pool/decode.js scriptPushes). */
 function pushesOf(bcHex) {
@@ -71,13 +73,15 @@ const OLD_PROGRAM = {
 }
 
 describe('lib/pool/verifier (bench ground-truth reproduction)', () => {
-    it('the current fixture vk is the committed wallet vk (lineage)', () => {
-        const nvk = NEW_FIXTURES.vk
-        expect(nvk.alpha.x).toEqual(COMMITTED_VK.vk_alpha_1[0])
-        expect(nvk.alpha.y).toEqual(COMMITTED_VK.vk_alpha_1[1])
-        expect(nvk.ic[0].x).toEqual(COMMITTED_VK.IC[0][0])
-        expect(nvk.ic[1].x).toEqual(COMMITTED_VK.IC[1][0])
-        expect(nvk.ic[2].x).toEqual(COMMITTED_VK.IC[2][0])
+    it('the committed wallet vk is the role-2 (Hush) key (lineage)', () => {
+        /* 2026-11-26: the committed verification_key.json is the Hush role-2
+           ceremony key (role2-proving-assets-v1), not the gate3 vkey. */
+        const nvk = ROLE2_VK
+        expect(BigInt(nvk.alpha.x)).toEqual(BigInt(COMMITTED_VK.vk_alpha_1[0]))
+        expect(BigInt(nvk.alpha.y)).toEqual(BigInt(COMMITTED_VK.vk_alpha_1[1]))
+        expect(BigInt(nvk.ic[0].x)).toEqual(BigInt(COMMITTED_VK.IC[0][0]))
+        expect(BigInt(nvk.ic[1].x)).toEqual(BigInt(COMMITTED_VK.IC[1][0]))
+        expect(BigInt(nvk.ic[2].x)).toEqual(BigInt(COMMITTED_VK.IC[2][0]))
     })
 
     /* The vectors were generated from fixture 0 of the older fixtures (verified
