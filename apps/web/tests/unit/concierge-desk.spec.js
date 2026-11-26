@@ -150,8 +150,8 @@ describe('views/Concierge/Lobby — the desk rendering', () => {
         expect(text).toContain('Guest services.')
         expect(text).toContain('Two quiet ways to move.')
 
-        /* The mockup ribbon. */
-        expect(text).toContain('Mockup')
+        /* The desk's live status ribbon. */
+        expect(text).toContain('Live desk')
         expect(text).toContain('Guest services · open 24h')
 
         /* Door 01 — Quantumroot (the new orchestration). */

@@ -985,6 +985,52 @@ Full review found the app silently bricked since the Vue 3 migration:
   the visual-baseline harness + the overlap auditor + the contrast auditor
   remain the QA gates for future UI work.
 
+## Concierge — CURRENT STATE (2026-11-26): the MOCK tags are gone, the video-demo pass is done
+
+The four tabs are `['Desk','Persona','Earn','Spend']` (`Concierge.vue`). Every visible
+"Mockup" badge/ribbon/toast was replaced with an accurate status label (labels/toasts
+only — 1:1 logic parity; the `concierge-*` specs updated; 73 files / 684 tests green;
+build clean):
+
+- **Desk** (`views/Concierge/Lobby.vue`): the landing ribbon reads **"Live desk"**. The
+  **CashShuffle** door (03) is REAL — the protocol core + the NIP-59/NIP-44 v2 transport
+  + NIP-42 AUTH + the round runner + the live relay opt-in; its card reads
+  `Live · NIP-42 relay opt-in`. The **CashFusion** door (02) is a **DESIGN PREVIEW**
+  (the round-table simulation; `design preview · no relay contacted`). The
+  **Quantumroot** door (01) is a **PREVIEW** (the orchestration simulation).
+- **Persona**: **CashCode LIVE** (the resolver + the Fulcrum RPA scan); **CashID LIVE**
+  (the challenge → the tweaked-key signature); **registration + the Nostr publish =
+  PREVIEW** (the derived commitment + profile OP_RETURN are shown; the broadcast awaits
+  the compiled covenant artifact + the pre-broadcast VM gate). The "Register (soon)" /
+  "Publish profile (soon)" buttons remain.
+- **Earn** (`views/Concierge/Earn.vue`): the ribbon reads **"Pool live"** — suite 01a
+  reports the **LIVE role-2 shielded pool** (the web-platform acceptance: SHIELD
+  `1ca58773…` → TRANSFER `50644d00…` → UNSHIELD `f52008f4…`); the "In this wallet" note
+  says the shield/transfer/unshield flows are LIVE in the Wallet view; suite 05 (the
+  Hush Ceremony) is a design preview; the interest counter stays a local demo.
+- **Spend** (`views/Concierge/Spend.vue`): the ribbon reads **"Paste-drop live"** — the
+  paste-drop is REAL (the bch-rpa CashCode note parse → the Send prefill); the two
+  suites (03 shielded addresses, 04 CoinJoin) are design previews.
+
+**WHAT IS LEFT TO COMPLETE THE CONCIERGE** (the real features behind the previews):
+
+1. **Desk** — the CashFusion protocol (the six-phase round + the NIP-59 transport + the
+   coordinator election; only the CashShuffle is implemented) and the Quantumroot
+   orchestration (LM-OTS vaults, the sweep); the real multi-peer CashShuffle round is
+   blocked on the daemons (`blackhost`, Hush-owned).
+2. **Persona** — the registration covenant (the CashScript compile + the pre-broadcast
+   VM gate + the deploy) and the Nostr binding (`nostr_seed` + the kind-0 profile).
+3. **Earn** — the PUSD Stability Pool (the actual Earn product; the Vault Desk is the
+   research display) and the AnyHedge lend side.
+4. **Spend** — the CardsRelay card payments; the shielded-addresses scheme (topic 03)
+   and the CoinJoin (topic 04) implementations.
+5. **The video demo** — the assets + the click-through script (the handoff:
+   `docs/CONCIERGE-VIDEO-DEMO-HANDOFF-2026-11-26.md`).
+
+The 2026-11-22 sections below are HISTORY where they say "It is a MOCKUP" / "no relay is
+contacted" — the CashShuffle transport is now live (opt-in), the role-2 pool is live, and
+the labels were re-worded on 2026-11-26.
+
 ## Concierge Desk MOCKUP (2026-11-22) — CashFusion + P2P-over-Nostr
 
 `#/concierge` now opens a **hotel-style front desk** instead of the old placeholder Lobby. The

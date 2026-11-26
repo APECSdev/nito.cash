@@ -10,10 +10,12 @@
      Identity NFT commitment + profile OP_RETURN, and computes the Collision
      Hash from the registration block.
 
-     MOCKED (phase 1): registration, CashID sign-in and the Nostr publish
-     button. Their library modules exist (registration.js, cashid.js,
-     nostr.js); the UI only surfaces local notifications until the compiled
-     covenant artifact and the pre-broadcast VM gate are in place.
+     LIVE: the CashCode resolver (master-seed derivation + the Fulcrum RPA
+     scan) and the CashID sign-in (challenge -> tweaked-key signature).
+     PREVIEW (phase 1): registration and the Nostr publish button — their
+     library modules exist (registration.js, nostr.js) and the UI surfaces
+     the derived commitment + profile OP_RETURN; the broadcast waits for the
+     compiled covenant artifact and the pre-broadcast VM gate.
 
      Tailwind only (Phase D): no scoped CSS, all colours via @theme tokens so
      the light/dark switch keeps working. `shrink-0` is required on every
@@ -292,7 +294,7 @@
         </section>
 
         <!-- ============================================================
-             REGISTER — MOCK (phase 1).
+             REGISTER — PREVIEW (phase 1).
              ============================================================ -->
         <section class="shrink-0 mt-[12px] overflow-hidden rounded-[18px] border border-dashed border-hr bg-box-bg">
             <div class="flex items-center justify-between gap-[10px] p-[14px]">
@@ -390,7 +392,7 @@
         </section>
 
         <!-- ============================================================
-             NOSTR — MOCK (phase 1).
+             NOSTR — PREVIEW (phase 1).
              ============================================================ -->
         <section class="shrink-0 mt-[12px] mb-[6px] overflow-hidden rounded-[18px] border border-dashed border-hr bg-box-bg">
             <div class="flex items-center justify-between gap-[10px] p-[14px]">

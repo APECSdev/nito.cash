@@ -1,6 +1,7 @@
 <!-- apps/web/src/views/Concierge/Lobby.vue
 
-     MOCKUP — "DESK: Guest Services" (hotel-style front desk).
+     DESK: Guest Services (hotel-style front desk) — CashShuffle is LIVE
+     over Nostr; the Quantumroot and CashFusion doors are design previews.
 
      The Desk is now a two-door guest-services landing:
        01 Quantumroot — the NEW orchestration (post-quantum vaults).
@@ -10,7 +11,7 @@
      Clicking either card swaps the Desk content in place to that service;
      "← Guest services" returns to the landing.
 
-     This screen is a DESIGN MOCKUP: every figure on it is transcribed from
+     The CashFusion door is a DESIGN PREVIEW: every figure is transcribed from
      published research, and NOTHING here contacts a relay, a coordinator or
      the chain. The only side effects are local (`displayNotification`).
 
@@ -125,7 +126,7 @@
                         :disabled="requestState === 'round'" />
 
                     <span class="text-[10px] leading-[14px] text-fg-muted">
-                        Mockup &middot; no relay contacted
+                        Design preview &middot; no relay contacted
                     </span>
                 </div>
             </section>
@@ -234,7 +235,7 @@
             </section>
 
             <!-- ============================================================
-                 THE ROUND TABLE (MOCKUP) — appears once a round is requested.
+                 THE ROUND TABLE (DESIGN PREVIEW) — appears once a round is requested.
                  Peers seat one at a time; the six phases light up in order;
                  the table settles with the measured G3 numbers. All local.
 
@@ -249,7 +250,7 @@
                     </div>
 
                     <span class="rounded-full bg-secondary px-[8px] py-[2px] text-[8px] font-bold uppercase tracking-[0.12em] text-secondary-fg">
-                        Mockup
+                        Design preview
                     </span>
                 </div>
 
@@ -372,11 +373,11 @@
         <template v-else>
 
             <!-- ============================================================
-                 RIBBON — an unmissable "this is a mockup" marker.
+                 RIBBON — the desk's live status.
                  ============================================================ -->
             <div class="flex items-center justify-between gap-[10px] pt-[10px]">
                 <span class="inline-flex items-center gap-[6px] rounded-full bg-secondary px-[10px] py-[3px] text-[9px] font-bold uppercase tracking-[0.18em] text-secondary-fg">
-                    Mockup
+                    Live desk
                 </span>
 
                 <span class="text-[9px] font-semibold uppercase tracking-[0.18em] text-fg-muted">
@@ -416,8 +417,8 @@
                         </h1>
 
                         <p class="mt-[5px] text-[12px] leading-[17px] text-fg-muted">
-                            Two quiet ways to move. Choose a door and the desk will show you the room.
-                            Both services are mockups &mdash; nothing is booked, signed or broadcast.
+                            Two quiet ways to move. CashShuffle runs live over Nostr; the other
+                            doors are previews &mdash; nothing is booked, signed or broadcast.
                         </p>
                     </div>
                 </div>
@@ -437,7 +438,7 @@
             </section>
 
             <!-- ============================================================
-                 HOUSE RULES — the mockup's disclaimer, in hotel voice.
+                 HOUSE RULES — the desk's ground rules, in hotel voice.
                  ============================================================ -->
             <section v-if="houseRules" class="mt-[10px] rounded-[14px] border border-dashed border-hr bg-box-bg p-[14px]">
                 <ul class="flex flex-col gap-[6px] text-[12px] leading-[17px] text-fg-muted">
@@ -585,9 +586,9 @@ export default {
             /* House-rules panel visibility. */
             houseRules: false,
 
-            /* House rules (mockup disclaimers, hotel voice). */
+            /* House rules (the desk's ground rules, hotel voice). */
             houseRulesList: [
-                'This desk is a mockup. Every figure is transcribed from published research; no relay is contacted.',
+                'The desk\'s figures are transcribed from published research. CashShuffle contacts Nostr relays only when you opt in; nothing else leaves the app.',
                 'Nothing here moves coins: no round is opened, no input is signed, nothing is broadcast.',
                 'The front desk never asks for a seed phrase, and neither do we.',
             ],
@@ -621,7 +622,7 @@ export default {
                         { k: 'Transport', v: 'NIP-59 gift wrap (kind 1059) + NIP-44 v2' },
                         { k: 'Coordinator', v: 'Lowest ephemeral pubkey — no server' },
                         { k: 'Abort', v: 'N-1 blame, before broadcast' },
-                        { k: 'Status', v: 'Protocol core live · transport next' },
+                        { k: 'Status', v: 'Live · NIP-42 relay opt-in' },
                     ],
                 },
                 {
@@ -763,7 +764,7 @@ export default {
         },
 
         /**
-         * Request a Round (MOCKUP)
+         * Request a Round (DESIGN PREVIEW)
          *
          * Simulates the desk "checking availability", then seats a table and
          * runs the six phases. No relay, coordinator or chain call is made —
@@ -792,7 +793,7 @@ export default {
         },
 
         /**
-         * Open the Round (MOCKUP)
+         * Open the Round (DESIGN PREVIEW)
          *
          * Seats the five peers one at a time (the 5-participant design
          * floor), then advances the six itinerary phases on a timer and
@@ -804,7 +805,7 @@ export default {
             this.roundPeers = 0
             this.roundPhase = -1
 
-            this.displayNotification('Front desk · seating a table of five (mockup — no relay contacted).')
+            this.displayNotification('Front desk · seating a table of five (design preview — no relay contacted).')
 
             /* Seat the peers one at a time. */
             this.peerTimer = setInterval(() => {

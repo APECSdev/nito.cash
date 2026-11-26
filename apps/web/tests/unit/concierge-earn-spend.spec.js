@@ -1,4 +1,4 @@
-/* Unit tests for the Concierge Earn + Spend mockup wings
+/* Unit tests for the Concierge Earn + Spend wings
  * (views/Concierge/Earn.vue + views/Concierge/Spend.vue).
  *
  * Both screens are MOCKUPS around preserved features: every test below pins
@@ -108,8 +108,8 @@ describe('views/Concierge/Earn — the vault desk rendering', () => {
         expect(text).toContain('The Vault Desk')
         expect(text).toContain('Park value where the chain')
 
-        /* The mockup ribbon. */
-        expect(text).toContain('Mockup')
+        /* The vault's live status ribbon. */
+        expect(text).toContain('Pool live')
         expect(text).toContain('Vault desk · by appointment')
 
         /* Suite 01a — the shielded pool. */
@@ -192,7 +192,7 @@ describe('views/Concierge/Earn — the vault desk rendering', () => {
         wrapper.vm.bookBox()
 
         expect(getStoreFacade().state.system.nm)
-            .toBe('Vault desk · your deposit box is a mockup — nothing was deposited. (No relay, no chain.)')
+            .toBe('Vault desk · your deposit box is a preview — nothing was deposited. (No relay, no chain.)')
     })
 
     it('opens the ceremony page (topic 05)', () => {
@@ -217,7 +217,7 @@ describe('views/Concierge/Earn — the vault desk rendering', () => {
         expect(wrapper.vm.toneClass('anything-else')).toBe('bg-tab-bg text-fg-muted')
     })
 
-    it('keeps the teller buttons wired: log first, then a mockup toast', () => {
+    it('keeps the teller buttons wired: log first, then a demo toast', () => {
         const wrapper = mountView(Earn)
         const log = vi.spyOn(console, 'log').mockImplementation(() => {})
 
@@ -361,10 +361,10 @@ describe('views/Concierge/Spend — the courier desk rendering', () => {
         wrapper.vm.ringCourier()
 
         expect(getStoreFacade().state.system.nm)
-            .toBe('Courier desk · a mock courier will be with you shortly. (Nothing was sent.)')
+            .toBe('Courier desk · a courier will be with you shortly. (Nothing was sent.)')
     })
 
-    it('keeps the courier buttons wired: log first, then a mockup toast', () => {
+    it('keeps the courier buttons wired: log first, then a preview toast', () => {
         const wrapper = mountView(Spend)
         const log = vi.spyOn(console, 'log').mockImplementation(() => {})
 

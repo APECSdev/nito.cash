@@ -1,10 +1,12 @@
 <!-- apps/web/src/views/Concierge/Earn.vue
 
-     MOCKUP — "The Vault Desk" (the Earn wing of the Concierge).
+     "The Vault Desk" (the Earn wing of the Concierge).
 
-     This screen is a DESIGN MOCKUP: every figure on it is transcribed from
-     published research, and NOTHING here contacts a relay, a coordinator or
-     the chain. The only side effects are local (`displayNotification`).
+     Suite 01a reports the LIVE role-2 shielded pool (the on-chain state + the
+     web-platform acceptance txids); suite 05 (the Hush Ceremony) is a design
+     preview; the interest counter is a local demo. Nothing here contacts a
+     relay, a coordinator or the chain; the only side effects are local
+     (`displayNotification`).
 
      Sources for every claim rendered below (all verified 2026-11-22):
        - CANONICAL: /research/shielded-pool — topic 01 of the 5-topic hub
@@ -37,11 +39,11 @@
     <main class="flex flex-col flex-1 min-h-0 px-[20px] pb-[max(24px,env(safe-area-inset-bottom))] overflow-y-auto [-webkit-overflow-scrolling:touch]">
 
         <!-- ============================================================
-             RIBBON — an unmissable "this is a mockup" marker.
+             RIBBON — the vault's live status.
              ============================================================ -->
         <div class="flex items-center justify-between gap-[10px] pt-[10px]">
             <span class="inline-flex items-center gap-[6px] rounded-full bg-secondary px-[10px] py-[3px] text-[9px] font-bold uppercase tracking-[0.18em] text-secondary-fg">
-                Mockup
+                Pool live
             </span>
 
             <span class="text-[9px] font-semibold uppercase tracking-[0.18em] text-fg-muted">
@@ -80,9 +82,9 @@
 
                     <p class="mt-[5px] text-[12px] leading-[17px] text-fg-muted">
                         The vault is the shielded pool &mdash; a Groth16 joinsplit that hides sender,
-                        receiver and amount inside zero-knowledge proofs. Every figure below is
-                        transcribed from published research; nothing is deposited, proved or
-                        broadcast from this screen.
+                        receiver and amount inside zero-knowledge proofs. Suite 01a reports the live
+                        chipnet deployment; the ceremony suite is a design preview. Nothing is
+                        deposited, proved or broadcast from this screen.
                     </p>
                 </div>
             </div>
@@ -102,7 +104,7 @@
         </section>
 
         <!-- ============================================================
-             HOUSE RULES — the mockup's disclaimer, in hotel voice.
+             HOUSE RULES — the vault's ground rules, in hotel voice.
              ============================================================ -->
         <section v-if="houseRules" class="mt-[10px] rounded-[14px] border border-dashed border-hr bg-box-bg p-[14px]">
             <ul class="flex flex-col gap-[6px] text-[12px] leading-[17px] text-fg-muted">
@@ -270,9 +272,10 @@
                 <div class="font-semibold">In this wallet</div>
 
                 <p class="mt-[3px] text-fg-muted">
-                    The PUSD note library and local sealing are wired (AES-256-GCM via WebCrypto,
-                    key derived from the wallet entropy); the shield / transfer / unshield UI is
-                    still pending.
+                    The PUSD note library, local sealing (AES-256-GCM via WebCrypto) and the
+                    shield / transfer / unshield flows are wired in the Wallet view. The chipnet
+                    web-platform acceptance passed 2026-11-26: SHIELD 1ca58773&hellip; &rarr;
+                    TRANSFER 50644d00&hellip; &rarr; UNSHIELD f52008f4&hellip;.
                 </p>
             </div>
 
@@ -354,9 +357,9 @@ export default {
             /* Which suite's ledger is open (null = all closed). */
             openLedger: null,
 
-            /* House rules (mockup disclaimers, hotel voice). */
+            /* House rules (the vault's ground rules, hotel voice). */
             houseRulesList: [
-                'This desk is a mockup. Every figure is transcribed from published research; no chain is contacted.',
+                'The pool figures are measured from the live chipnet deployment; the ceremony figures are design previews. No chain is contacted from this screen.',
                 'Nothing here moves coins: no note is created, no proof is generated, nothing is broadcast.',
                 'The house counter ticks from a local timer — no bank backs it, and the vault never asks for your seed phrase.',
             ],
@@ -478,10 +481,10 @@ export default {
         },
 
         /**
-         * Book a Deposit Box (MOCKUP)
+         * Book a Deposit Box (PREVIEW)
          */
         bookBox() {
-            this.displayNotification('Vault desk · your deposit box is a mockup — nothing was deposited. (No relay, no chain.)')
+            this.displayNotification('Vault desk · your deposit box is a preview — nothing was deposited. (No relay, no chain.)')
         },
 
         /**
@@ -507,7 +510,7 @@ export default {
         addFunds() {
             console.log('ADDING FUNDS')
 
-            this.displayNotification('Vault desk · mockup — no funds were added to the vault.')
+            this.displayNotification('Vault desk · demo — no funds were added to the vault.')
         },
 
         /**
@@ -516,7 +519,7 @@ export default {
         withdrawFunds() {
             console.log('WITHDRAWING FUNDS')
 
-            this.displayNotification('Vault desk · mockup — the vault holds nothing of yours yet.')
+            this.displayNotification('Vault desk · demo — the vault holds nothing of yours yet.')
         },
 
     },

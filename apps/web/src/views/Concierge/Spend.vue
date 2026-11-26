@@ -1,14 +1,15 @@
 <!-- apps/web/src/views/Concierge/Spend.vue
 
-     MOCKUP — "The Courier Desk" (the Spend wing of the Concierge).
+     "The Courier Desk" (the Spend wing of the Concierge) — the paste-drop is
+     LIVE; the two suites (shielded addresses, CoinJoin) are design previews.
 
-     This screen is a MIX of one REAL feature and design-mockup suites:
+     This screen is a MIX of one LIVE feature and design-preview suites:
        - REAL: the paste-drop ("Payment Processor"). Pasting an encoded
          payment request parses it LOCALLY (store getter `getParsedInfo`),
          shows the parsed outputs in the Concierge popup, and hands the
          receiver to the Send screen via the `to` query parameter. No
          network call is made.
-       - MOCKUP: the two "quiet delivery" suites (03 + 04). Every figure on
+       - DESIGN PREVIEW: the two "quiet delivery" suites (03 + 04). Every figure on
          them is transcribed from published research and NOTHING here
          contacts a relay, a coordinator or the chain. The only side
          effects are local (`displayNotification`).
@@ -57,12 +58,12 @@
         </Concierge>
 
         <!-- ============================================================
-             RIBBON — an unmissable "this is a mockup" marker (the
-             paste-drop below it is the real part of this screen).
+             RIBBON — the courier's live status (the paste-drop below it is
+             the real part of this screen).
              ============================================================ -->
         <div class="flex items-center justify-between gap-[10px] pt-[10px]">
             <span class="inline-flex items-center gap-[6px] rounded-full bg-secondary px-[10px] py-[3px] text-[9px] font-bold uppercase tracking-[0.18em] text-secondary-fg">
-                Mockup
+                Paste-drop live
             </span>
 
             <span class="text-[9px] font-semibold uppercase tracking-[0.18em] text-fg-muted">
@@ -342,9 +343,9 @@ export default {
             /* Which service dossier is open (null = all closed). */
             openDossier: null,
 
-            /* House rules (mockup disclaimers, hotel voice). */
+            /* House rules (the courier's ground rules, hotel voice). */
             houseRulesList: [
-                'The suites on this screen are a mockup. Every figure is transcribed from published research; no chain is contacted.',
+                'The suites on this screen are design previews; every figure is transcribed from published research. The paste-drop is live and parses locally.',
                 'Nothing here hides a payment by itself: no output is mixed, no key is derived, nothing is broadcast.',
                 'The paste-drop is real and parses locally — the courier never asks for your seed phrase.',
             ],
@@ -430,10 +431,10 @@ export default {
         },
 
         /**
-         * Ring for the Courier (MOCKUP)
+         * Ring for the Courier (PREVIEW)
          */
         ringCourier() {
-            this.displayNotification('Courier desk · a mock courier will be with you shortly. (Nothing was sent.)')
+            this.displayNotification('Courier desk · a courier will be with you shortly. (Nothing was sent.)')
         },
 
         /**
@@ -456,13 +457,13 @@ export default {
         shopping() {
             console.log('SHOPPING')
 
-            this.displayNotification('Courier desk · mockup — no shopping run was arranged.')
+            this.displayNotification('Courier desk · preview — no shopping run was arranged.')
         },
 
         giving() {
             console.log('GIVING')
 
-            this.displayNotification('Courier desk · mockup — no donation was arranged.')
+            this.displayNotification('Courier desk · preview — no donation was arranged.')
         },
 
         /**

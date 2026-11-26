@@ -1,6 +1,6 @@
 <!-- apps/web/src/views/Concierge/Desk/Quantumroot.vue
 
-     MOCKUP — the Quantumroot guest service (the desk's NEW orchestration).
+     PREVIEW — the Quantumroot guest service (the desk's NEW orchestration).
 
      Sources (all transcribed from the published developer preview):
        - https://blog.bitjson.com/quantumroot/  (Jason Dreyzehner, 2025-07-01)
@@ -81,7 +81,7 @@
                     :disabled="previewState === 'running'" />
 
                 <span class="text-[10px] leading-[14px] text-fg-muted">
-                    Mockup &middot; nothing derived, signed or broadcast
+                    Preview &middot; nothing derived, signed or broadcast
                 </span>
             </div>
         </section>
@@ -228,7 +228,7 @@ export default {
                 'The template has not yet been reviewed by anyone else; security audits are planned before practical deployments.',
                 'LM-OTS is one-time: each quantum leaf is used once.',
                 'The 2026 CHIPs (Loops, Functions, P2S, Bitwise) are required for the preview’s size reductions.',
-                'This wallet does not implement Quantumroot yet; the desk is a mockup.',
+                'This wallet does not implement Quantumroot yet; the desk is a preview.',
                 'The canonical implementation is CashAssembly + Libauth; no chain call is made here.',
             ],
         }
@@ -302,7 +302,7 @@ export default {
 
                     this.previewState = 'done'
 
-                    this.displayNotification('Quantumroot · orchestration preview complete (mockup — nothing was derived, signed or broadcast).')
+                    this.displayNotification('Quantumroot · orchestration preview complete (nothing was derived, signed or broadcast).')
 
                     return
                 }

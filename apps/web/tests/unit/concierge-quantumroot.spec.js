@@ -95,7 +95,7 @@ describe('views/Concierge/Desk/Quantumroot — the service rendering', () => {
 
         /* The honest gaps. */
         expect(text).toContain('The template has not yet been reviewed by anyone else')
-        expect(text).toContain('This wallet does not implement Quantumroot yet; the desk is a mockup.')
+        expect(text).toContain('This wallet does not implement Quantumroot yet; the desk is a preview.')
 
         /* The canonical source. */
         expect(wrapper.find('a[href="https://blog.bitjson.com/quantumroot/"]').exists()).toBe(true)
