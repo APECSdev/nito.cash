@@ -20,7 +20,7 @@
 import { cashAddressToLockingBytecode, decodeTransaction, encodeTransactionBCH, hash256, hexToBin, instantiateSha256 } from '@bitauth/libauth'
 import { binToHex } from '@bitauth/libauth'
 
-import { ROLE2_CARRIER_BYTES, role2CarrierOutput } from './role2-carrier.js'
+import { ROLE2_CARRIER_BYTES, ROLE2_CARRIER_BYTES_3OUT, role2CarrierOutput } from './role2-carrier.js'
 
 export const ROLE2_STATE_FLOAT = 10000n
 
@@ -71,7 +71,7 @@ export async function buildRole2Action({
     payoutLocking,
 }) {
     if (!pool?.program?.lockingBytecode) throw new Error('role2-action: pool program locking missing')
-    if (!carrier || carrier.length !== ROLE2_CARRIER_BYTES) throw new Error(`role2-action: carrier must be ${ROLE2_CARRIER_BYTES} bytes`)
+    if (!carrier || (carrier.length !== ROLE2_CARRIER_BYTES && carrier.length !== ROLE2_CARRIER_BYTES_3OUT)) throw new Error(`role2-action: carrier must be ${ROLE2_CARRIER_BYTES} or ${ROLE2_CARRIER_BYTES_3OUT} bytes`)
     if (!Array.isArray(fuelUtxos) || fuelUtxos.length !== 2) throw new Error('role2-action: exactly TWO fuel UTXOs are required')
     if (!stateUtxo) throw new Error('role2-action: the state UTXO is required')
     if (!Array.isArray(unlockings) || unlockings.length !== 3) throw new Error('role2-action: exactly THREE unlockings are required')
@@ -79,10 +79,11 @@ export async function buildRole2Action({
     const sha256 = await instantiateSha256()
     const programLocking = hexToBin(pool.program.lockingBytecode)
     const categoryBytes = hexToBin(pool.assetCategory)
-    const sign = carrier[168] === 1 ? 1n : 0n
-    /* pv is stored LE; decode explicitly. */
+    const sign = carrier[carrier.length - 1] === 1 ? 1n : 0n
+    /* pv is stored LE immediately before the sign byte; decode explicitly. */
     let pv = 0n
-    for (let i = 7; i >= 0; i -= 1) pv = (pv << 8n) | BigInt(carrier[160 + i])
+    const pvOffset = carrier.length - 9
+    for (let i = 7; i >= 0; i -= 1) pv = (pv << 8n) | BigInt(carrier[pvOffset + i])
     const pvValue = pv
 
     const inputs = [outpointOf(fuelUtxos[0]), outpointOf(fuelUtxos[1]), outpointOf(stateUtxo)]
@@ -128,7 +129,7 @@ export async function buildRole2Action({
         fee,
         sign,
         publicValue: pvValue,
-        carrierBytes: ROLE2_CARRIER_BYTES,
+        carrierBytes: carrier.length,
         txInputCount: inputs.length,
         txOutputCount: outputs.length,
         newStateCommitment: binToHex(new Uint8Array([...newRoot, ...newNull])),

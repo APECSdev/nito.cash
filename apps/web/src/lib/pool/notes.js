@@ -135,3 +135,36 @@ export function actionHash({
 
     return digest.reduce((acc, b) => (acc << 8n) | BigInt(b), 0n)
 }
+
+/*
+ * actionHash3out (v3) — the 3-out circuit's second public input:
+ *   SHA256 over 9 fields x 32-byte BIG-ENDIAN
+ *   (nf0, nf1, cm0, cm1, cm2, publicValueAbs, publicValueSign, assetCategory, newMerkleRoot),
+ *   then the top 3 bits of the BE digest are cleared (253-bit truncation).
+ * The 2-out `actionHash` above is untouched.
+ */
+export function actionHash3out({
+    nf0, nf1, cm0, cm1, cm2,
+    publicValueAbs, publicValueSign, assetCategory, newMerkleRoot,
+}) {
+    const fields = [
+        nf0, nf1, cm0, cm1, cm2,
+        publicValueAbs, publicValueSign, assetCategory, newMerkleRoot,
+    ]
+
+    const preimage = new Uint8Array(9 * 32)
+
+    fields.forEach((f, i) => {
+        const hex = BigInt(f).toString(16).padStart(64, '0')
+
+        for (let b = 0; b < 32; b++) {
+            preimage[i * 32 + b] = parseInt(hex.slice(b * 2, b * 2 + 2), 16)
+        }
+    })
+
+    const digest = sha256.hash(preimage)
+
+    digest[0] &= 0x1f
+
+    return digest.reduce((acc, b) => (acc << 8n) | BigInt(b), 0n)
+}

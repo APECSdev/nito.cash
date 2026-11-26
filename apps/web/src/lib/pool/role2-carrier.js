@@ -21,6 +21,12 @@ export const ROLE2_CARRIER_BYTES = 169
 export const ROLE2_CARRIER_PREFIX = [0x6a, 0x4c, ROLE2_CARRIER_BYTES] // OP_RETURN OP_PUSHDATA1 169
 export const ROLE2_CARRIER_FIELDS = ['nf0', 'nf1', 'cm0', 'cm1', 'newRoot', 'pv', 'sign']
 
+/* 3-out v3: the carrier grows by cm2 (32 B) to 201 B and the actionHash
+   preimage grows to 9 fields. The 2-out defaults stay byte-identical. */
+export const ROLE2_CARRIER_BYTES_3OUT = 201
+export const ROLE2_CARRIER_PREFIX_3OUT = [0x6a, 0x4c, ROLE2_CARRIER_BYTES_3OUT]
+export const ROLE2_CARRIER_FIELDS_3OUT = ['nf0', 'nf1', 'cm0', 'cm1', 'cm2', 'newRoot', 'pv', 'sign']
+
 const FIELD_LAYOUT = [
     ['nf0', 0, 32],
     ['nf1', 32, 32],
@@ -29,6 +35,17 @@ const FIELD_LAYOUT = [
     ['newRoot', 128, 32],
     ['pv', 160, 8],
     ['sign', 168, 1],
+]
+
+const FIELD_LAYOUT_3OUT = [
+    ['nf0', 0, 32],
+    ['nf1', 32, 32],
+    ['cm0', 64, 32],
+    ['cm1', 96, 32],
+    ['cm2', 128, 32],
+    ['newRoot', 160, 32],
+    ['pv', 192, 8],
+    ['sign', 200, 1],
 ]
 
 function toBigInt(value) {
@@ -52,44 +69,46 @@ function readLE(bytes, offset, length) {
     return x
 }
 
-/* Encode the 169-byte carrier payload (without the OP_RETURN prefix). */
-export function encodeRole2Carrier({ nf0, nf1, cm0, cm1, newRoot, pv, sign }) {
-    const bytes = new Uint8Array(ROLE2_CARRIER_BYTES)
-    for (const [name, offset, length] of FIELD_LAYOUT) {
-        putLE(bytes, offset, length, { nf0, nf1, cm0, cm1, newRoot, pv, sign }[name])
+/* Encode the carrier payload (without the OP_RETURN prefix). */
+export function encodeRole2Carrier({ nf0, nf1, cm0, cm1, cm2, newRoot, pv, sign }, outs = 2) {
+    const bytes = new Uint8Array(outs === 3 ? ROLE2_CARRIER_BYTES_3OUT : ROLE2_CARRIER_BYTES)
+    const layout = outs === 3 ? FIELD_LAYOUT_3OUT : FIELD_LAYOUT
+    for (const [name, offset, length] of layout) {
+        putLE(bytes, offset, length, { nf0, nf1, cm0, cm1, cm2, newRoot, pv, sign }[name])
     }
     return bytes
 }
 
-/* Decode a 169-byte carrier payload back into its limbs (bigint). */
-export function decodeRole2Carrier(payload) {
+/* Decode a carrier payload back into its limbs (bigint). */
+export function decodeRole2Carrier(payload, outs) {
     const bytes = payload instanceof Uint8Array ? payload : new Uint8Array(payload)
-    if (bytes.length !== ROLE2_CARRIER_BYTES) {
-        throw new Error(`role2-carrier: expected ${ROLE2_CARRIER_BYTES} bytes, got ${bytes.length}`)
+    const expected = outs === 3 ? ROLE2_CARRIER_BYTES_3OUT : ROLE2_CARRIER_BYTES
+    if (bytes.length !== expected) {
+        throw new Error(`role2-carrier: expected ${expected} bytes, got ${bytes.length}`)
     }
     const out = {}
-    for (const [name, offset, length] of FIELD_LAYOUT) out[name] = readLE(bytes, offset, length)
+    for (const [name, offset, length] of (outs === 3 ? FIELD_LAYOUT_3OUT : FIELD_LAYOUT)) out[name] = readLE(bytes, offset, length)
     return out
 }
 
-/* The full OP_RETURN output locking: 6a 4c a9 <169 bytes>. */
+/* The full OP_RETURN output locking: 6a 4c a9 <169 bytes> (2-out) or <201> (3-out). */
 export function role2CarrierOutput(payload) {
     const bytes = payload instanceof Uint8Array ? payload : new Uint8Array(payload)
-    if (bytes.length !== ROLE2_CARRIER_BYTES) {
-        throw new Error(`role2-carrier: carrier must be ${ROLE2_CARRIER_BYTES} bytes`)
+    if (bytes.length !== ROLE2_CARRIER_BYTES && bytes.length !== ROLE2_CARRIER_BYTES_3OUT) {
+        throw new Error(`role2-carrier: carrier must be ${ROLE2_CARRIER_BYTES} or ${ROLE2_CARRIER_BYTES_3OUT} bytes`)
     }
-    const out = new Uint8Array(ROLE2_CARRIER_PREFIX.length + bytes.length)
-    out.set(ROLE2_CARRIER_PREFIX, 0)
-    out.set(bytes, ROLE2_CARRIER_PREFIX.length)
+    const out = new Uint8Array(3 + bytes.length)
+    out.set([0x6a, 0x4c, bytes.length], 0)
+    out.set(bytes, 3)
     return out
 }
 
 /* Extract the carrier payload from an OP_RETURN locking (or null). */
 export function readRole2CarrierOutput(lockingBytecode) {
     const bytes = lockingBytecode instanceof Uint8Array ? lockingBytecode : new Uint8Array(lockingBytecode)
-    if (bytes.length !== ROLE2_CARRIER_PREFIX.length + ROLE2_CARRIER_BYTES) return null
-    if (bytes[0] !== 0x6a || bytes[1] !== 0x4c || bytes[2] !== ROLE2_CARRIER_BYTES) return null
-    return bytes.slice(ROLE2_CARRIER_PREFIX.length)
+    if (bytes.length !== 3 + ROLE2_CARRIER_BYTES && bytes.length !== 3 + ROLE2_CARRIER_BYTES_3OUT) return null
+    if (bytes[0] !== 0x6a || bytes[1] !== 0x4c || bytes[2] !== bytes.length - 3) return null
+    return bytes.slice(3)
 }
 
 /* The deposit tag: SHA256(carrier[0..64]) = SHA256(nf0_LE ‖ nf1_LE). */
@@ -100,10 +119,12 @@ export function depositTag(payload) {
 }
 
 /*
- * The actionHash (n1): SHA256 of the 8-field BIG-ENDIAN preimage, top 3 bits
- * cleared. `categoryDisplay` is the natural (display/BE) category hex.
+ * The actionHash (n1): SHA256 of the BIG-ENDIAN preimage, top 3 bits cleared.
+ * 2-out: nf0|nf1|cm0|cm1|pv|sign|category|newRoot (8 fields).
+ * 3-out: nf0|nf1|cm0|cm1|cm2|pv|sign|category|newRoot (9 fields).
+ * `categoryDisplay` is the natural (display/BE) category hex.
  */
-export function role2ActionHash({ nf0, nf1, cm0, cm1, pv, sign, categoryDisplay, newRoot }) {
+export function role2ActionHash({ nf0, nf1, cm0, cm1, cm2, pv, sign, categoryDisplay, newRoot }, outs = 2) {
     const be32 = (value) => {
         const out = new Uint8Array(32)
         let x = toBigInt(value)
@@ -113,12 +134,14 @@ export function role2ActionHash({ nf0, nf1, cm0, cm1, pv, sign, categoryDisplay,
         }
         return out
     }
-    const preimage = new Uint8Array(32 * 8)
-    const fields = [nf0, nf1, cm0, cm1, pv, sign, newRoot]
+    const preimage = new Uint8Array(32 * (outs === 3 ? 9 : 8))
+    const fields = outs === 3
+        ? [nf0, nf1, cm0, cm1, cm2, pv, sign, newRoot]
+        : [nf0, nf1, cm0, cm1, pv, sign, newRoot]
     fields.forEach((value, index) => preimage.set(be32(value), index * 32))
-    /* field 6 is the category (display/BE) in the 7th slot; newRoot is 8th */
-    preimage.set(be32(BigInt('0x' + String(categoryDisplay).replace(/^0x/, ''))), 32 * 6)
-    preimage.set(be32(newRoot), 32 * 7)
+    /* the category occupies the last-but-one slot; newRoot the last */
+    preimage.set(be32(BigInt('0x' + String(categoryDisplay).replace(/^0x/, ''))), 32 * (outs === 3 ? 7 : 6))
+    preimage.set(be32(newRoot), 32 * (outs === 3 ? 8 : 7))
     const digest = sha256.hash(preimage)
     const n1 = new Uint8Array(digest)
     n1[0] &= 0x1f

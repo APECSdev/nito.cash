@@ -6,6 +6,7 @@ import { encodeRole2Carrier } from '@/lib/pool/role2-carrier'
 import { getPools } from '@/lib/pool/registry'
 
 const POOL = getPools('chipnet').find((pool) => pool.id === 'chipnet-pusd-role2')
+const POOL_3OUT = getPools('chipnet').find((pool) => pool.id === 'chipnet-pusd-role2-3out')
 const ROOT = new Uint8Array(32).fill(0x01)
 const NULL = new Uint8Array(32).fill(0x02)
 const NEW_ROOT = new Uint8Array(32).fill(0x03)
@@ -45,6 +46,22 @@ describe('lib/pool/role2-action', () => {
         expect(decoded.outputs).toHaveLength(3)
         expect(decoded.outputs[2].token.amount).toBe(250000n)
         expect(action.sign).toBe(1n)
+    })
+
+    it('builds a 3-out UNSHIELD with the 201-B carrier and the payout', async () => {
+        const carrier = encodeRole2Carrier({ nf0: 5n, nf1: 6n, cm0: 7n, cm1: 8n, cm2: 9n, newRoot: 10n, pv: 300n, sign: 1n }, 3)
+        const action = await buildRole2Action({
+            pool: POOL_3OUT, carrier, newRoot: NEW_ROOT, newNull: NEW_NULL, newBalance: 700n,
+            stateUtxo: state, fuelUtxos: [fuel(10), fuel(11)], unlockings: UNLOCKINGS,
+            payoutAddress: 'bchtest:qzzu85xnl99u534d9z40yu7c494hknppx5lu29gl8t',
+        })
+        const decoded = decodeTransaction(hexToBin(action.hex))
+        expect(action.carrierBytes).toBe(201)
+        expect(decoded.outputs[0].lockingBytecode).toHaveLength(3 + 201)
+        expect(decoded.outputs).toHaveLength(3)
+        expect(decoded.outputs[2].token.amount).toBe(300n)
+        expect(action.sign).toBe(1n)
+        expect(action.publicValue).toBe(300n)
     })
 
     it('rejects bad shapes', async () => {

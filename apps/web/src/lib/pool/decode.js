@@ -42,6 +42,7 @@ export const PROVEN_N1_OFFSET = 1792
    action's public values are ALSO in the 169-B OP_RETURN carrier out0. */
 export const ROLE2_STMT_SIZE = 642
 export const ROLE2_CARRIER_SIZE = 169
+export const ROLE2_CARRIER_SIZE_3OUT = 201
 export const ROLE2_STMT_N0_OFFSET = 256
 export const ROLE2_STMT_N1_OFFSET = 288
 
@@ -80,26 +81,38 @@ export function decodeRole2Action(raw) {
 
     const carrier = tx.outputs
         .map((output) => output.lockingBytecode)
-        .find((b) => b.length === 3 + ROLE2_CARRIER_SIZE && b[0] === 0x6a && b[1] === 0x4c && b[2] === ROLE2_CARRIER_SIZE)
+        .find((b) => (b.length === 3 + ROLE2_CARRIER_SIZE || b.length === 3 + ROLE2_CARRIER_SIZE_3OUT) && b[0] === 0x6a && b[1] === 0x4c && b[2] === b.length - 3)
 
     let args = null
     if (carrier) {
         const payload = carrier.slice(3)
-        args = {
-            nf0: leToBig(payload.slice(0, 32)),
-            nf1: leToBig(payload.slice(32, 64)),
-            cm0: leToBig(payload.slice(64, 96)),
-            cm1: leToBig(payload.slice(96, 128)),
-            newMerkleRoot: leToBig(payload.slice(128, 160)),
-            publicValueAbs: leToBig(payload.slice(160, 168)),
-            isUnshield: BigInt(payload[168]),
-        }
+        args = payload.length === ROLE2_CARRIER_SIZE_3OUT
+            ? {
+                nf0: leToBig(payload.slice(0, 32)),
+                nf1: leToBig(payload.slice(32, 64)),
+                cm0: leToBig(payload.slice(64, 96)),
+                cm1: leToBig(payload.slice(96, 128)),
+                cm2: leToBig(payload.slice(128, 160)),
+                newMerkleRoot: leToBig(payload.slice(160, 192)),
+                publicValueAbs: leToBig(payload.slice(192, 200)),
+                isUnshield: BigInt(payload[200]),
+            }
+            : {
+                nf0: leToBig(payload.slice(0, 32)),
+                nf1: leToBig(payload.slice(32, 64)),
+                cm0: leToBig(payload.slice(64, 96)),
+                cm1: leToBig(payload.slice(96, 128)),
+                newMerkleRoot: leToBig(payload.slice(128, 160)),
+                publicValueAbs: leToBig(payload.slice(160, 168)),
+                isUnshield: BigInt(payload[168]),
+            }
     }
 
     return {
         covenantInputIndex: stateIndex,
         prevoutTxid: txidHexOf(tx.inputs[stateIndex].outpointTransactionHash),
         args,
+        carrierBytes: carrier ? carrier.length - 3 : null,
         carriers: [],
         proven: {
             merkleRoot: leToBig(stmt.slice(ROLE2_STMT_N0_OFFSET, ROLE2_STMT_N0_OFFSET + 32)),

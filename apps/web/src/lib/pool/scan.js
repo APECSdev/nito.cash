@@ -30,7 +30,7 @@
 // two leaves, and the global leaf index is derived from the genesis leaf
 // count + the running append offset.
 
-import { actionHash, nullifier } from './notes'
+import { actionHash, actionHash3out, nullifier } from './notes'
 import { decryptPacket } from './carrier'
 import { decodePoolAction, decodeRole2Action } from './decode'
 import { poolAddress, poolScripthash } from './registry'
@@ -136,19 +136,32 @@ export async function scanPoolActions({ cluster, pool, networkId }) {
 
     for (const action of ordered) {
         const { args, proven } = action
+        const outs = action.carrierBytes === 201 || pool.outputs === 3 ? 3 : 2
 
         /* a. The recomputed actionHash MUST equal the proven n1 — the exact
               soundness binding the covenant enforced on-chain. */
-        const recomputed = actionHash({
-            nf0: args.nf0,
-            nf1: args.nf1,
-            cm0: args.cm0,
-            cm1: args.cm1,
-            publicValueAbs: args.publicValueAbs,
-            publicValueSign: args.isUnshield,
-            assetCategory,
-            newMerkleRoot: args.newMerkleRoot,
-        })
+        const recomputed = outs === 3
+            ? actionHash3out({
+                nf0: args.nf0,
+                nf1: args.nf1,
+                cm0: args.cm0,
+                cm1: args.cm1,
+                cm2: args.cm2,
+                publicValueAbs: args.publicValueAbs,
+                publicValueSign: args.isUnshield,
+                assetCategory,
+                newMerkleRoot: args.newMerkleRoot,
+            })
+            : actionHash({
+                nf0: args.nf0,
+                nf1: args.nf1,
+                cm0: args.cm0,
+                cm1: args.cm1,
+                publicValueAbs: args.publicValueAbs,
+                publicValueSign: args.isUnshield,
+                assetCategory,
+                newMerkleRoot: args.newMerkleRoot,
+            })
 
         if (recomputed !== proven.actionHash) {
             throw new Error(`pool scan: actionHash mismatch at ${action.txid}`)
@@ -160,10 +173,10 @@ export async function scanPoolActions({ cluster, pool, networkId }) {
             throw new Error(`pool scan: root-continuity break at ${action.txid}`)
         }
 
-        /* The global leaf indices of this action's two appended notes. */
+        /* The global leaf indices of this action's appended notes (2 or 3). */
         action.leafIndexBase = leafCount
 
-        leafCount += 2
+        leafCount += outs
 
         prevRoot = args.newMerkleRoot
     }
@@ -204,6 +217,7 @@ export async function detectReceived({ actions, spendKey, genesisLeafCount = 0 }
             const note = await decryptPacket(packet, spendKey, [
                 action.args.cm0,
                 action.args.cm1,
+                ...(action.args.cm2 !== undefined ? [action.args.cm2] : []),
             ])
 
             if (!note) {
@@ -211,7 +225,7 @@ export async function detectReceived({ actions, spendKey, genesisLeafCount = 0 }
             }
 
             /* Local index (0 = cm0, 1 = cm1) -> global leaf position. */
-            const leafIndex = (action.leafIndexBase ?? 0) + (note.leafIndex === 1 ? 1 : 0)
+            const leafIndex = (action.leafIndexBase ?? 0) + (note.leafIndex === 2 ? 2 : note.leafIndex === 1 ? 1 : 0)
 
             received.push({
                 value: note.value,

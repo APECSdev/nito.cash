@@ -33,7 +33,7 @@ import { binToHex, lockingBytecodeToCashAddress, sha256 } from '@bitauth/libauth
 import { DEPLOYED_PROGRAM, STEP_LOCKINGS, WALLET_PROGRAM, WALLET_STEP_LOCKINGS } from './verifier-program.js'
 import { GENERALIZED_WALLET_PROGRAM, GENERALIZED_WALLET_STEP_LOCKINGS } from './verifier-program-generalized.js'
 import { BENCH_PROGRAM, BENCH_STEP_LOCKINGS } from './verifier-program-bench.js'
-import { ROLE2_GUARD, ROLE2_PROGRAM, ROLE2_VENDING } from './verifier-program-role2.js'
+import { ROLE2_GUARD, ROLE2_GUARD_3OUT, ROLE2_PROGRAM, ROLE2_PROGRAM_3OUT, ROLE2_VENDING } from './verifier-program-role2.js'
 
 import { getNetwork } from '../bch/networks.js'
 
@@ -122,6 +122,51 @@ const POOLS = {
             fuelSats: 15000,
             blanksPerLock: 2,
             notes: 'THE ROLE-2 TAGGED POOL — deployed 2026-11-24 (anchor 480e30ff… = the category; mint 5ea499ff…; deploy 2eaeb97f… block 345,467; the minting NFT passed forward into the guard aa2066a2…). 3 inputs (fuel 0, fuel 1, state 2), NO signatures; 169-B OP_RETURN carrier; deposit tags SHA256(nf0_LE ‖ nf1_LE) on both fuel UTXOs; 2 blanks per lock; 15,000 sats per fuel UTXO (1 sat/B). Lifecycle confirmed: SHIELD 9d9aa97a… → TRANSFER 5262417b… → UNSHIELD e54d19fb…. THE WEB-PLATFORM ACCEPTANCE PASSED 2026-11-26 through the browser Wallet view: SHIELD 1ca58773… (348,247) → TRANSFER 50644d00… (348,249) → UNSHIELD f52008f4… (348,253); walletProverCompatible is true and status live. The old v4/v3 are RETIRED and their notes came from a WITHDRAWN verifier — the old notes are ABANDONED (no unshield/re-shield migration).',
+        },
+        {
+            id: 'chipnet-pusd-role2-3out',
+            name: 'Chipnet PUSD pool — role-2 3-out v3 (notes management demo)',
+            network: 'chipnet',
+            lockingBytecode: 'aa204a6ce339fb62b7b2ebb502c9bf642d3221620e6f5ded619ce8a39110e35182ea87',
+            assetCategory: 'bc607a96c8a21a1400263d437005d3f434c3c60674018119995dc6200072e635',
+            categoryOnChain: '35e6720020c65d991981017406c6c334f4d30570433d2600141aa2c8967a60bc',
+            genesisRootLE: '551108f63731bcc628dda2697d70219d103a8c1bf203f2d4aaec6bbea5b4510f',
+            genesisLeafCount: 2,
+            /* The 3-out demo is a 1-of-1 setup under VK d4ed12ee…; the witness
+               generator reproduces the live UNSHIELD byte-exactly, but the
+               store/UI path is not wired yet, so the flag stays false. */
+            walletProverCompatible: false,
+            status: 'awaiting-3out-store-acceptance',
+            deployTxid: '2f650791…',
+            categoryAnchorTxid: 'bc607a96c8a21a1400263d437005d3f434c3c60674018119995dc6200072e635',
+            mintTxid: '62d91e4c…',
+            genesisLeaves: [
+                '12351826192886546690885792605915790291283848718645116437899738538537062803555',
+                '7398522746693646650328110604928791171707350116246498951314945102068585381447',
+            ],
+            bootstrapNotes: [
+                {
+                    note: { value: '0', ownerPub: '5299619240641551281634865583518297030282874472190772894086521144482721001553', rho: '130842949111883530073146641958534655280', r: '153387697958148631644100398335583547244' },
+                    nk: '1',
+                    index: 0,
+                },
+                {
+                    note: { value: '0', ownerPub: '5299619240641551281634865583518297030282874472190772894086521144482721001553', rho: '130842949111883530073146641958534655281', r: '153387697958149840569920012964758253420' },
+                    nk: '1',
+                    index: 1,
+                },
+            ],
+            stepLockings: [],
+            program: ROLE2_PROGRAM_3OUT,
+            guard: ROLE2_GUARD_3OUT,
+            vending: null,
+            shape: 'role2-tagged-3out',
+            txInputCount: 3,
+            outputs: 3,
+            carrierBytes: 201,
+            fuelSats: 15000,
+            blanksPerLock: 2,
+            notes: 'THE 3-OUT V3 DEMO POOL — deployed 2026-11-26 (anchor bc607a96… = the category; mint 62d91e4c…; deploy 2f650791… block 348,569; program 7,848 B sha256 73cb0ccb…; born guarded). 3 inputs (fuel 0, fuel 1, state 2), NO signatures; 201-B OP_RETURN carrier with cm2; 9-field actionHash; 3 out-notes. Lifecycle: SHIELD 1,000 e847ef56… (out 400+300+300) → TRANSFER ef64f3dd… (out 280+210+210) → UNSHIELD 300 ec31a41c… (out 112+84+84, 300 FT payout); final state 700 FT, 11 leaves. The wallet 3-out witness generator reproduces the live UNSHIELD byte-exactly (scripts/pool-accept.mjs --pool role2-3out --txid ec31a41c). Demo only: 1-of-1 setup, public bootstrap in-notes on the first action, no real nullifier set, no encrypted note delivery; Gate 7 is the mainnet gate. The store/UI 3-out path is NOT wired.',
         },
         {
             id: "chipnet-pusd-v4",

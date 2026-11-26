@@ -349,6 +349,26 @@ sender, receiver, and amount are all masked. Design decisions locked:
   lockfile regenerated on the apecsdev VM). REMAINING: the prover swap (`prover.js` +
   the `prover.nito.cash` mirror to the Hush assets), and the web-platform SHIELD →
   TRANSFER → UNSHIELD acceptance.
+- **THE 3-OUT V3 CLIENT PATH IS BUILT (2026-11-26).** `src/lib/pool/role2-3out/`
+  vendors the 3-out program builder under the NEW 3-out VK (d4ed12ee…; zkey
+  b0177dbe…; wasm c806e561…); `verifier-role2-3out.js` exposes `role2Program3out`
+  + `produceRole2Inputs3out`. The program reproduces the deployed demo exactly:
+  code 7,848 B sha256 `73cb0ccb…`, R 65 B, locking `aa204a6c…` (category
+  `bc607a96…`). **`node scripts/pool-accept.mjs --pool role2-3out --txid
+  ec31a41c` reports ALL THREE unlockings BYTE-EXACT** (fuel0 9488 B, fuel1 9490 B,
+  state 8821 B) against the live 3-out UNSHIELD. The carrier (`role2-carrier.js`)
+  supports 169/201 B and the 8/9-field actionHash; `role2-action.js`,
+  `role2-actions.js`, `prover.js` (`buildPoolWitness3out`), `notes.js`
+  (`actionHash3out`), `decode.js` and `scan.js` handle the 3-out shape (three
+  commitments, 3-leaf append, cm2); the store `submitRole2Action` takes an
+  optional `poolId` and branches on `pool.outputs === 3` (3-out witness, 3-out
+  assets, 3-out unlockings, `leafIndexBase * 3`); the registry entry
+  `chipnet-pusd-role2-3out` is present with `walletProverCompatible: false`
+  (awaiting the browser store acceptance). Tests **695/695**; coverage 89.04%
+  statements / 89.99% lines (both above the ratchet); `pnpm build` OK. REMAINING:
+  the 3-out proving assets on the `prover.nito.cash` mirror
+  (`pool3.wasm`/`pool3_final.zkey`), the UI pool selector, 3-out blanks/vending,
+  and the browser SHIELD → TRANSFER → UNSHIELD acceptance.
 - THE OLD NOTES ARE NOT KEPT. The `chipnet-pusd-v4` notes came from a WITHDRAWN
   verifier and are ABANDONED — no unshield/re-shield migration, no old-note spend.
   The new role-2 pool starts from its own genesis root; all new notes are created by

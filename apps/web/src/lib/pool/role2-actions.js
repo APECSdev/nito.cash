@@ -16,7 +16,7 @@
 //
 // Every step is observable through `onStage` so the UI can show progress.
 
-import { depositTag } from './role2-carrier.js'
+import { ROLE2_CARRIER_BYTES, ROLE2_CARRIER_BYTES_3OUT, depositTag } from './role2-carrier.js'
 import { buildRole2Lock } from './role2-lock.js'
 import { buildRole2Action } from './role2-action.js'
 
@@ -66,7 +66,7 @@ export async function submitRole2Action({
 
     stage(onStage, 'proving')
     const proof = await prove({ pool, state, blanks, funding, supply, shield, payoutAddress })
-    if (!proof?.carrier || proof.carrier.length !== 169) throw new Error('role2-actions: the prover returned no 169-B carrier')
+    if (!proof?.carrier || (proof.carrier.length !== ROLE2_CARRIER_BYTES && proof.carrier.length !== ROLE2_CARRIER_BYTES_3OUT)) throw new Error(`role2-actions: the prover returned no ${ROLE2_CARRIER_BYTES}-B or ${ROLE2_CARRIER_BYTES_3OUT}-B carrier`)
     if (!Array.isArray(proof.unlockings) || proof.unlockings.length !== 3) throw new Error('role2-actions: the prover returned no 3 unlockings')
 
     stage(onStage, 'tagging')

@@ -40,6 +40,7 @@ import { ElectrumClient } from '@electrum-cash/network'
 import { produceVerifierInputs } from '../src/lib/pool/verifier.js'
 import { DEPLOYED_PROGRAM } from '../src/lib/pool/verifier-program.js'
 import { produceRole2Inputs } from '../src/lib/pool/verifier-role2.js'
+import { produceRole2Inputs3out, ROLE2_3OUT_CATEGORY_ONCHAIN } from '../src/lib/pool/verifier-role2-3out.js'
 
 /* ---- args ---- */
 const args = process.argv.slice(2)
@@ -70,9 +71,14 @@ const POOLS = {
         locking: 'aa203e40b64cff154d4b3305e8c8cc4e3174bc595ad74342a8445a9a7798b7be3a2987',
         server: { host: 'chipnet.bch.ninja', port: 50004 },
     },
+    'role2-3out': {
+        network: 'chipnet',
+        locking: 'aa204a6ce339fb62b7b2ebb502c9bf642d3221620e6f5ded619ce8a39110e35182ea87',
+        server: { host: 'chipnet.bch.ninja', port: 50004 },
+    },
 }
 const pool = POOLS[POOL]
-if (!pool) throw new Error(`unknown pool '${POOL}' (gate3 | mainnet | role2)`)
+if (!pool) throw new Error(`unknown pool '${POOL}' (gate3 | mainnet | role2 | role2-3out)`)
 
 /* ---- the candidate vkey (snarkjs shape) -> bench shape (actions.js toBenchVk) ---- */
 const g1 = (p) => ({ x: p[0], y: p[1] })
@@ -158,6 +164,71 @@ if (typeof tx === 'string') throw new Error('undecodable tx: ' + tx)
    The live state input (input 2) carries [DG] [STMT] [S_2] [HAND_2] [DS_2]
    [FILL_2] [WQ] [R]; STMT is the 642-byte push with the proof A/B/C + n0/n1.
    The generator is verifier-role2.js (the Hush bn-native-sound unlockingsFor). */
+if (POOL === 'role2-3out') {
+    const STMT_SIZE = 642
+    const stmtPush = (unlocking) => scriptPushes(unlocking).find((p) => p && p.length === STMT_SIZE)
+    const stmt = stmtPush(tx.inputs[2].unlockingBytecode)
+    if (!stmt) throw new Error('role2-3out: no 642-byte STMT in the state input')
+    const le = (bytes) => { let n = 0n; for (let i = bytes.length - 1; i >= 0; i -= 1) n = (n << 8n) | BigInt(bytes[i]); return n }
+    const proof = {
+        pi_a: [le(stmt.slice(0, 32)).toString(), le(stmt.slice(32, 64)).toString(), '1'],
+        pi_b: [[le(stmt.slice(64, 96)).toString(), le(stmt.slice(96, 128)).toString()], [le(stmt.slice(128, 160)).toString(), le(stmt.slice(160, 192)).toString()], ['1', '0']],
+        pi_c: [le(stmt.slice(192, 224)).toString(), le(stmt.slice(224, 256)).toString(), '1'],
+    }
+    const publicSignals = [le(stmt.slice(256, 288)), le(stmt.slice(288, 320))]
+    console.log(`pool=role2-3out txid=${txid}`)
+    console.log(`live inputs: ${tx.inputs.map((i, idx) => idx + ':' + i.unlockingBytecode.length).join('  ')}`)
+    console.log(`publicSignals n0=0x${publicSignals[0].toString(16)}`)
+    console.log(`               n1=0x${publicSignals[1].toString(16)}`)
+
+    const carrier = tx.outputs[0].lockingBytecode.slice(3)
+    if (carrier.length !== 201) throw new Error(`role2-3out: carrier is ${carrier.length}B, expected 201`)
+    const sc = {
+        nf0: le(carrier.slice(0, 32)), nf1: le(carrier.slice(32, 64)),
+        cm0: le(carrier.slice(64, 96)), cm1: le(carrier.slice(96, 128)),
+        cm2: le(carrier.slice(128, 160)), newRoot: le(carrier.slice(160, 192)),
+        pv: le(carrier.slice(192, 200)), sign: BigInt(carrier[200]),
+    }
+    const stateInput = tx.inputs[2]
+    const prevTxid = binToHex(stateInput.outpointTransactionHash)
+    const prevClient = new ElectrumClient('nito.cash', '1.5', pool.server.host, { port: pool.server.port, encrypted: true })
+    await prevClient.connect()
+    const prevRaw = await prevClient.request('blockchain.transaction.get', prevTxid)
+    try { await prevClient.disconnect(true) } catch {}
+    const prevTx = decodeTransaction(hexToBin(prevRaw))
+    if (typeof prevTx === 'string') throw new Error('role2-3out: undecodable state prevout ' + prevTxid)
+    const statePrev = prevTx.outputs[stateInput.outpointIndex]
+    const stateToken = statePrev.token
+    if (!stateToken?.nft?.commitment || stateToken.nft.commitment.length !== 64) throw new Error('role2-3out: state prevout has no 64-B commitment')
+    const scenarioArgs = {
+        sc,
+        n0: publicSignals[0],
+        balance: stateToken.amount,
+        oldNull: stateToken.nft.commitment.slice(32),
+        categoryDisplay: tx.outputs[1].token.category,
+    }
+    console.log(`state prevout ${prevTxid}:${stateInput.outpointIndex} balance=${scenarioArgs.balance} oldNull=${binToHex(scenarioArgs.oldNull).slice(0, 16)}…`)
+
+    const produced = produceRole2Inputs3out({ proof, publicSignals, categoryOnChain: ROLE2_3OUT_CATEGORY_ONCHAIN, scenarioArgs })
+    const names = ['fuel0', 'fuel1', 'state']
+    let allPass = true
+    for (let i = 0; i < 3; i++) {
+        const live = tx.inputs[i].unlockingBytecode
+        const mine = new Uint8Array(produced[i])
+        if (binToHex(live) === binToHex(mine)) {
+            console.log(`  ${names[i]} (in[${i}]): *** BYTE-EXACT ***`)
+            continue
+        }
+        allPass = false
+        console.log(`  ${names[i]} (in[${i}]): MISMATCH (live ${live.length}B vs port ${mine.length}B)`)
+    }
+    console.log('')
+    console.log(allPass
+        ? 'ACCEPTANCE: PASS — the wallet 3-out port regenerates the deployed witness byte-exactly'
+        : 'ACCEPTANCE: FAIL — the 3-out witness layout differs')
+    process.exit(allPass ? 0 : 1)
+}
+
 if (POOL === 'role2') {
     const STMT_SIZE = 642
     const stmtPush = (unlocking) => scriptPushes(unlocking).find((p) => p && p.length === STMT_SIZE)

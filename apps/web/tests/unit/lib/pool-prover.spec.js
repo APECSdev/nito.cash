@@ -4,11 +4,12 @@ import { beforeAll, describe, expect, it, vi } from 'vitest'
 /* Import pool lib. */
 import {
     buildPoolWitness,
+    buildPoolWitness3out,
     PROVING_WASM_URL, PROVING_ZKEY_URL, VERIFYING_KEY_URL,
     RELEASE_TAG, RELEASE_BASE, ASSETS_BASE,
     fetchVerifyingKey,
 } from '@/lib/pool/prover'
-import { noteCommitment, getPoseidon } from '@/lib/pool/notes'
+import { noteCommitment, actionHash3out, getPoseidon } from '@/lib/pool/notes'
 
 /*
  * The bench's committed "transfer" eval fixture
@@ -55,6 +56,45 @@ describe('pool prover (witness assembly)', () => {
         /* The two PUBLIC inputs must match the bench byte-for-byte. */
         expect(input.merkleRoot).toEqual(FIXTURE.merkleRoot)
         expect(input.actionHash).toEqual(FIXTURE.actionHash)
+    })
+
+    it('assembles the 3-out witness with three commitments and the 9-field actionHash', async () => {
+        const { ownerPub, assetCategory } = FIXTURE
+
+        const inNotes = [
+            { note: { value: 60n, ownerPub, rho: 1001n, r: 5001n }, nk: 222n, index: 0 },
+            { note: { value: 40n, ownerPub, rho: 1002n, r: 5002n }, nk: 333n, index: 1 },
+        ]
+        const outNotes = [
+            { value: 40n, ownerPub: 444n, rho: 2001n, r: 6001n },
+            { value: 30n, ownerPub: 555n, rho: 2002n, r: 6002n },
+            { value: 30n, ownerPub: 666n, rho: 2003n, r: 6003n },
+        ]
+        const leaves = [
+            await noteCommitment(60n, ownerPub, 1001n, 5001n),
+            await noteCommitment(40n, ownerPub, 1002n, 5002n),
+        ]
+
+        const input = await buildPoolWitness3out({
+            inNotes, outNotes, leaves,
+            publicValueAbs: 0n, publicValueSign: 0n, assetCategory,
+        })
+
+        expect(input.cm).toHaveLength(3)
+        expect(input.outValue).toHaveLength(3)
+        expect(input.inValue).toHaveLength(2)
+        expect(input.inPathElements[0]).toHaveLength(20)
+
+        const inSum = BigInt(input.inValue[0]) + BigInt(input.inValue[1])
+        const outSum = BigInt(input.outValue[0]) + BigInt(input.outValue[1]) + BigInt(input.outValue[2])
+        expect(inSum).toEqual(outSum)
+
+        expect(input.actionHash).toEqual(actionHash3out({
+            nf0: BigInt(input.nf[0]), nf1: BigInt(input.nf[1]),
+            cm0: BigInt(input.cm[0]), cm1: BigInt(input.cm[1]), cm2: BigInt(input.cm[2]),
+            publicValueAbs: 0n, publicValueSign: 0n, assetCategory,
+            newMerkleRoot: BigInt(input.newMerkleRoot),
+        }).toString())
     })
 
     it('value conservation: transfer witness is internally consistent', async () => {

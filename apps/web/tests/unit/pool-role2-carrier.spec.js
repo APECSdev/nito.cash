@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 
 import {
     ROLE2_CARRIER_BYTES,
+    ROLE2_CARRIER_BYTES_3OUT,
     decodeRole2Carrier,
     depositTag,
     encodeRole2Carrier,
@@ -73,5 +74,32 @@ describe('lib/pool/role2-carrier', () => {
         expect(n1 < 2n ** 253n).toBe(true)
         const other = role2ActionHash({ ...LIMBS, pv: 1n, categoryDisplay: CATEGORY })
         expect(other).not.toBe(n1)
+    })
+
+    it('encodes the 3-out 201-byte carrier with cm2 and the 9-field actionHash', () => {
+        const limbs3 = { ...LIMBS, cm2: 0xa1a2a3a4a5a6a7a8a9aaabacadaeafb0b1b2b3b4b5b6b7b8b9babbbcbdbebf0n }
+        const payload = encodeRole2Carrier(limbs3, 3)
+        expect(payload).toHaveLength(ROLE2_CARRIER_BYTES_3OUT)
+        expect(payload[128]).toBe(0xf0)
+        expect(payload[192]).toBe(0x40)
+        expect(payload[200]).toBe(0x00)
+
+        const decoded = decodeRole2Carrier(payload, 3)
+        for (const key of ['nf0', 'nf1', 'cm0', 'cm1', 'cm2', 'newRoot', 'pv', 'sign']) {
+            expect(decoded[key]).toBe(limbs3[key])
+        }
+
+        const locking = role2CarrierOutput(payload)
+        expect(locking[2]).toBe(201)
+        expect(readRole2CarrierOutput(locking)).toEqual(payload)
+
+        const n1 = role2ActionHash({ ...limbs3, categoryDisplay: CATEGORY }, 3)
+        expect(n1).toBeGreaterThan(0n)
+        expect(n1 < 2n ** 253n).toBe(true)
+        /* cm2 is bound: changing it changes the 9-field actionHash. */
+        const other = role2ActionHash({ ...limbs3, cm2: limbs3.cm2 + 1n, categoryDisplay: CATEGORY }, 3)
+        expect(other).not.toBe(n1)
+        /* and the 3-out hash differs from the 2-out hash of the same limbs. */
+        expect(n1).not.toBe(role2ActionHash({ ...LIMBS, categoryDisplay: CATEGORY }, 2))
     })
 })

@@ -28,13 +28,16 @@
 
 import * as snarkjs from 'snarkjs'
 
-import { noteCommitment, nullifier, actionHash } from './notes'
+import { noteCommitment, nullifier, actionHash, actionHash3out } from './notes'
 import { computeRoot, merklePath } from './merkle'
 
 /* Proving assets (served as static files, fetched on demand by snarkjs). */
 export const PROVING_WASM = 'proving/pool.wasm'
 export const PROVING_ZKEY = 'proving/pool_final.zkey'
 export const VERIFYING_KEY = 'proving/verification_key.json'
+export const PROVING_WASM_3OUT = 'proving/pool3.wasm'
+export const PROVING_ZKEY_3OUT = 'proving/pool3_final.zkey'
+export const VERIFYING_KEY_3OUT = 'proving/verification_key_3out.json'
 
 /*
  * RELEASE DISTRIBUTION (blocker #4): the witness calculator (3.4 MB) and the
@@ -61,6 +64,9 @@ export const ASSETS_BASE = 'https://prover.nito.cash/assets/'
 export const PROVING_WASM_URL = ASSETS_BASE + 'pool.wasm'
 export const PROVING_ZKEY_URL = ASSETS_BASE + 'pool_final.zkey'
 export const VERIFYING_KEY_URL = ASSETS_BASE + 'verification_key.json'
+export const PROVING_WASM_3OUT_URL = ASSETS_BASE + 'pool3.wasm'
+export const PROVING_ZKEY_3OUT_URL = ASSETS_BASE + 'pool3_final.zkey'
+export const VERIFYING_KEY_3OUT_URL = ASSETS_BASE + 'verification_key_3out.json'
 
 /* Module-level verifying-key cache (3 KB JSON — fetched once per session). */
 let _vkeyCache = null
@@ -167,6 +173,77 @@ export async function buildPoolWitness({
         outOwnerPub: [ S(outNotes[0].ownerPub), S(outNotes[1].ownerPub) ],
         outRho: [ S(outNotes[0].rho), S(outNotes[1].rho) ],
         outR: [ S(outNotes[0].r), S(outNotes[1].r) ],
+    }
+}
+
+/**
+ * Build the circuit witness for a 3-out (v3) pool action.
+ *
+ * The 3-out circuit (`circuits/pool3.circom`) is the same 2-in joinsplit with
+ * a third out-note; the actionHash preimage gains `cm2` (9 fields). The
+ * 2-out `buildPoolWitness` above is untouched.
+ *
+ *   outNotes — exactly 3 [{ value, ownerPub, rho, r }]
+ *   leaves   — the current leaves (the three output commitments are appended)
+ *
+ * Value conservation: inValue0 + inValue1 + (sign ? -pv : +pv)
+ *   === outValue0 + outValue1 + outValue2
+ */
+export async function buildPoolWitness3out({
+    inNotes, outNotes, leaves, publicValueAbs, publicValueSign, assetCategory,
+}) {
+    if (!Array.isArray(outNotes) || outNotes.length !== 3) throw new Error('prover: the 3-out witness needs exactly 3 out-notes')
+
+    const nf = []
+    const paths = []
+
+    for (let i = 0; i < 2; i++) {
+        const { note, nk, index } = inNotes[i]
+
+        nf.push(await nullifier(nk, note.rho))
+        paths.push(await merklePath(leaves, index))
+    }
+
+    const cm = []
+
+    for (let j = 0; j < 3; j++) {
+        const o = outNotes[j]
+
+        cm.push(await noteCommitment(o.value, o.ownerPub, o.rho, o.r))
+    }
+
+    const merkleRoot = await computeRoot(leaves)
+    const newMerkleRoot = await computeRoot([ ...leaves, ...cm ])
+
+    const aHash = actionHash3out({
+        nf0: nf[0], nf1: nf[1], cm0: cm[0], cm1: cm[1], cm2: cm[2],
+        publicValueAbs, publicValueSign, assetCategory, newMerkleRoot,
+    })
+
+    const assetCategoryHi = assetCategory >> 128n
+    const assetCategoryLo = assetCategory & ((1n << 128n) - 1n)
+
+    return {
+        merkleRoot: S(merkleRoot),
+        actionHash: S(aHash),
+        nf: [ S(nf[0]), S(nf[1]) ],
+        cm: [ S(cm[0]), S(cm[1]), S(cm[2]) ],
+        publicValueAbs: S(publicValueAbs),
+        publicValueSign: S(publicValueSign),
+        assetCategoryHi: S(assetCategoryHi),
+        assetCategoryLo: S(assetCategoryLo),
+        newMerkleRoot: S(newMerkleRoot),
+        inValue: [ S(inNotes[0].note.value), S(inNotes[1].note.value) ],
+        inOwnerPub: [ S(inNotes[0].note.ownerPub), S(inNotes[1].note.ownerPub) ],
+        inRho: [ S(inNotes[0].note.rho), S(inNotes[1].note.rho) ],
+        inR: [ S(inNotes[0].note.r), S(inNotes[1].note.r) ],
+        nk: [ S(inNotes[0].nk), S(inNotes[1].nk) ],
+        inPathElements: [ paths[0].pathElements.map(S), paths[1].pathElements.map(S) ],
+        inPathBits: [ paths[0].pathBits.map(S), paths[1].pathBits.map(S) ],
+        outValue: [ S(outNotes[0].value), S(outNotes[1].value), S(outNotes[2].value) ],
+        outOwnerPub: [ S(outNotes[0].ownerPub), S(outNotes[1].ownerPub), S(outNotes[2].ownerPub) ],
+        outRho: [ S(outNotes[0].rho), S(outNotes[1].rho), S(outNotes[2].rho) ],
+        outR: [ S(outNotes[0].r), S(outNotes[1].r), S(outNotes[2].r) ],
     }
 }
 

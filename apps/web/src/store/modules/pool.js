@@ -29,7 +29,7 @@ import { ownerPubFromDeliveryPoint } from '@/lib/pool/carrier.js'
 /* The role-2 (3-input tagged pool) pipeline: the orchestrator, the real prover
    chain, the witness generator, the carrier, and the blank selection. */
 import { submitRole2Action as submitRole2ActionLib } from '@/lib/pool/role2-actions.js'
-import { PROVING_WASM_URL, PROVING_ZKEY_URL, buildPoolWitness, generateProof } from '@/lib/pool/prover.js'
+import { PROVING_WASM_URL, PROVING_ZKEY_URL, PROVING_WASM_3OUT_URL, PROVING_ZKEY_3OUT_URL, buildPoolWitness, buildPoolWitness3out, generateProof } from '@/lib/pool/prover.js'
 /* verifier-role2 is the node-side witness generator (it reads its fixtures
    with node:fs); the store imports it lazily inside prove(). */
 import { encodeRole2Carrier } from '@/lib/pool/role2-carrier.js'
@@ -343,7 +343,7 @@ const actions = {
     /* v8 ignore start — the proving half is exercised end-to-end by the
        web-platform chipnet acceptance (scripts/pool-accept.mjs pins the
        witness byte-exactly); the store gates are unit-tested above. */
-    async submitRole2Action({ dispatch, state, rootGetters }, { action, amount, recipientDeliveryPoint, onStage }) {
+    async submitRole2Action({ dispatch, state, rootGetters }, { action, amount, recipientDeliveryPoint, onStage, poolId = 'chipnet-pusd-role2' }) {
         const entropyHex = rootGetters['profile/getMasterSeed']
 
         if (!entropyHex) {
@@ -355,7 +355,7 @@ const actions = {
         }
 
         const network = rootGetters['profile/getNetwork']
-        const pool = getPools(network).find((p) => p.id === 'chipnet-pusd-role2')
+        const pool = getPools(network).find((p) => p.id === poolId)
 
         if (!pool) {
             const error = new Error('The role-2 pool is not registered on this network.')
@@ -429,6 +429,7 @@ const actions = {
         const shield = action === 'shield' || action === 'unshield' ? BigInt(amount) : 0n
         const transferAmount = action === 'transfer' ? BigInt(amount) : 0n
         const sign = action === 'unshield' ? 1n : 0n
+        const outs = pool.outputs === 3 || pool.carrierBytes === 201 ? 3 : 2
 
         /* The state UTXO is the tip action's out1 (the new state NFT). */
         const tip = scanned.scan.actions[scanned.scan.actions.length - 1]
@@ -553,7 +554,27 @@ const actions = {
 
             let outNotes
 
-            if (action === 'transfer') {
+            if (outs === 3) {
+                if (action === 'transfer') {
+                    if (outSum < transferAmount) throw new Error('The selected notes do not cover the transfer amount.')
+
+                    const recipientOwnerPub = await ownerPubFromDeliveryPoint(parseDeliveryPoint(recipientDeliveryPoint))
+                    const change = outSum - transferAmount
+                    const half = change / 2n
+
+                    outNotes = [
+                        { value: transferAmount, ownerPub: recipientOwnerPub, rho: await rnd(), r: await rnd() },
+                        await selfNote(change - half),
+                        await selfNote(half),
+                    ]
+                } else {
+                    /* The 3-out demo's 40/30/30 split (the note-management shape). */
+                    const out0 = outSum * 2n / 5n
+                    const out1 = outSum * 3n / 10n
+
+                    outNotes = [await selfNote(out0), await selfNote(out1), await selfNote(outSum - out0 - out1)]
+                }
+            } else if (action === 'transfer') {
                 if (outSum < transferAmount) throw new Error('The selected notes do not cover the transfer amount.')
 
                 const recipientOwnerPub = await ownerPubFromDeliveryPoint(parseDeliveryPoint(recipientDeliveryPoint))
@@ -568,18 +589,27 @@ const actions = {
                 outNotes = [await selfNote(outSum), await selfNote(0n)]
             }
 
-            const witness = await buildPoolWitness({
-                inNotes,
-                outNotes: outNotes.map(({ value, ownerPub, rho, r }) => ({ value, ownerPub, rho, r })),
-                leaves,
-                publicValueAbs: shield,
-                publicValueSign: sign,
-                assetCategory: BigInt('0x' + pool.assetCategory),
-            })
+            const witness = outs === 3
+                ? await buildPoolWitness3out({
+                    inNotes,
+                    outNotes: outNotes.map(({ value, ownerPub, rho, r }) => ({ value, ownerPub, rho, r })),
+                    leaves,
+                    publicValueAbs: shield,
+                    publicValueSign: sign,
+                    assetCategory: BigInt('0x' + pool.assetCategory),
+                })
+                : await buildPoolWitness({
+                    inNotes,
+                    outNotes: outNotes.map(({ value, ownerPub, rho, r }) => ({ value, ownerPub, rho, r })),
+                    leaves,
+                    publicValueAbs: shield,
+                    publicValueSign: sign,
+                    assetCategory: BigInt('0x' + pool.assetCategory),
+                })
 
             /* The Worker-mirrored proving assets (the 97 MB zkey cannot ship
                on Pages; the relative defaults are local-dev only). */
-            const { proof, publicSignals } = await generateProof(witness, PROVING_WASM_URL, PROVING_ZKEY_URL)
+            const { proof, publicSignals } = await generateProof(witness, outs === 3 ? PROVING_WASM_3OUT_URL : PROVING_WASM_URL, outs === 3 ? PROVING_ZKEY_3OUT_URL : PROVING_ZKEY_URL)
             const commitment = String(stateUtxo.token.nft.commitment || '')
             const oldNull = hexToBytes(commitment).slice(32)
             const newRoot = BigInt(witness.newMerkleRoot)
@@ -587,21 +617,23 @@ const actions = {
             const nf1 = BigInt(witness.nf[1])
             const cm0 = BigInt(witness.cm[0])
             const cm1 = BigInt(witness.cm[1])
-            const carrier = encodeRole2Carrier({ nf0, nf1, cm0, cm1, newRoot: BigInt(newRoot), pv: shield, sign })
+            const cm2 = outs === 3 ? BigInt(witness.cm[2]) : undefined
+            const carrier = encodeRole2Carrier({ nf0, nf1, cm0, cm1, ...(outs === 3 ? { cm2 } : {}), newRoot: BigInt(newRoot), pv: shield, sign }, outs)
             const sha256 = async (bytes) => new Uint8Array(await crypto.subtle.digest('SHA-256', bytes))
             /* The new nullifier set: SHA256(oldNull ‖ nf0 ‖ nf1) with nf0/nf1
                in the carrier's LE byte order — the program recomputes it from
                exactly those bytes (the pool-hook's check 7). */
             const newNull = await sha256(new Uint8Array([...oldNull, ...carrier.slice(0, 64)]))
             const scenarioArgs = {
-                sc: { nf0, nf1, cm0, cm1, newRoot: BigInt(newRoot), pv: shield, sign },
+                sc: { nf0, nf1, cm0, cm1, ...(outs === 3 ? { cm2 } : {}), newRoot: BigInt(newRoot), pv: shield, sign },
                 n0: BigInt(publicSignals[0]),
                 balance: BigInt(stateUtxo.token.amount),
                 oldNull,
                 categoryDisplay: stateUtxo.token.category,
             }
-            const { produceRole2Inputs } = await import('@/lib/pool/verifier-role2.js')
-            const unlockings = produceRole2Inputs({ proof, publicSignals, scenarioArgs })
+            const unlockings = outs === 3
+                ? (await import('@/lib/pool/verifier-role2-3out.js')).produceRole2Inputs3out({ proof, publicSignals, categoryOnChain: pool.categoryOnChain, scenarioArgs })
+                : (await import('@/lib/pool/verifier-role2.js')).produceRole2Inputs({ proof, publicSignals, scenarioArgs })
             const newBalance = BigInt(stateUtxo.token.amount) + shield - 2n * sign * shield
 
             /* The state NFT commitment carries the 32-byte LE root. */
@@ -636,7 +668,7 @@ const actions = {
                 saveNotes: async (notes) => {
                     await dispatch('recordRole2Notes', {
                         ...notes,
-                        leafIndexBase: (pool.genesisLeafCount || (pool.genesisLeaves || []).length) + scanned.scan.actions.length * 2,
+                        leafIndexBase: (pool.genesisLeafCount || (pool.genesisLeaves || []).length) + scanned.scan.actions.length * outs,
                     })
                 },
                 payoutAddress,

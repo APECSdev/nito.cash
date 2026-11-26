@@ -72,6 +72,8 @@ export default defineConfig({
                 'src/plugins/**',
                 'src/main.js',
                 'src/lib/pool/verifier-role2.js',
+                'src/lib/pool/verifier-role2-3out.js',
+                'src/lib/pool/role2-3out/**',
                 'tests/unit/**',
             ],
             /* Ratchet. The TARGET is 90% (mirrored in codecov.yml, which
