@@ -126,9 +126,9 @@
                     </p>
 
                     <div class="mt-[12px]">
-                        <Button v-if="proverPool" :label="submitButtonLabel" :disabled="actionBusy" @click.native="submitAction" />
+                        <Button v-if="role2Pool && role2Pool.walletProverCompatible" :label="submitButtonLabel" :disabled="actionBusy" @click.native="submitAction" />
                         <p v-else class="text-[12px] font-semibold text-warning-text leading-[18px]">
-                            Awaiting a wallet-prover-compatible pool — the deployed pools' verifying-key lineage is unverified (see the Concierge Vault Desk). A Path-A deployment under the wallet-committed key unlocks these flows.
+                            Awaiting the role-2 web-platform acceptance — the pool is byte-exact at the witness level, but the registry flag flips only after the browser SHIELD → TRANSFER → UNSHIELD run.
                         </p>
                     </div>
 
@@ -390,7 +390,7 @@ export default {
            every runtime failure surfaces through the store's displayError
            toasts (the sendCrypto pattern). */
         async submitAction() {
-            if (!this.proverPool || this.actionBusy) return
+            if (!this.role2Pool || this.role2Pool.walletProverCompatible !== true || this.actionBusy) return
 
             const amount = String(this.actionAmount || '').trim()
 
@@ -410,13 +410,13 @@ export default {
             this.actionResult = null
 
             try {
-                const result = await this.$store.dispatch('pool/submitPoolAction', {
+                const result = await this.$store.dispatch('pool/submitRole2Action', {
                     action: this.activeAction.toLowerCase(),
                     amount,
                     recipientDeliveryPoint: this.activeAction === 'Transfer' ? this.transferTo : undefined,
                 })
 
-                this.actionResult = result.txid
+                this.actionResult = result.actionTxid
             } catch (err) {
                 /* The store displayed the error; keep the panel ready for a retry. */
                 console.error('Pool action failed:', err) // eslint-disable-line no-console
