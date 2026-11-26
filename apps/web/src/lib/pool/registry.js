@@ -85,10 +85,12 @@ const POOLS = {
             assetCategory: '480e30ff1d3f5f0b6fe9dd2dbe363b1776f61566f29a395628d0b50abd01b9d0',
             genesisRootLE: '551108f63731bcc628dda2697d70219d103a8c1bf203f2d4aaec6bbea5b4510f',
             genesisLeafCount: 2,
-            /* THE PROVING ASSETS ARE NOT IN THIS REPO YET (the Hush solo-ceremony
-               VK 05250429…, zkey 4a4e2543…, wasm 8595b434…). The flag flips only
-               after the handover AND the web-platform chipnet SHIELD → TRANSFER
-               → UNSHIELD acceptance run. */
+            /* THE PROVING ASSETS: the Hush solo-ceremony VK 05250429…, zkey
+               4a4e2543… (97,716,000 B), wasm 8595b434… (3,376,395 B) — the
+               `role2-proving-assets-v1` release, mirrored at
+               prover.nito.cash/assets/. The flag flipped after the web-platform
+               chipnet acceptance (SHIELD 1ca58773… → TRANSFER 50644d00… →
+               UNSHIELD f52008f4…, 2026-11-26). */
             walletProverCompatible: true,
             status: 'live',
             deployTxid: '2eaeb97f…',

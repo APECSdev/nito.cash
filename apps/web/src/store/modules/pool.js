@@ -518,7 +518,11 @@ const actions = {
                 action,
                 amount: BigInt(amount),
                 ownNotes: state.notes,
-                bootstrapNotes: pool.bootstrapNotes,
+                /* The bootstrap pair funds the GENESIS action only. After any
+                   action exists it is spent; reusing it double-spends the
+                   seeds and tags the deposit with a PUBLIC nullifier pair
+                   (the standing-lock finding, 2026-11-26). */
+                bootstrapNotes: scanned.scan.actions.length === 0 ? pool.bootstrapNotes : [],
             })
 
             /* Fresh out-note secrets (the nk · G convention — spendable later). */
