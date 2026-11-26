@@ -518,9 +518,13 @@ describe('views/Wallet', () => {
     it('runs the flow against a compatible pool and renders the broadcast txid', async () => {
         getPoolsMock.mockReturnValue([{ id: 'chipnet-pusd-role2', walletProverCompatible: true }])
 
-        submitRole2ActionMock.mockResolvedValue({
-            lockTxid: 'ee'.repeat(32),
-            actionTxid: 'ff'.repeat(32),
+        /* Stub the STORE action (the view dispatches pool/submitRole2Action);
+           the proving half is covered by the acceptance harness. */
+        const facade = getStoreFacade()
+        const origDispatch = facade.dispatch.bind(facade)
+        const dispatchSpy = vi.spyOn(facade, 'dispatch').mockImplementation(async (type, payload) => {
+            if (type === 'pool/submitRole2Action') return { lockTxid: 'ee'.repeat(32), actionTxid: 'ff'.repeat(32) }
+            return origDispatch(type, payload)
         })
 
         const wrapper = mountView(Wallet)
@@ -531,13 +535,16 @@ describe('views/Wallet', () => {
         await wrapper.vm.submitAction()
         await wrapper.vm.$nextTick()
 
-        /* The store action ran with the UI-normalized action + amount. */
-        expect(submitRole2ActionMock).toHaveBeenCalledTimes(1)
-        expect(submitRole2ActionMock.mock.calls[0][0].action).toBe('shield')
-        expect(String(submitRole2ActionMock.mock.calls[0][0].amount)).toBe('1000')
+        /* The view dispatched the role-2 store action with the UI action + amount. */
+        const call = dispatchSpy.mock.calls.find(([type]) => type === 'pool/submitRole2Action')
+        expect(call).toBeTruthy()
+        expect(call[1].action).toBe('shield')
+        expect(String(call[1].amount)).toBe('1000')
 
         expect(wrapper.vm.actionResult).toBe('ff'.repeat(32))
         expect(wrapper.text()).toContain('Broadcast — txid')
+
+        dispatchSpy.mockRestore()
     })
 
     it('derives and shows the delivery point (the receive-side address)', async () => {
@@ -553,6 +560,12 @@ describe('views/Wallet', () => {
 
     it('validates the amount + recipient locally BEFORE dispatching', async () => {
         getPoolsMock.mockReturnValue([{ id: 'chipnet-pusd-role2', walletProverCompatible: true }])
+        const facade = getStoreFacade()
+        const origDispatch = facade.dispatch.bind(facade)
+        const dispatchSpy = vi.spyOn(facade, 'dispatch').mockImplementation(async (type, payload) => {
+            if (type === 'pool/submitRole2Action') throw new Error('should not dispatch')
+            return origDispatch(type, payload)
+        })
 
         const wrapper = mountView(Wallet)
         await new Promise((r) => setTimeout(r, 60))
