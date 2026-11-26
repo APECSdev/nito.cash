@@ -44,18 +44,24 @@ vi.mock('@/lib/solana.js', () => ({
 
 /* ---- shielded-pool mocks (hoisted) — the blocker #4 action wiring: the
    registry's prover-pool lookup + the action engine swap per-test. ---- */
-const { proverPoolMock, submitPoolActionMock } = vi.hoisted(() => ({
+const { proverPoolMock, submitPoolActionMock, getPoolsMock, submitRole2ActionMock } = vi.hoisted(() => ({
     proverPoolMock: vi.fn(),
     submitPoolActionMock: vi.fn(),
+    getPoolsMock: vi.fn(() => []),
+    submitRole2ActionMock: vi.fn(),
 }))
 
 vi.mock('@/lib/pool/registry.js', async (importOriginal) => ({
     ...(await importOriginal()),
     getProverPool: proverPoolMock,
+    getPools: getPoolsMock,
 }))
 
 vi.mock('@/lib/pool/actions.js', () => ({
     submitPoolAction: submitPoolActionMock,
+}))
+vi.mock('@/lib/pool/role2-actions.js', () => ({
+    submitRole2Action: submitRole2ActionMock,
 }))
 
 /* Import the store + facade AFTER the mocks. */
@@ -156,6 +162,9 @@ beforeEach(() => {
     proverPoolMock.mockReset()
     proverPoolMock.mockReturnValue(null)
     submitPoolActionMock.mockReset()
+    getPoolsMock.mockReset()
+    getPoolsMock.mockReturnValue([])
+    submitRole2ActionMock.mockReset()
     getClusterMock.mockClear()
     cluster.getBalance.mockClear()
     cluster.getHistory.mockReset()
@@ -502,19 +511,16 @@ describe('views/Wallet', () => {
         await wrapper.vm.$nextTick()
 
         expect(wrapper.vm.activeAction).toBe('Shield')
-        expect(wrapper.vm.proverPool).toBeNull()
-        expect(wrapper.text()).toContain('Awaiting a wallet-prover-compatible pool')
+        expect(wrapper.vm.role2Pool).toBeNull()
+        expect(wrapper.text()).toContain('Awaiting the role-2 web-platform acceptance')
     })
 
     it('runs the flow against a compatible pool and renders the broadcast txid', async () => {
-        proverPoolMock.mockReturnValue({ id: 'patha-pool' })
+        getPoolsMock.mockReturnValue([{ id: 'chipnet-pusd-role2', walletProverCompatible: true }])
 
-        submitPoolActionMock.mockResolvedValue({
-            txid: 'ff'.repeat(32),
-            outNotes: [
-                { value: 2000n, ownerPub: 1n, rho: 2n, r: 3n, cm: 4n, nf: '9', leafIndex: 2 },
-            ],
-            spentNfs: [],
+        submitRole2ActionMock.mockResolvedValue({
+            lockTxid: 'ee'.repeat(32),
+            actionTxid: 'ff'.repeat(32),
         })
 
         const wrapper = mountView(Wallet)
@@ -525,17 +531,13 @@ describe('views/Wallet', () => {
         await wrapper.vm.submitAction()
         await wrapper.vm.$nextTick()
 
-        /* The engine ran with the UI-normalized action + amount. */
-        expect(submitPoolActionMock).toHaveBeenCalledTimes(1)
-        expect(submitPoolActionMock.mock.calls[0][0].action).toBe('shield')
-        /* The store normalizes the UI string to BigInt base units. */
-        expect(submitPoolActionMock.mock.calls[0][0].amount).toBe(1000n)
+        /* The store action ran with the UI-normalized action + amount. */
+        expect(submitRole2ActionMock).toHaveBeenCalledTimes(1)
+        expect(submitRole2ActionMock.mock.calls[0][0].action).toBe('shield')
+        expect(String(submitRole2ActionMock.mock.calls[0][0].amount)).toBe('1000')
 
         expect(wrapper.vm.actionResult).toBe('ff'.repeat(32))
         expect(wrapper.text()).toContain('Broadcast — txid')
-
-        /* The engine's own output note reached the pool store. */
-        expect(getStoreFacade().state.pool.notes).toHaveLength(1)
     })
 
     it('derives and shows the delivery point (the receive-side address)', async () => {
@@ -550,7 +552,7 @@ describe('views/Wallet', () => {
     })
 
     it('validates the amount + recipient locally BEFORE dispatching', async () => {
-        proverPoolMock.mockReturnValue({ id: 'patha-pool' })
+        getPoolsMock.mockReturnValue([{ id: 'chipnet-pusd-role2', walletProverCompatible: true }])
 
         const wrapper = mountView(Wallet)
         await new Promise((r) => setTimeout(r, 60))
