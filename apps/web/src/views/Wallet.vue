@@ -65,10 +65,18 @@
                     </div>
                 </div>
 
-                <!-- Role-2 tagged pool (the current pool): blank inventory,
-                     vending machine, and the proving-asset gate. -->
+                <!-- Role-2 tagged pools: the SELECTOR, the selected pool's blank
+                     inventory, vending machine, and the proving-asset gate. -->
                 <div v-if="role2Pool" class="mt-[16px] p-[14px] rounded-[8px] bg-box-bg">
-                    <div class="text-[13px] font-semibold text-fg">
+                    <div v-if="role2Pools.length > 1" class="flex flex-wrap gap-[6px]">
+                        <button v-for="pool in role2Pools" :key="pool.id" type="button"
+                            class="px-[10px] py-[4px] rounded-[6px] text-[11px] font-semibold border transition-colors"
+                            :class="pool.id === role2PoolId ? 'border-primary bg-list-bg text-fg' : 'border-input-border text-muted'"
+                            @click="role2PoolId = pool.id">
+                            {{pool.outputs === 3 ? '3-out v3' : '2-out'}}
+                        </button>
+                    </div>
+                    <div class="text-[13px] font-semibold text-fg" :class="{'mt-[10px]': role2Pools.length > 1}">
                         {{role2Pool.name}}
                     </div>
                     <div class="mt-[6px] flex items-center justify-between text-[12px] font-semibold text-muted">
@@ -79,15 +87,15 @@
                         <span>Actions remaining</span>
                         <span class="text-fg">{{poolBlankInfo ? poolBlankInfo.actions : '—'}}</span>
                     </div>
-                    <div class="mt-[4px] flex items-center justify-between text-[12px] font-semibold text-muted">
+                    <div v-if="role2Pool.vending" class="mt-[4px] flex items-center justify-between text-[12px] font-semibold text-muted">
                         <span>Vending price</span>
                         <span class="text-fg">{{role2Pool.vending.priceSats}} sats / blank</span>
                     </div>
-                    <div class="mt-[4px] text-[11px] font-medium text-muted break-all">
+                    <div v-if="role2Pool.vending" class="mt-[4px] text-[11px] font-medium text-muted break-all">
                         Machine {{role2Pool.vending.lockingBytecode}}
                     </div>
                     <p v-if="!role2Pool.walletProverCompatible" class="mt-[8px] text-[12px] font-semibold text-warning-text leading-[18px]">
-                        Awaiting the Hush proving assets — the web-platform chipnet SHIELD → TRANSFER → UNSHIELD acceptance is pending.
+                        The proving assets are live on prover.nito.cash — awaiting the web-platform chipnet SHIELD → TRANSFER → UNSHIELD acceptance.
                     </p>
                 </div>
 
@@ -274,6 +282,11 @@ export default {
             deliveryPointHex: '',
             deliveryPointCopied: false,
             poolBlankInfo: null,
+            /* The selected role-2 pool id (the pool selector). Initialized
+               in created() to the wallet-prover-compatible pool when one
+               exists (the accepted 2-out today), else the newest role-2
+               entry — the 3-out acceptance selects the 3-out pool here. */
+            role2PoolId: null,
         }
     },
     computed: {
@@ -345,10 +358,18 @@ export default {
             return getProverPool(this.getNetwork)
         },
 
-        /* The role-2 tagged pool (the current target; its flag is false
-           until the Hush proving assets arrive). */
+        /* Every role-2 tagged pool on the active network (the pool
+           selector's options — the 2-out accepted pool and the 3-out v3
+           notes-management demo): tagged by its shape, or by the role-2 id
+           family for entries predating the shape field. */
+        role2Pools() {
+            return getPools(this.getNetwork).filter((pool) => (pool.shape || '').startsWith('role2') || (pool.id || '').startsWith('chipnet-pusd-role2'))
+        },
+
+        /* The SELECTED role-2 pool — drives the blank inventory, the vending
+           display, the scan target and the submitted action's poolId. */
         role2Pool() {
-            return getPools(this.getNetwork).find((pool) => pool.id === 'chipnet-pusd-role2') || null
+            return this.role2Pools.find((pool) => pool.id === this.role2PoolId) || this.role2Pools[0] || null
         },
 
         /* The active action's submit-button label (busy state included). */
@@ -414,6 +435,7 @@ export default {
                     action: this.activeAction.toLowerCase(),
                     amount,
                     recipientDeliveryPoint: this.activeAction === 'Transfer' ? this.transferTo : undefined,
+                    poolId: this.role2Pool.id,
                 })
 
                 this.actionResult = result.actionTxid
@@ -453,8 +475,46 @@ export default {
         loadSend() {
             this.$router.push('/send')
         },
+
+        /* Re-fetch the SELECTED pool's blank inventory (the pool selector
+           and the mounted hook both call this — switching pools must reset
+           and re-count against the new pool's category). */
+        async refreshPoolBlankInfo() {
+            if (!this.role2Pool || !this.getMasterSeed) {
+                this.poolBlankInfo = null
+                return
+            }
+
+            try {
+                const addresses = (this.getAddresses('nito-cash') || []).map((a) => a.address)
+                const cluster = await getCluster(this.getNetwork)
+                const utxos = (await Promise.all(addresses.map((address) => cluster.getUtxosWithTokens(address)))).flat()
+                this.poolBlankInfo = blankSummary(utxos, this.role2Pool.assetCategory)
+            } catch (err) {
+                console.error('Blank inventory fetch failed:', err) // eslint-disable-line no-console
+                this.poolBlankInfo = null
+            }
+        },
+    },
+    watch: {
+        /* The pool selector: switching pools resets the transient action
+           state and re-counts the blanks against the new pool's category. */
+        role2PoolId() {
+            this.activeAction = null
+            this.actionError = null
+            this.actionResult = null
+            this.refreshPoolBlankInfo()
+        },
     },
     created: async function () {
+        /* Default the pool selector to the wallet-prover-compatible pool
+           (the accepted 2-out today); fall back to the newest role-2 entry
+           when none has passed its web acceptance yet. */
+        const compatible = getProverPool(this.getNetwork)
+        this.role2PoolId = (compatible && (compatible.shape || '').startsWith('role2'))
+            ? compatible.id
+            : (this.role2Pools[0] ? this.role2Pools[0].id : null)
+
         /* NOTE: each fetch below is guarded INDEPENDENTLY — one failing
            call (e.g. a flaky CoinGecko/Solana RPC) must not skip or zero
            the OTHER balances (a thrown getBalance previously left BOTH
@@ -498,18 +558,9 @@ export default {
 
         /* Role-2 blank inventory: fetch the wallet's token UTXOs and count
            the exact blank shape (pool category + mutable NFT + empty
-           commitment + 0 FT). 2 blanks per lock. */
-        if (this.role2Pool && this.getMasterSeed) {
-            try {
-                const addresses = (this.getAddresses('nito-cash') || []).map((a) => a.address)
-                const cluster = await getCluster(this.getNetwork)
-                const utxos = (await Promise.all(addresses.map((address) => cluster.getUtxosWithTokens(address)))).flat()
-                this.poolBlankInfo = blankSummary(utxos, this.role2Pool.assetCategory)
-            } catch (err) {
-                console.error('Blank inventory fetch failed:', err) // eslint-disable-line no-console
-                this.poolBlankInfo = null
-            }
-        }
+           commitment + 0 FT). 2 blanks per lock — against the SELECTED
+           pool's category. */
+        await this.refreshPoolBlankInfo()
 
         /* Derive the pool DELIVERY POINT (the shielded payment address —
            lib/pool/carrier.js) from the SAME domain-separated pool key the

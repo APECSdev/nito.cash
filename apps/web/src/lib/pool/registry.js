@@ -133,8 +133,10 @@ const POOLS = {
             genesisRootLE: '551108f63731bcc628dda2697d70219d103a8c1bf203f2d4aaec6bbea5b4510f',
             genesisLeafCount: 2,
             /* The 3-out demo is a 1-of-1 setup under VK d4ed12ee…; the witness
-               generator reproduces the live UNSHIELD byte-exactly, but the
-               store/UI path is not wired yet, so the flag stays false. */
+               generator reproduces the live UNSHIELD byte-exactly and the
+               store 3-out branch (poolId + outputs===3) is wired, but the
+             web-platform SHIELD → TRANSFER → UNSHIELD acceptance has not
+               run yet, so the flag stays false until it passes. */
             walletProverCompatible: false,
             status: 'awaiting-3out-store-acceptance',
             deployTxid: '2f650791…',
@@ -159,14 +161,22 @@ const POOLS = {
             stepLockings: [],
             program: ROLE2_PROGRAM_3OUT,
             guard: ROLE2_GUARD_3OUT,
-            vending: null,
+            /* The 3-out category's OWN vending machine — loaded 2026-11-26
+               (load 784ef9c4…, 6 blanks; first permissionless stranger buy
+               569a6e6d… block 348,775). Same 157-B covenant as the 2-out
+               machine; only the category/price/operator bytes differ. */
+            vending: {
+                lockingBytecode: 'aa2020bd0ad169a6343ebe86673df2f84fbb6e65a41e14f8891c96a24d10fefbf2d287',
+                redeemBytes: 157,
+                priceSats: 1000,
+            },
             shape: 'role2-tagged-3out',
             txInputCount: 3,
             outputs: 3,
             carrierBytes: 201,
             fuelSats: 15000,
             blanksPerLock: 2,
-            notes: 'THE 3-OUT V3 DEMO POOL — deployed 2026-11-26 (anchor bc607a96… = the category; mint 62d91e4c…; deploy 2f650791… block 348,569; program 7,848 B sha256 73cb0ccb…; born guarded). 3 inputs (fuel 0, fuel 1, state 2), NO signatures; 201-B OP_RETURN carrier with cm2; 9-field actionHash; 3 out-notes. Lifecycle: SHIELD 1,000 e847ef56… (out 400+300+300) → TRANSFER ef64f3dd… (out 280+210+210) → UNSHIELD 300 ec31a41c… (out 112+84+84, 300 FT payout); final state 700 FT, 11 leaves. The wallet 3-out witness generator reproduces the live UNSHIELD byte-exactly (scripts/pool-accept.mjs --pool role2-3out --txid ec31a41c). Demo only: 1-of-1 setup, public bootstrap in-notes on the first action, no real nullifier set, no encrypted note delivery; Gate 7 is the mainnet gate. The store/UI 3-out path is NOT wired.',
+            notes: 'THE 3-OUT V3 DEMO POOL — deployed 2026-11-26 (anchor bc607a96… = the category; mint 62d91e4c…; deploy 2f650791… block 348,569; program 7,848 B sha256 73cb0ccb…; born guarded). 3 inputs (fuel 0, fuel 1, state 2), NO signatures; 201-B OP_RETURN carrier with cm2; 9-field actionHash; 3 out-notes. FIVE confirmed actions: SHIELD 1,000 e847ef56… (out 400+300+300) → TRANSFER ef64f3dd… (out 280+210+210) → UNSHIELD 300 ec31a41c… (out 112+84+84, 300 FT payout) → zero-value-dummy TRANSFER 30f0f9d4… (out 400+20+0 — a 2-out flow) → the zero note SPENT cbfb0503… (in-notes 400+0, out 200+100+100); final state 700 FT, 17 leaves, state outpoint cbfb0503…:1. The wallet 3-out witness generator reproduces the live UNSHIELD byte-exactly (scripts/pool-accept.mjs --pool role2-3out --txid ec31a41c); the store 3-out branch (poolId + outputs===3) and the Wallet pool selector are wired; 3-out blanks are PERMISSIONLESS (vending machine above). Demo only: 1-of-1 setup, public bootstrap in-notes on the first action, no encrypted note delivery — and NO real nullifier set: finding R2-NULLIFIER-DOUBLING (a demonstrated full-balance drain, hushyourmoney handoff §12) means NO valued asset may enter ANY role-2 pool until the v3 nullifier set ships; Gate 7 AND the nullifier set are the mainnet gates.',
         },
         {
             id: "chipnet-pusd-v4",
@@ -343,13 +353,12 @@ export function getDefaultPool(networkId) {
  * (SHIELD/TRANSFER/UNSHIELD via lib/pool/actions.js): its verifying-key
  * lineage must match the wallet's proving assets (lib/pool/prover.js)
  * AND its verifier program must accept the builder's input layout.
- * ALL THREE registered pools are flagged false today — gate3's vkey
- * lineage is runner-gated (its entry notes), the mainnet demo pool's too,
- * and chipnet-pusd-v2's step program pins the bench's 5-input layout
- * while the builder emits 8 inputs (its entry note). Returns null when no
- * pool qualifies: the UI must gate the action flows on THIS, never on
- * getPools() — a Path-A deployment under the wallet-committed vkey flips
- * its entry's flag and the flows light up with no further code change.
+ * Today chipnet-pusd-role2 (2-out) is TRUE (its web acceptance passed
+ * 2026-11-26); the 3-out flips after ITS web acceptance. The mainnet demo
+ * pool and gate3 stay false (vkey lineage / step-layout, their entry notes).
+ * Returns null when no pool qualifies: the UI must gate the action flows on
+ * THIS, never on getPools() — a pool flips its entry's flag and the flows
+ * light up with no further code change.
  */
 export function getProverPool(networkId) {
     return (POOLS[networkId] || []).find((pool) => pool.walletProverCompatible === true) || null

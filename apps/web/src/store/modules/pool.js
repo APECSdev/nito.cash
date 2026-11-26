@@ -373,7 +373,10 @@ const actions = {
             throw error
         }
 
-        const scanned = await dispatch('scanPool')
+        /* Scan THE SELECTED pool — the state UTXO, the action chain and the
+           witness tree all come from the scan, so a 3-out submission must
+           never scan the (2-out) default pool. */
+        const scanned = await dispatch('scanPool', { poolId: pool.id })
 
         if (!scanned || !scanned.scan) {
             const error = new Error('The pool scan returned no action chain — try again.')
