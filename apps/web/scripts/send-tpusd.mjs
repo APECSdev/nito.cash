@@ -57,11 +57,16 @@ if (AMOUNT <= 0n) throw new Error('--amount must be > 0 (PUSD base units)')
    picks. When the TOKEN output itself carries >= MIN_FUNDING_SATS, the separate
    plain --bch output is unnecessary: a fixture-shaped program allows exactly ONE
    funding input, and that single UTXO must hold both the tokens and the fee. */
-if (BCH + TOKEN_SATS < 50000n) throw new Error('--bch + --token-sats must be >= 50000 (lib/pool/actions.js MIN_FUNDING_SATS — the action fee floor)')
+/* The role-2 lock's floor is 2 x 15,000 fuel sats + the lock fee (~32,000);
+   the old 50,000 was the v2 action's floor. */
+if (BCH + TOKEN_SATS < 32000n) throw new Error('--bch + --token-sats must be >= 32000 (the role-2 lock floor: 2 x 15,000 fuel + fee)')
 
 const secrets = JSON.parse(readFileSync(SECRETS, 'utf8'))
-const privateKey = hexToBin(secrets.privateKeyHex)
-const publicKey = hexToBin(secrets.publicKeyHex)
+/* Key files in the wild carry a 0x prefix (the faucet key does); libauth's
+   hexToBin rejects it, so strip it here. */
+const bareHex = (hex) => String(hex || '').replace(/^0x/i, '')
+const privateKey = hexToBin(bareHex(secrets.privateKeyHex))
+const publicKey = hexToBin(bareHex(secrets.publicKeyHex))
 const address = secrets.address
 if (!address.startsWith('bchtest:')) throw new Error('expected a chipnet mint key')
 

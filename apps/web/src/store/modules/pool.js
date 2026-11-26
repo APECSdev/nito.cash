@@ -23,12 +23,12 @@ import { deriveSpendKey, noteCommitment, nullifier } from '@/lib/pool/notes.js'
 
 /* Import the end-to-end action orchestrator (blocker #4 wiring — see
    lib/pool/actions.js). */
-import { submitPoolAction } from '@/lib/pool/actions.js'
+import { assembleLeaves, selectInNotes, submitPoolAction } from '@/lib/pool/actions.js'
 
 /* The role-2 (3-input tagged pool) pipeline: the orchestrator, the real prover
    chain, the witness generator, the carrier, and the blank selection. */
 import { submitRole2Action as submitRole2ActionLib } from '@/lib/pool/role2-actions.js'
-import { buildPoolWitness, generateProof } from '@/lib/pool/prover.js'
+import { PROVING_WASM_URL, PROVING_ZKEY_URL, buildPoolWitness, generateProof } from '@/lib/pool/prover.js'
 /* verifier-role2 is the node-side witness generator (it reads its fixtures
    with node:fs); the store imports it lazily inside prove(). */
 import { encodeRole2Carrier } from '@/lib/pool/role2-carrier.js'
@@ -377,9 +377,28 @@ const actions = {
         const changeAddress = rootGetters['wallets/getChangeAddress']('BCH')
         const payoutAddress = (rootGetters['wallets/getAddresses']('BCH')?.[0]?.address) || changeAddress
 
-        /* The pool's own UTXOs (the state NFT + the blanks live at the program). */
-        const poolUtxos = await cluster.getUtxosWithTokens(scanned.scan.address)
-        const blanks = selectBlanks(poolUtxos, pool.assetCategory)
+        /* Fulcrum UTXOs (tx_hash / tx_pos / value / token_data) normalized to
+           the builders' shape (txid / vout / sats / token). */
+        const normalize = (utxo) => ({
+            txid: utxo.txid || utxo.tx_hash,
+            vout: utxo.vout ?? utxo.tx_pos,
+            sats: BigInt(utxo.sats ?? utxo.value),
+            token: utxo.token || (utxo.token_data ? {
+                category: utxo.token_data.category,
+                amount: BigInt(utxo.token_data.amount),
+                ...(utxo.token_data.nft ? {
+                    nft: { capability: utxo.token_data.nft.capability, commitment: utxo.token_data.nft.commitment || '' },
+                } : {}),
+            } : undefined),
+        })
+
+        /* The pool's own UTXOs (the state NFT lives at the program). */
+        const poolUtxos = (await cluster.getUtxosWithTokens(scanned.scan.address)).map(normalize)
+
+        /* The blanks are USER-HELD (the lock signs them as P2PKH) — they must
+           be selected from the wallet's own UTXOs, never the pool address. */
+        const walletUtxos = (await cluster.getUtxosWithTokens(changeAddress)).map(normalize)
+        const blanks = selectBlanks(walletUtxos, pool.assetCategory)
 
         if (blanks.length < 2) {
             const error = new Error('Two blanks are required — buy them from the vending machine first.')
@@ -395,7 +414,7 @@ const actions = {
         /* The state UTXO is the tip action's out1 (the new state NFT). */
         const tip = scanned.scan.actions[scanned.scan.actions.length - 1]
         const stateUtxo = tip
-            ? poolUtxos.find((u) => u.tx_hash === tip.txid && u.tx_pos === 1)
+            ? poolUtxos.find((u) => u.txid === tip.txid && u.vout === 1)
             : null
 
         if (!stateUtxo || !stateUtxo.token?.nft?.commitment) {
@@ -406,12 +425,26 @@ const actions = {
             throw error
         }
 
-        /* A plain BCH UTXO funds the lock fee (the fuel sats are fixed). */
-        const funding = (await cluster.getUtxosWithTokens(changeAddress))
-            .find((u) => !u.token && BigInt(u.value) >= 20000n)
+        /* A plain BCH UTXO funds the lock: 2 x 15,000 fuel sats + the lock fee
+           (the placeholder policy measures the signed size; 2,000 is margin). */
+        const funding = walletUtxos.find((u) => !u.token && u.sats >= 32000n)
 
         if (!funding) {
-            const error = new Error('No plain BCH UTXO with 20,000 sats is available for the lock fee.')
+            const error = new Error('No plain BCH UTXO with 32,000 sats is available for the lock fee.')
+
+            dispatch('displayError', error, { root: true })
+
+            throw error
+        }
+
+        /* A SHIELD's FT deposit rides the lock's out0; the supply UTXO must
+           carry the deposit and sit at the wallet (the lock signs it). */
+        const supply = shield > 0n
+            ? walletUtxos.find((u) => u.token && u.token.category === pool.assetCategory && !u.token.nft && u.token.amount >= shield)
+            : null
+
+        if (shield > 0n && !supply) {
+            const error = new Error('No ' + pool.assetCategory.slice(0, 8) + '… FT UTXO covers the shield deposit.')
 
             dispatch('displayError', error, { root: true })
 
@@ -419,16 +452,18 @@ const actions = {
         }
 
         const prove = async () => {
-            const unspent = state.notes.filter((n) => !n.spent)
-            const inNotes = unspent.slice(0, 2).map((n) => ({
-                note: { value: BigInt(n.value), ownerPub: BigInt(n.ownerPub), rho: BigInt(n.rho), r: BigInt(n.r) },
-                nk: BigInt(n.nk),
-                index: Number(n.leafIndex),
-            }))
+            /* The FULL witness tree: the registry genesis leaves followed by
+               every action's cm0/cm1 at the scan-assigned global indices. */
+            const leaves = assembleLeaves(scanned.scan, pool)
 
-            if (inNotes.length !== 2) throw new Error('Two unspent pool notes are required for a role-2 action.')
-
-            const leaves = state.leaves.map((leaf) => BigInt(leaf))
+            /* EXACTLY two in-notes: the wallet's own (largest first), filled
+               with the pool's published bootstrap notes for a first deposit. */
+            const { picked: inNotes } = selectInNotes({
+                action,
+                amount: shield,
+                ownNotes: state.notes,
+                bootstrapNotes: pool.bootstrapNotes,
+            })
 
             /* Fresh out-note secrets (the nk · G convention — spendable later). */
             const { buildBabyjub } = await import('circomlibjs')
@@ -436,11 +471,11 @@ const actions = {
             const F = bbj.F
             const modr = (x) => ((x % F.p) + F.p) % F.p
             const pubOf = (nk) => { const p = bbj.mulPointEscalar(bbj.Base8, nk); const x = BigInt(F.toObject(p[0])); if (x >= F.p) throw new Error('out-note ownerPub out of range'); return x }
-            const seed = `${stateUtxo.tx_hash}:${action}:${amount}`
-            let counter = 0
+            /* CSPRNG note secrets (the old tx-derived seed was public data). */
             const rnd = async () => {
-                const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(`${seed}:${counter++}`))
-                return modr(BigInt('0x' + [...new Uint8Array(digest)].map((b) => b.toString(16).padStart(2, '0')).join('')))
+                const bytes = new Uint8Array(32)
+                crypto.getRandomValues(bytes)
+                return modr(BigInt('0x' + [...bytes].map((b) => b.toString(16).padStart(2, '0')).join('')))
             }
 
             const inSum = inNotes.reduce((sum, n) => sum + n.note.value, 0n)
@@ -464,10 +499,12 @@ const actions = {
                 assetCategory: BigInt('0x' + pool.assetCategory),
             })
 
-            const { proof, publicSignals } = await generateProof(witness)
-            const commitment = stateUtxo.token.nft.commitment
-            const oldNull = commitment.slice(32)
-            const newRoot = witness.newMerkleRoot
+            /* The Worker-mirrored proving assets (the 97 MB zkey cannot ship
+               on Pages; the relative defaults are local-dev only). */
+            const { proof, publicSignals } = await generateProof(witness, PROVING_WASM_URL, PROVING_ZKEY_URL)
+            const commitment = String(stateUtxo.token.nft.commitment || '')
+            const oldNull = hexToBytes(commitment).slice(32)
+            const newRoot = BigInt(witness.newMerkleRoot)
             const nf0 = BigInt(witness.nf[0])
             const nf1 = BigInt(witness.nf[1])
             const cm0 = BigInt(witness.cm[0])
@@ -486,7 +523,12 @@ const actions = {
             const unlockings = produceRole2Inputs({ proof, publicSignals, scenarioArgs })
             const newBalance = BigInt(stateUtxo.token.amount) + shield - 2n * sign * shield
 
-            return { carrier, unlockings, newRoot: newRoot, newNull, newBalance, outNotes }
+            /* The state NFT commitment carries the 32-byte LE root. */
+            const rootLE = new Uint8Array(32)
+            let rootValue = newRoot
+            for (let i = 0; i < 32; i += 1) { rootLE[i] = Number(rootValue & 0xffn); rootValue >>= 8n }
+
+            return { carrier, unlockings, newRoot: rootLE, newNull, newBalance, outNotes }
         }
 
         let result
@@ -496,6 +538,7 @@ const actions = {
                 state: stateUtxo,
                 blanks,
                 funding,
+                supply,
                 shield,
                 changeAddress,
                 privateKey: spendKey,
