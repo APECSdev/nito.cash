@@ -6,6 +6,10 @@
 //   u = X^6 - 9; an Fp2 element a0 + a1 u maps to Phi(a) = (a0 - 9 a1) + a1 X^6.
 import assert from 'node:assert';
 import {readFileSync} from 'node:fs';
+/* The fixtures are a STATIC import so the browser bundle carries them (the
+   node:fs polyfill cannot resolve the import.meta.url path); the optional
+   BN_VK_FIXTURES override stays for the node harnesses. */
+import FIXTURES_JSON from '../our.fixtures.json' with { type: 'json' };
 import {bn254} from '@noble/curves/bn254.js';
 import {psiFrobenius} from '@noble/curves/abstract/tower.js';
 
@@ -17,7 +21,7 @@ export const inv = (x) => Fp.inv(mod(x));
 // ---------------- fixtures / VK (same as the densless entries) ----------------
 // BN_VK_FIXTURES (optional, Track 11 real keys): a fixtures file of the same shape ({vk, fixtures}) for another BN254 VK
 // with exactly 2 public inputs (../real-keys/*.fixtures.json). Unset = the densless VK, byte-identical to before.
-export const FIXTURES = JSON.parse(readFileSync(process.env.BN_VK_FIXTURES ? process.env.BN_VK_FIXTURES : new URL('../our.fixtures.json', import.meta.url)));
+export const FIXTURES = process.env.BN_VK_FIXTURES ? JSON.parse(readFileSync(process.env.BN_VK_FIXTURES)) : FIXTURES_JSON;
 assert.equal(FIXTURES.vk.ic.length, 3, 'the verifier binds exactly 2 public inputs (IC0..IC2)');
 export const g1 = (x) => bn254.G1.Point.fromAffine({x: BigInt(x.x), y: BigInt(x.y)});
 export const g2 = (x) => bn254.G2.Point.fromAffine({x: {c0: BigInt(x.x.c0), c1: BigInt(x.x.c1)}, y: {c0: BigInt(x.y.c0), c1: BigInt(x.y.c1)}});
