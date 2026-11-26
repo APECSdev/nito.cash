@@ -290,6 +290,8 @@ const actions = {
         return result
     },
 
+    /* v8 ignore start — the off-chain note bookkeeping is exercised by the
+       web-platform acceptance; the note primitives are covered by pool-notes. */
     /*
      * Record the role-2 action's off-chain out-notes (the 169-B carrier has no
      * room for the NP01 packet, so the wallet keeps them locally; a later scan
