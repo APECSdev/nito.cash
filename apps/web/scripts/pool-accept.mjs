@@ -22,9 +22,10 @@
 //   node scripts/pool-accept.mjs --pool gate3
 //   node scripts/pool-accept.mjs --pool mainnet --txid 4fda8a8b
 //   node scripts/pool-accept.mjs --pool gate3 --vkey path/to/other-vkey.json
+//   node scripts/pool-accept.mjs --pool role2
 //
 // Options:
-//   --pool <gate3|mainnet>   the registry pool to test (default gate3)
+//   --pool <gate3|mainnet|role2>   the registry pool to test (default gate3)
 //   --txid <prefix>          a specific live action txid prefix (default:
 //                            the pool's first decodable action in history)
 //   --vkey <path>            candidate vkey in snarkjs JSON shape (default:
@@ -38,6 +39,7 @@ import { ElectrumClient } from '@electrum-cash/network'
 
 import { produceVerifierInputs } from '../src/lib/pool/verifier.js'
 import { DEPLOYED_PROGRAM } from '../src/lib/pool/verifier-program.js'
+import { produceRole2Inputs } from '../src/lib/pool/verifier-role2.js'
 
 /* ---- args ---- */
 const args = process.argv.slice(2)
@@ -63,9 +65,14 @@ const POOLS = {
         locking: 'aa20a8d375c44dfa07ab5b3a7773e69e608fc307d188be00f5308813ef80989a47b987',
         server: { host: 'bch.imaginary.cash', port: 50004 },
     },
+    role2: {
+        network: 'chipnet',
+        locking: 'aa203e40b64cff154d4b3305e8c8cc4e3174bc595ad74342a8445a9a7798b7be3a2987',
+        server: { host: 'chipnet.bch.ninja', port: 50004 },
+    },
 }
 const pool = POOLS[POOL]
-if (!pool) throw new Error(`unknown pool '${POOL}' (gate3 | mainnet)`)
+if (!pool) throw new Error(`unknown pool '${POOL}' (gate3 | mainnet | role2)`)
 
 /* ---- the candidate vkey (snarkjs shape) -> bench shape (actions.js toBenchVk) ---- */
 const g1 = (p) => ({ x: p[0], y: p[1] })
@@ -146,6 +153,46 @@ if (!raw) throw new Error('no live pool action found')
 
 const tx = decodeTransaction(hexToBin(raw))
 if (typeof tx === 'string') throw new Error('undecodable tx: ' + tx)
+
+/* ─── role-2 (3-input bn-native-sound) branch ───
+   The live state input (input 2) carries [DG] [STMT] [S_2] [HAND_2] [DS_2]
+   [FILL_2] [WQ] [R]; STMT is the 642-byte push with the proof A/B/C + n0/n1.
+   The generator is verifier-role2.js (the Hush bn-native-sound unlockingsFor). */
+if (POOL === 'role2') {
+    const STMT_SIZE = 642
+    const stmtPush = (unlocking) => scriptPushes(unlocking).find((p) => p && p.length === STMT_SIZE)
+    const stmt = stmtPush(tx.inputs[2].unlockingBytecode)
+    if (!stmt) throw new Error('role2: no 642-byte STMT in the state input')
+    const le = (bytes) => { let n = 0n; for (let i = bytes.length - 1; i >= 0; i -= 1) n = (n << 8n) | BigInt(bytes[i]); return n }
+    const proof = {
+        pi_a: [le(stmt.slice(0, 32)).toString(), le(stmt.slice(32, 64)).toString(), '1'],
+        pi_b: [[le(stmt.slice(64, 96)).toString(), le(stmt.slice(96, 128)).toString()], [le(stmt.slice(128, 160)).toString(), le(stmt.slice(160, 192)).toString()], ['1', '0']],
+        pi_c: [le(stmt.slice(192, 224)).toString(), le(stmt.slice(224, 256)).toString(), '1'],
+    }
+    const publicSignals = [le(stmt.slice(256, 288)), le(stmt.slice(288, 320))]
+    console.log(`pool=role2 txid=${txid}`)
+    console.log(`live inputs: ${tx.inputs.map((i, idx) => idx + ':' + i.unlockingBytecode.length).join('  ')}`)
+    console.log(`publicSignals n0=0x${publicSignals[0].toString(16)}`)
+    console.log(`               n1=0x${publicSignals[1].toString(16)}`)
+    const produced = produceRole2Inputs({ proof, publicSignals })
+    const names = ['fuel0', 'fuel1', 'state']
+    let allPass = true
+    for (let i = 0; i < 3; i++) {
+        const live = tx.inputs[i].unlockingBytecode
+        const mine = new Uint8Array(produced[i])
+        if (binToHex(live) === binToHex(mine)) {
+            console.log(`  ${names[i]} (in[${i}]): *** BYTE-EXACT ***`)
+            continue
+        }
+        allPass = false
+        console.log(`  ${names[i]} (in[${i}]): MISMATCH (live ${live.length}B vs port ${mine.length}B)`)
+    }
+    console.log('')
+    console.log(allPass
+        ? 'ACCEPTANCE: PASS — the wallet role-2 port regenerates the deployed witness byte-exactly'
+        : 'ACCEPTANCE: FAIL — the role-2 witness layout differs')
+    process.exit(allPass ? 0 : 1)
+}
 
 console.log(`pool=${POOL} txid=${txid}`)
 console.log(`live inputs: ${tx.inputs.map((i, idx) => idx + ':' + i.unlockingBytecode.length).join('  ')}`)

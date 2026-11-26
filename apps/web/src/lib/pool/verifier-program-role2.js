@@ -10,17 +10,24 @@
 //
 // Facts from the handoff (POOL-HANDOFF-2026-11-24-NITO-ROLE2-TAGGED.md §2,
 // §4.1, §5) — every value is a live on-chain artifact.
+//
+// CORRECTION (role2-proving-assets-v1 HANDOVER §4): the earlier `codePin`
+// d71851a1… is the hooked program's code hash for the CANONICAL SWEEP category
+// 2469acc5… — a source-drift pin, NOT the deployed code identity. The deployed
+// category 480e30ff… produces code hash f12f9094… (7,834 B), which is what the
+// on-chain R redeem commits to.
 
 export const ROLE2_PROGRAM = {
     id: 'role2-tagged',
     lockingBytecode: 'aa203e40b64cff154d4b3305e8c8cc4e3174bc595ad74342a8445a9a7798b7be3a2987',
     programBytes: 7834,
-    codePin: 'd71851a1ce6d795c0aa40ab055faac1000755d474313f16e6cd34855ffbfff41',
+    codePin: 'f12f90947e09a635f98a2938fedac58b7548c36edead44aecc38564967bce116',
+    sweepCodePin: 'd71851a1ce6d795c0aa40ab055faac1000755d474313f16e6cd34855ffbfff41',
     txInputCount: 3,
     carrierBytes: 169,
-    vkSha256: '05250429…',
+    vkSha256: '05250429214cd82eac6540459a564c223c2b3f985122fbe5369b2eac7546bd19',
     zkeySha256: '4a4e2543dbe640de7a59e23cc652b89a50034898757efff22242eafec0f7b7c0',
-    wasmSha256: '8595b434…',
+    wasmSha256: '8595b43409370c83f371e16408cde85d88382f6fa66f406404071fb38efa7a48',
     hookChecks: '1–11 + 4c/4g (deposit tags)',
 }
 

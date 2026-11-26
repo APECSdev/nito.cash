@@ -323,6 +323,22 @@ sender, receiver, and amount are all masked. Design decisions locked:
   old 7-input generator; the live witness pushes (`9d9aa97a…`, `5262417b…`, `e54d19fb…`)
   are the byte-exact oracle. The Hush reply is `docs/DAEMONS-NITO-RESPONSE-2026-11-25.md`
   (commit `3739be7`).
+- THE HUSH HANDOVER HAS LANDED (release `role2-proving-assets-v1`, 2026-11-25). The three
+  assets are hash-verified (zkey `4a4e2543…`, wasm `8595b434…7a48`, VK `05250429…bd19`);
+  the witness generator is `chunked/bn254/bn-native-sound/` (NOT the nonexistent
+  `wip-role2-hook/transaction.mjs`); the worktree tarball carries it. THE NITO PORT IS IN
+  `src/lib/pool/role2/` (the vendored `bn-native-sound` + `sound-si-gls`, `our.fixtures.json`)
+  and `src/lib/pool/verifier-role2.js` (`produceRole2Inputs`). THE PROGRAM REPRODUCES
+  BYTE-EXACTLY (the handover self-check): code 7834 / `f12f9094…`, R `00ca0209…`, locking
+  `aa203e40…`. The `codePin` CORRECTION is applied: `d71851a1…` is the canonical-sweep
+  category's code hash, NOT the deployed identity; the deployed `480e30ff…` code hash is
+  `f12f90947e09a635f98a2938fedac58b7548c36edead44aecc38564967bce116` (`sweepCodePin`
+  keeps the old value). The `pool-accept.mjs` role-2 branch reads the live 642-B STMT from
+  the state input and compares the three unlockings. REMAINING: the `sizeFills` (the
+  op-budget filler) needs `createVirtualMachineBch2026` from `@bitauth/libauth@3.1.0-next.8`
+  (the repo has `^3.0.0`; upgrade + lockfile on the build host); then the byte-exact live
+  witness test, the prover swap (`prover.js` + the `prover.nito.cash` mirror), and the
+  web-platform SHIELD → TRANSFER → UNSHIELD acceptance.
 - THE OLD NOTES ARE NOT KEPT. The `chipnet-pusd-v4` notes came from a WITHDRAWN
   verifier and are ABANDONED — no unshield/re-shield migration, no old-note spend.
   The new role-2 pool starts from its own genesis root; all new notes are created by
