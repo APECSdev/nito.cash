@@ -241,7 +241,7 @@ import { getTokenCategory } from '@/lib/bch/networks'
 
 /* Import the shielded-pool registry + the pool key material (the same
    domain-separated key the scan + action flows use). */
-import { getPools, getProverPool } from '@/lib/pool/registry'
+import { getPools, getProverPool } from '@/lib/pool/registry.js'
 import { blankSummary } from '@/lib/pool/blanks'
 import { getCluster } from '@/lib/bch/provider'
 import { deriveSpendKey } from '@/lib/pool/notes'
