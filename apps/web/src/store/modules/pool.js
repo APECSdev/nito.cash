@@ -19,11 +19,20 @@ import { deriveSealKey, sealJSON, unsealJSON } from '@/lib/pool/seal.js'
 /* Import the note-detection scan (blocker #2 wiring — see lib/pool/scan.js). */
 import { scanPool } from '@/lib/pool/scan.js'
 import { getDefaultPool, getProverPool } from '@/lib/pool/registry.js'
-import { deriveSpendKey } from '@/lib/pool/notes.js'
+import { deriveSpendKey, noteCommitment, nullifier } from '@/lib/pool/notes.js'
 
 /* Import the end-to-end action orchestrator (blocker #4 wiring — see
    lib/pool/actions.js). */
 import { submitPoolAction } from '@/lib/pool/actions.js'
+
+/* The role-2 (3-input tagged pool) pipeline: the orchestrator, the real prover
+   chain, the witness generator, the carrier, and the blank selection. */
+import { submitRole2Action as submitRole2ActionLib } from '@/lib/pool/role2-actions.js'
+import { buildPoolWitness, generateProof } from '@/lib/pool/prover.js'
+/* verifier-role2 is the node-side witness generator (it reads its fixtures
+   with node:fs); the store imports it lazily inside prove(). */
+import { encodeRole2Carrier } from '@/lib/pool/role2-carrier.js'
+import { selectBlanks } from '@/lib/pool/blanks.js'
 
 /* Import byte helpers + the Fulcrum provider (quorum-verified chain data). */
 import { hexToBytes } from '@/lib/bch/crypto.js'
@@ -278,6 +287,225 @@ const actions = {
 
         dispatch('displayNotification', 'Pool action broadcast!', { root: true })
 
+        return result
+    },
+
+    /*
+     * Record the role-2 action's off-chain out-notes (the 169-B carrier has no
+     * room for the NP01 packet, so the wallet keeps them locally; a later scan
+     * reconciles by commitment).
+     */
+    async recordRole2Notes({ dispatch, state }, { outNotes }) {
+        for (const n of outNotes || []) {
+            const cm = await noteCommitment(BigInt(n.value), BigInt(n.ownerPub), BigInt(n.rho), BigInt(n.r))
+            const nf = await nullifier(BigInt(n.nk), BigInt(n.rho))
+
+            await dispatch('recordNote', {
+                value: String(n.value),
+                ownerPub: String(n.ownerPub),
+                rho: String(n.rho),
+                r: String(n.r),
+                nk: String(n.nk),
+                cm: String(cm),
+                nf: String(nf),
+                leafIndex: state.leaves.length,
+                spent: false,
+            })
+        }
+    },
+
+    /*
+     * Role-2 action — the 3-input tagged pool (SHIELD / TRANSFER / UNSHIELD).
+     *
+     * Refreshes the role-2 scan, then runs the REAL pipeline:
+     *   witness (buildPoolWitness) → proof (generateProof) → the 3 unlockings
+     *   (produceRole2Inputs, sized against the real pool shape) → the 169-B
+     *   carrier → submitRole2Action (the lock + the action, broadcast together).
+     *
+     * Params: { action: 'shield'|'transfer'|'unshield', amount: BigInt|number
+     *   (PUSD base units), recipientDeliveryPoint?: hex (transfer only) }.
+     * Requires the role-2 pool to be walletProverCompatible (the registry
+     * flag flips only after the web-platform acceptance).
+     */
+    async submitRole2Action({ dispatch, state, rootGetters }, { action, amount, recipientDeliveryPoint, onStage }) {
+        const entropyHex = rootGetters['profile/getMasterSeed']
+
+        if (!entropyHex) {
+            const error = new Error('Open your wallet first (no seed set).')
+
+            dispatch('displayError', error, { root: true })
+
+            throw error
+        }
+
+        const network = rootGetters['profile/getNetwork']
+        const pool = getPools(network).find((p) => p.id === 'chipnet-pusd-role2')
+
+        if (!pool) {
+            const error = new Error('The role-2 pool is not registered on this network.')
+
+            dispatch('displayError', error, { root: true })
+
+            throw error
+        }
+
+        if (pool.walletProverCompatible !== true) {
+            const error = new Error('The role-2 pool is not wallet-prover-compatible yet (awaiting the web-platform acceptance).')
+
+            dispatch('displayError', error, { root: true })
+
+            throw error
+        }
+
+        const scanned = await dispatch('scanPool')
+
+        if (!scanned || !scanned.scan) {
+            const error = new Error('The pool scan returned no action chain — try again.')
+
+            dispatch('displayError', error, { root: true })
+
+            throw error
+        }
+
+        const cluster = await getCluster(network)
+        const spendKey = deriveSpendKey(hexToBytes(entropyHex))
+        const changeAddress = rootGetters['wallets/getChangeAddress']('BCH')
+        const payoutAddress = (rootGetters['wallets/getAddresses']('BCH')?.[0]?.address) || changeAddress
+
+        /* The pool's own UTXOs (the state NFT + the blanks live at the program). */
+        const poolUtxos = await cluster.getUtxosWithTokens(scanned.scan.address)
+        const blanks = selectBlanks(poolUtxos, pool.assetCategory)
+
+        if (blanks.length < 2) {
+            const error = new Error('Two blanks are required — buy them from the vending machine first.')
+
+            dispatch('displayError', error, { root: true })
+
+            throw error
+        }
+
+        const shield = action === 'shield' ? BigInt(amount) : 0n
+        const sign = action === 'unshield' ? 1n : 0n
+
+        /* The state UTXO is the tip action's out1 (the new state NFT). */
+        const tip = scanned.scan.actions[scanned.scan.actions.length - 1]
+        const stateUtxo = tip
+            ? poolUtxos.find((u) => u.tx_hash === tip.txid && u.tx_pos === 1)
+            : null
+
+        if (!stateUtxo || !stateUtxo.token?.nft?.commitment) {
+            const error = new Error('The role-2 state UTXO was not found at the pool address.')
+
+            dispatch('displayError', error, { root: true })
+
+            throw error
+        }
+
+        /* A plain BCH UTXO funds the lock fee (the fuel sats are fixed). */
+        const funding = (await cluster.getUtxosWithTokens(changeAddress))
+            .find((u) => !u.token && BigInt(u.value) >= 20000n)
+
+        if (!funding) {
+            const error = new Error('No plain BCH UTXO with 20,000 sats is available for the lock fee.')
+
+            dispatch('displayError', error, { root: true })
+
+            throw error
+        }
+
+        const prove = async () => {
+            const unspent = state.notes.filter((n) => !n.spent)
+            const inNotes = unspent.slice(0, 2).map((n) => ({
+                note: { value: BigInt(n.value), ownerPub: BigInt(n.ownerPub), rho: BigInt(n.rho), r: BigInt(n.r) },
+                nk: BigInt(n.nk),
+                index: Number(n.leafIndex),
+            }))
+
+            if (inNotes.length !== 2) throw new Error('Two unspent pool notes are required for a role-2 action.')
+
+            const leaves = state.leaves.map((leaf) => BigInt(leaf))
+
+            /* Fresh out-note secrets (the nk · G convention — spendable later). */
+            const { buildBabyjub } = await import('circomlibjs')
+            const bbj = await buildBabyjub()
+            const F = bbj.F
+            const modr = (x) => ((x % F.p) + F.p) % F.p
+            const pubOf = (nk) => { const p = bbj.mulPointEscalar(bbj.Base8, nk); const x = BigInt(F.toObject(p[0])); if (x >= F.p) throw new Error('out-note ownerPub out of range'); return x }
+            const seed = `${stateUtxo.tx_hash}:${action}:${amount}`
+            let counter = 0
+            const rnd = async () => {
+                const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(`${seed}:${counter++}`))
+                return modr(BigInt('0x' + [...new Uint8Array(digest)].map((b) => b.toString(16).padStart(2, '0')).join('')))
+            }
+
+            const inSum = inNotes.reduce((sum, n) => sum + n.note.value, 0n)
+            const outSum = inSum + (sign ? -shield : shield)
+            if (outSum < 0n) throw new Error('The selected notes do not cover the unshield amount.')
+
+            const out0v = (outSum * 3n) / 5n
+            const out1v = outSum - out0v
+            const outNotes = []
+            for (const value of [out0v, out1v]) {
+                const nk = await rnd()
+                outNotes.push({ value, ownerPub: pubOf(nk), rho: await rnd(), r: await rnd(), nk })
+            }
+
+            const witness = await buildPoolWitness({
+                inNotes,
+                outNotes: outNotes.map(({ value, ownerPub, rho, r }) => ({ value, ownerPub, rho, r })),
+                leaves,
+                publicValueAbs: shield,
+                publicValueSign: sign,
+                assetCategory: BigInt('0x' + pool.assetCategory),
+            })
+
+            const { proof, publicSignals } = await generateProof(witness)
+            const commitment = stateUtxo.token.nft.commitment
+            const oldNull = commitment.slice(32)
+            const newRoot = witness.newMerkleRoot
+            const nf0 = BigInt(witness.nf[0])
+            const nf1 = BigInt(witness.nf[1])
+            const cm0 = BigInt(witness.cm[0])
+            const cm1 = BigInt(witness.cm[1])
+            const carrier = encodeRole2Carrier({ nf0, nf1, cm0, cm1, newRoot: BigInt(newRoot), pv: shield, sign })
+            const sha256 = async (bytes) => new Uint8Array(await crypto.subtle.digest('SHA-256', bytes))
+            const newNull = await sha256(new Uint8Array([...oldNull, ...nf0.toString(16).padStart(64, '0').match(/../g).map((h) => parseInt(h, 16)), ...nf1.toString(16).padStart(64, '0').match(/../g).map((h) => parseInt(h, 16))]))
+            const scenarioArgs = {
+                sc: { nf0, nf1, cm0, cm1, newRoot: BigInt(newRoot), pv: shield, sign },
+                n0: BigInt(publicSignals[0]),
+                balance: BigInt(stateUtxo.token.amount),
+                oldNull,
+                categoryDisplay: stateUtxo.token.category,
+            }
+            const { produceRole2Inputs } = await import('@/lib/pool/verifier-role2.js')
+            const unlockings = produceRole2Inputs({ proof, publicSignals, scenarioArgs })
+            const newBalance = BigInt(stateUtxo.token.amount) + shield - 2n * sign * shield
+
+            return { carrier, unlockings, newRoot: newRoot, newNull, newBalance, outNotes }
+        }
+
+        let result
+        try {
+            result = await submitRole2ActionLib({
+                pool,
+                state: stateUtxo,
+                blanks,
+                funding,
+                shield,
+                changeAddress,
+                privateKey: spendKey,
+                prove,
+                broadcast: (hex) => cluster.broadcast(hex),
+                onStage,
+                saveNotes: async (notes) => { await dispatch('recordRole2Notes', notes) },
+                payoutAddress,
+            })
+        } catch (error) {
+            dispatch('displayError', error, { root: true })
+            throw error
+        }
+
+        dispatch('displayNotification', 'Role-2 action broadcast!', { root: true })
         return result
     },
 
