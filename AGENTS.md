@@ -816,6 +816,12 @@ any pool. No current-hook pool (mainnet OR chipnet) ever holds valued assets for
 demo. The user's side HOLDS a real-PUSD test supply for the mainnet demo — provide a
 receive address to the user AT DEPLOY TIME (the funds arrive only after the v3 pool is
 deployed and gated; keep the exposure window minimal). The demo-scale amount only.
+**NAMING (2026-11-27, the user — binding for ALL user-facing copy): the MAINNET pool's
+official stage name is `Preview v0` / `Preview Version 0` — NEVER "Release Candidate"
+or "RC" (most users do not know what a Release Candidate is). Every user-facing
+surface that names the mainnet pool's stage — the Wallet pool panel, the Concierge
+Earn suite 01a card, the video, marketing copy — uses `Preview v0`. Internal
+engineering docs may keep the candidate-class language; users never see it.
 
 **R3-FREE-NEWROOT (disclosed by the Hush 2026-11-27,
 `hushyourmoney/docs/POOL-UPDATE-NITO-2026-11-27.md` — verified by us):** a SECOND,

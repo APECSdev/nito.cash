@@ -25,6 +25,16 @@
 //     seed subtree requires the seed subtree hashes — a later registry
 //     extension ("genesisSubtreeHashes"), needed for SPENDING on non-aligned
 //     trees, not for detection.
+//
+// USER-FACING STAGE NAMING (the user's order, 2026-11-27 — binding): the
+// MAINNET pool's official stage label is `Preview v0` (`Preview Version 0`),
+// NEVER "Release Candidate"/"RC" — most users do not understand the term.
+// The upcoming mainnet v3 entry carries `stageLabel: 'Preview v0'` and every
+// UI site that names the pool's stage to a user (the Wallet pool panel, the
+// Concierge Earn suite 01a card) renders THAT field verbatim. Testnet
+// entries may say testnet; the functional `status` field (live /
+// awaiting-proving-assets / deprecated) drives the gate and is NOT shown raw
+// to users.
 
 import { binToHex, lockingBytecodeToCashAddress, sha256 } from '@bitauth/libauth'
 

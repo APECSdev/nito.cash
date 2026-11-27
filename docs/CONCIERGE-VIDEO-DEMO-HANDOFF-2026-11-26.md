@@ -6,6 +6,13 @@ role-2 shielded pool is LIVE (the browser acceptance passed: SHIELD `1ca58773…
 TRANSFER `50644d00…` → UNSHIELD `f52008f4…`), so the Earn suite can be shown as a real
 deployment.
 
+**POOL STAGE NAMING (the user's order, 2026-11-27 — binding for the video + every
+user-facing surface): the MAINNET pool's official stage name is `Preview v0`
+(`Preview Version 0`) — NEVER "Release Candidate"/"RC" (most users do not understand
+the term). The video's mainnet-pool segment (Option C: the v3 mainnet deploy with real
+PUSD) names the pool `Preview v0`; the registry's mainnet v3 entry carries
+`stageLabel: 'Preview v0'` and the UI renders it verbatim.**
+
 ## 1. Status matrix (what the demo shows)
 
 | Tab | Element | Status | Notes |
