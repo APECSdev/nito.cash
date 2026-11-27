@@ -1,9 +1,19 @@
 <template>
     <main class="h-full flex flex-col overflow-y-auto [-webkit-overflow-scrolling:touch]">
+        <!-- First-run backup reminder: shows ONCE PER LAUNCH until the
+             user has viewed their SeedVault phrase once (profile flag
+             `f.bb`). "Not now" dismisses for this session only. -->
         <Backup
             v-if="backupReminder"
-            :showBackup="showBackup"
-            v-on:close-backup="showBackup = false"
+            v-on:confirm-backup="onConfirmBackup"
+            v-on:deny-backup="onDenyBackup"
+        />
+
+        <!-- The REAL backup: the SeedVault phrase display + copy (the same
+             popup Settings → Wallet → Create SeedVault opens). -->
+        <SeedVault
+            :active="showSeedVault"
+            v-on:close-seed-vault="onSeedVaultClose"
         />
 
         <Import
@@ -101,7 +111,7 @@
 import { mapActions, mapGetters, mapState } from 'vuex'
 
 /* Import components. */
-import { BlazeBanner, Backup, Button, Footer, Import, WizardConnect } from '@/components'
+import { BlazeBanner, Backup, Button, Footer, Import, SeedVault, WizardConnect } from '@/components'
 
 /* Import icons. */
 import '@/compiled-icons/cog'
@@ -114,12 +124,13 @@ export default {
         Button,
         Footer,
         Import,
+        SeedVault,
         WizardConnect,
     },
     data: () => {
         return {
             backupReminder: false,
-            showBackup: false,
+            showSeedVault: false,
             showImport: false,
             showWizardConnect: false,
             walletBalance: null,
@@ -137,6 +148,10 @@ export default {
         ...mapGetters('wallets', [
             'getAccounts',
             'getBalance',
+        ]),
+
+        ...mapGetters('profile', [
+            'getFlags',
         ]),
 
         /* PRIMARY (big) figure: the FIAT amount. utils/getFormattedValue
@@ -214,6 +229,42 @@ export default {
         loadConcierge() {
             this.$router.push('concierge')
         },
+
+        /**
+         * Confirm Backup (Wallet Backup)
+         *
+         * "Show my backup" — open the SeedVault popup (the real 24-word
+         * phrase + copy). The prompt hides for this session; viewing the
+         * phrase + pressing Done sets the `f.bb` flag (no more prompts).
+         */
+        onConfirmBackup() {
+            this.backupReminder = false
+            this.showSeedVault = true
+        },
+
+        /**
+         * Deny Backup (Wallet Backup)
+         *
+         * "Not now" — dismiss for THIS session only; the reminder returns
+         * on the next launch (the seed has still never been viewed).
+         */
+        onDenyBackup() {
+            this.backupReminder = false
+        },
+
+        /**
+         * Close SeedVault
+         *
+         * The user has now SEEN their recovery phrase — persist `f.bb` so
+         * the first-run reminder never shows again.
+         */
+        onSeedVaultClose() {
+            this.showSeedVault = false
+            this.$store.commit('profile/setFlags', {
+                ...this.getFlags,
+                bb: true,
+            })
+        },
     },
     watch: {
         /* In-session deep links (dashboard → dashboard?connect=1) don't
@@ -253,6 +304,11 @@ export default {
         if (balance) {
             this.walletBalance = balance
         }
+
+        /* First-run backup reminder: only for an EXISTING wallet (master
+           seed set) that has never viewed its SeedVault phrase once
+           (profile flag `f.bb`). Re-prompts each launch until viewed. */
+        this.backupReminder = !!this.masterSeed && !((this.getFlags || {}).bb)
     },
     mounted: function () {
         //

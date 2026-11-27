@@ -18,8 +18,8 @@
             </article>
 
             <footer>
-                <Button @click.native="deny" label="No" double />
-                <Button @click.native="confirm" label="Yes" double />
+                <Button @click.native="deny" label="Not now" double />
+                <Button @click.native="confirm" label="Show my backup" double />
             </footer>
         </section>
     </Popup>
@@ -46,22 +46,26 @@ export default {
             // active: null,
         }
     },
+    emits: ['confirm-backup', 'deny-backup'],
     methods: {
         /**
          * Confirm (Wallet Backup)
+         *
+         * The parent (Dashboard) opens the SeedVault popup (the real seed
+         * display + copy) and marks the backup done once it closes.
          */
         confirm() {
-            console.log('CONFIRM')
-            // showExport = true
-            // backupReminder.set(false)
+            this.$emit('confirm-backup')
         },
 
         /**
          * Deny (Wallet Backup)
+         *
+         * "Not now" — the prompt dismisses for THIS session; the parent
+         * re-prompts on the next launch until the seed has been viewed once.
          */
         deny() {
-            console.log('DENY')
-            // backupReminder.set(false)
+            this.$emit('deny-backup')
         }
     },
     mounted: function () {

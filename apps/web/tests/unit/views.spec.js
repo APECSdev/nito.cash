@@ -68,6 +68,8 @@ vi.mock('@/lib/pool/role2-actions.js', () => ({
 import { useStore, getStoreFacade, StoreCompatPlugin, ensureStoreFacade } from '@/store'
 
 import Dashboard from '@/views/Dashboard.vue'
+import Backup from '@/components/popups/Backup.vue'
+import Button from '@/components/Button.vue'
 import History from '@/views/History.vue'
 import Receive from '@/views/Receive.vue'
 import Send from '@/views/Send.vue'
@@ -247,6 +249,89 @@ describe('views/Dashboard', () => {
         wrapper.vm.walletBalance = null
         expect(wrapper.vm.fiatAmount).toBe('—')
         expect(wrapper.vm.bchAmount).toBe('—')
+    })
+
+    /* ---- First-run backup flow (the `f.bb` flag gates the reminder) ---- */
+
+    it('shows the first-run backup reminder for a wallet that has never viewed its seed', async () => {
+        const wrapper = mountView(Dashboard)
+
+        await waitFor(() => wrapper.vm.backupReminder === true)
+
+        /* The Backup popup renders (stubbed, but present). */
+        expect(wrapper.findComponent(Backup).exists()).toBe(true)
+        /* The SeedVault stays closed until confirmed. */
+        expect(wrapper.vm.showSeedVault).toBe(false)
+    })
+
+    it('does NOT show the reminder once the seed has been viewed (f.bb)', async () => {
+        /* Seed the `f.bb` flag BEFORE mounting — the reminder must not show. */
+        const store = useStore()
+        store.profile.f = msgpack.encode({ bb: true })
+
+        const wrapper = mountView(Dashboard)
+
+        await new Promise((r) => setTimeout(r, 50))
+
+        expect(wrapper.vm.backupReminder).toBe(false)
+        expect(wrapper.findComponent(Backup).exists()).toBe(false)
+    })
+
+    it('confirm opens the SeedVault; closing it persists f.bb (no more reminders)', async () => {
+        const wrapper = mountView(Dashboard)
+
+        await waitFor(() => wrapper.vm.backupReminder === true)
+
+        /* "Show my backup" — the prompt hides + the SeedVault opens. */
+        wrapper.vm.onConfirmBackup()
+        expect(wrapper.vm.backupReminder).toBe(false)
+        expect(wrapper.vm.showSeedVault).toBe(true)
+
+        /* Done — the flag persists via the profile flags. */
+        wrapper.vm.onSeedVaultClose()
+        expect(wrapper.vm.showSeedVault).toBe(false)
+        expect(getStoreFacade().getters['profile/getFlags'].bb).toBe(true)
+    })
+
+    it('deny dismisses for this session only (the flag is NOT set)', async () => {
+        const wrapper = mountView(Dashboard)
+
+        await waitFor(() => wrapper.vm.backupReminder === true)
+
+        wrapper.vm.onDenyBackup()
+        expect(wrapper.vm.backupReminder).toBe(false)
+        /* Not viewed — the next launch re-prompts. */
+        expect((getStoreFacade().getters['profile/getFlags'] || {}).bb).toBeUndefined()
+    })
+})
+
+describe('components/popups/Backup (the wired first-run prompt)', () => {
+    it('emits confirm-backup / deny-backup from its buttons', async () => {
+        /* LOCAL Button stub WITHOUT the shared stub's `$emit('click')`
+           re-emission — with a `.native`-bound parent (Vue 3 fallthrough)
+           the shared stub fires the handler TWICE per click. */
+        const wrapper = shallowMount(Backup, {
+            global: {
+                mocks: { $store: getStoreFacade() },
+                stubs: {
+                    ...stubs,
+                    Button: { props: ['label'], template: '<button>{{label}}</button>' },
+                },
+            },
+        })
+
+        /* The two buttons: deny ("Not now") first, confirm second. */
+        const buttons = wrapper.findAll('button')
+        expect(buttons).toHaveLength(2)
+        expect(buttons[0].text()).toBe('Not now')
+        expect(buttons[1].text()).toBe('Show my backup')
+
+        await buttons[0].trigger('click')
+        expect(wrapper.emitted('deny-backup')).toHaveLength(1)
+        expect(wrapper.emitted('confirm-backup')).toBeUndefined()
+
+        await buttons[1].trigger('click')
+        expect(wrapper.emitted('confirm-backup')).toHaveLength(1)
     })
 })
 
