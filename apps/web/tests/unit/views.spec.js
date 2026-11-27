@@ -575,23 +575,28 @@ describe('views/Wallet', () => {
         expect(wrapper.text()).toContain('v4')
         expect(wrapper.text()).toContain('Chipnet pilot')
 
-        /* The footer's FT-in button reads Deposit on a v3 pool (the Shield
-           label on the 2-out pools — pinned by the other Wallet tests). */
-        const depositButton = wrapper.findAll('button').find((b) => b.text() === 'Deposit')
-        expect(depositButton).toBeTruthy()
+        /* ONE product verb everywhere: the footer's FT-in button reads Shield
+           on the v3 pools too — the first-run user finds the word they look
+           for (the v3 plumbing underneath is the 'deposit' action). */
+        const shieldButton = wrapper.findAll('button').find((b) => b.text() === 'Shield')
+        expect(shieldButton).toBeTruthy()
 
         /* The house pattern: drive the flow through the view method (the
            .native footer wiring is the CDP click-through's territory). */
-        wrapper.vm.toggleAction('Deposit')
+        wrapper.vm.toggleAction('Shield')
 
-        expect(wrapper.vm.activeAction).toBe('Deposit')
-        expect(wrapper.vm.actionDescription).toContain('empty tree')
+        expect(wrapper.vm.activeAction).toBe('Shield')
+        expect(wrapper.vm.actionDescription).toContain('first shield')
+        await wrapper.vm.$nextTick()
+        /* The SHIELD flow's balance context renders. */
+        expect(wrapper.text()).toContain('Available to shield')
 
         wrapper.vm.actionAmount = '1000'
         await wrapper.vm.submitAction()
         await wrapper.vm.$nextTick()
 
-        /* The view dispatched the DEPOSIT action (the v3 onboarding path). */
+        /* The view dispatched the DEPOSIT action (the v3 onboarding path —
+           the user never sees the word). */
         const call = dispatchSpy.mock.calls.find(([type]) => type === 'pool/submitRole2Action')
         expect(call).toBeTruthy()
         expect(call[1].action).toBe('deposit')

@@ -46,8 +46,9 @@ if (ACTION === 'transfer' && !/^[0-9a-fA-F]{64}$/.test(RECIPIENT)) throw new Err
    off-chain, so a restore between actions would wipe them). ACCEPT_ALL overrides
    the three amounts (e.g. "200,200,112" for the 3-out run). */
 const ALL_AMOUNTS = (process.env.ACCEPT_ALL || '').split(',').filter(Boolean)
-/* `allv3` = the pool4 (v3) lifecycle: DEPOSIT (the empty-genesis onboarding,
-   no ACCEPT_NOTES import) → TRANSFER → UNSHIELD. */
+/* `allv3` = the pool4 (v3) lifecycle: SHIELD (the empty-genesis onboarding —
+   the UI's Shield button dispatches the technical 'deposit' action on v3
+   pools; no ACCEPT_NOTES import) → TRANSFER → UNSHIELD. */
 const ALL_ACTIONS = ACTION === 'all'
     ? [
         { label: 'Shield', amount: ALL_AMOUNTS[0] || '1000' },
@@ -56,9 +57,9 @@ const ALL_ACTIONS = ACTION === 'all'
     ]
     : ACTION === 'allv3'
         ? [
-        { label: 'Deposit', amount: ALL_AMOUNTS[0] || '1000' },
-        { label: 'Transfer', amount: ALL_AMOUNTS[1] || '400', recipient: RECIPIENT },
-        { label: 'Unshield', amount: ALL_AMOUNTS[2] || '600' },
+        { label: 'Shield', amount: ALL_AMOUNTS[0] || '1000' },
+        { label: 'Transfer', amount: ALL_AMOUNTS[1] || '100', recipient: RECIPIENT },
+        { label: 'Unshield', amount: ALL_AMOUNTS[2] || '300' },
         ]
     : [{ label: ACTION.charAt(0).toUpperCase() + ACTION.slice(1), amount: String(AMOUNT), recipient: ACTION === 'transfer' ? RECIPIENT : '' }]
 

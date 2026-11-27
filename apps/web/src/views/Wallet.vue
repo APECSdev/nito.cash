@@ -116,6 +116,15 @@
                         {{actionDescription}}
                     </p>
 
+                    <!-- The SHIELD flow's balance context: what the user can
+                         shield RIGHT NOW (the transparent/Naked-Cash balance).
+                         First users need the number before the input. -->
+                    <p v-if="activeAction === 'Shield'" class="mt-[8px] text-[12px] font-semibold text-muted">
+                        Available to shield:
+                        <span class="text-fg">{{pusdBalance}} PUSD</span>
+                        <span class="text-muted font-medium">(your transparent balance)</span>
+                    </p>
+
                     <label class="block mt-[12px] text-[12px] font-semibold text-muted">
                         Amount (PUSD base units)
                     </label>
@@ -225,8 +234,11 @@
         </div>
 
         <!-- Per-wallet actions. -->
+        <!-- ONE product verb everywhere: SHIELD is what first users look for.
+             The v3 pools dispatch the technical 'deposit' action under the
+             hood (the empty-genesis onboarding); the label stays 'Shield'. -->
         <Footer v-if="wallet.id === 'nito-cash'">
-            <Button @click.native="toggleAction(isV3Pool ? 'Deposit' : 'Shield')" :label="isV3Pool ? 'Deposit' : 'Shield'" />
+            <Button @click.native="toggleAction('Shield')" label="Shield" />
             <Button @click.native="toggleAction('Transfer')" label="Transfer" />
             <Button @click.native="toggleAction('Unshield')" label="Unshield" />
         </Footer>
@@ -394,10 +406,12 @@ export default {
         /* A one-line description of the active shield/transfer/unshield flow. */
         actionDescription() {
             switch (this.activeAction) {
-            case 'Deposit':
-                return 'Move PUSD into the pool through the on-chain deposit path — this pool starts from an empty tree, so the deposit creates your first notes. The deposit amount is visible on-chain; your notes from then on are private.'
             case 'Shield':
-                return 'Move PUSD from Naked Cash into the shielded pool. The deposit amount is visible on-chain; from then on your balance and transfers are private.'
+                /* The v3 pools onboard through the on-chain deposit path (the
+                   empty-genesis tree) — the copy explains the first shield. */
+                return this.isV3Pool
+                    ? 'Shield your PUSD into the private pool — your first shield creates your private notes (this pool starts fresh). The shielded amount is visible on-chain; from then on your balance and transfers are private.'
+                    : 'Move PUSD from Naked Cash into the shielded pool. The deposit amount is visible on-chain; from then on your balance and transfers are private.'
             case 'Transfer':
                 return 'Send PUSD privately to another Nito Cash address. Sender, receiver and amount are all hidden.'
             case 'Unshield':
@@ -446,7 +460,11 @@ export default {
 
             try {
                 const result = await this.$store.dispatch('pool/submitRole2Action', {
-                    action: this.activeAction.toLowerCase(),
+                    /* The v3 pools' FT-in plumbing is the DEPOSIT action (the
+                       empty-genesis onboarding); the user sees 'Shield'. */
+                    action: this.activeAction === 'Shield' && this.isV3Pool
+                        ? 'deposit'
+                        : this.activeAction.toLowerCase(),
                     amount,
                     recipientDeliveryPoint: this.activeAction === 'Transfer' ? this.transferTo : undefined,
                     poolId: this.role2Pool.id,
