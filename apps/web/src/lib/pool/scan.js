@@ -35,6 +35,8 @@ import { computeRoot } from './merkle.js'
 import { decryptPacket } from './carrier.js'
 import { decodePoolAction, decodeRole2Action } from './decode.js'
 import { poolAddress, poolScripthash } from './registry.js'
+import { binToHex } from '@bitauth/libauth'
+import { nullifierWalkData, EMPTY_NULL_SET_ROOT } from './smt.js'
 
 /**
  * Scan one pool's full action chain from the network.
@@ -135,6 +137,26 @@ export async function scanPoolActions({ cluster, pool, networkId }) {
     let prevRoot = genesisRootBig
     let leafCount = pool.genesisLeafCount || 0
 
+    /* (v3) THE NULLIFIER-SET SMT reconstruction (the scan-contract §6 steps
+       4–6): the spent keys insert in action order; each action's walk must
+       anchor at the PREVIOUS commitment's second half and land on the NEW
+       commitment's second half (out1's 64-B NFT commitment, decoded from the
+       chain). The R2 replay dies HERE too — nullifierWalkData throws on a
+       key already in the set (the client-side mirror of walkA's 0-walk). */
+    const isV3 = pool.variant === 'v3' || pool.txInputCount === 5
+    const EMPTY_NULL_HEX = binToHex(EMPTY_NULL_SET_ROOT)
+    let spentKeys = []
+    let prevNullRoot = EMPTY_NULL_HEX
+    let v3Balance = 0n
+
+    if (isV3 && pool.genesisStateCommitment) {
+        /* the genesis 64-B commitment = LE32(zh[20]) ‖ EMPTY_NULL_SET_ROOT —
+           the SMT anchor chain starts at the empty set. */
+        if (pool.genesisStateCommitment.slice(64) !== EMPTY_NULL_HEX) {
+            throw new Error('pool scan: the v3 genesis commitment is not rootLE ‖ EMPTY_NULL_ROOT')
+        }
+    }
+
     /* The reconstructible leaf list (the R3 stopgap, 2026-11-27): the
        registry genesis leaves at their slots — the SAME layout
        assembleLeaves builds its witness tree from. Unpublished seed leaves
@@ -212,6 +234,51 @@ export async function scanPoolActions({ cluster, pool, networkId }) {
             if (appendedRoot !== args.newMerkleRoot) {
                 throw new Error(`pool scan: APPEND mismatch at ${action.txid} — the carrier newMerkleRoot is not the append of this action's own commitments (a planted root: R3-FREE-NEWROOT); the on-chain state is corrupt`)
             }
+        }
+
+        /* b3. (v3) THE SMT RECONSTRUCTION — steps 4–6: insert kA = LE(nf0)
+              then kB = LE(nf1) (walkA's midRoot is the intermediate); the
+              walked finalNullRoot MUST equal the NEW state commitment's
+              second half (out1's 64-B NFT commitment, on-chain); the walk's
+              BEFORE anchor MUST equal the previous commitment's second
+              half; the commitment's FIRST half must equal the carrier's
+              newMerkleRoot (the hook's check-10 mirror). A key already in
+              the set THROWS (the replay guard). */
+        if (isV3) {
+            if (!action.stateCommitment || action.stateCommitment.length !== 128) {
+                throw new Error(`pool scan: the v3 action ${action.txid} carries no 64-B state commitment`)
+            }
+
+            const kA = bigToLeHex(args.nf0)
+            const kB = bigToLeHex(args.nf1)
+            const walk = nullifierWalkData({ spentKeys, kA, kB })
+
+            if (walk.nullSetRootBefore !== prevNullRoot) {
+                throw new Error(`pool scan: nullSetRoot continuity break at ${action.txid}`)
+            }
+
+            const onChainNullRoot = action.stateCommitment.slice(64)
+
+            if (walk.finalNullRoot !== onChainNullRoot) {
+                throw new Error(`pool scan: SMT mismatch at ${action.txid} — the walked finalNullRoot is not the new state commitment's second half`)
+            }
+
+            const onChainNoteRoot = leHexToBig(action.stateCommitment.slice(0, 64))
+
+            if (onChainNoteRoot !== args.newMerkleRoot) {
+                throw new Error(`pool scan: the new state commitment's note-root half != the carrier newMerkleRoot at ${action.txid}`)
+            }
+
+            /* Step 6 — the balance: out1's FT must equal balance + pv − 2·sign·pv. */
+            const expectedBalance = v3Balance + args.publicValueAbs - 2n * args.isUnshield * args.publicValueAbs
+
+            if (action.newBalance !== expectedBalance) {
+                throw new Error(`pool scan: balance mismatch at ${action.txid} — out1 carries ${action.newBalance} FT, the arithmetic expects ${expectedBalance}`)
+            }
+
+            spentKeys = [...spentKeys, kA, kB]
+            prevNullRoot = walk.finalNullRoot
+            v3Balance = action.newBalance
         }
 
         /* The global leaf indices of this action's appended notes (2 or 3). */
@@ -350,6 +417,20 @@ export async function scanPool({ cluster, pool, networkId, spendKey, notes = [] 
 
 /* 32-byte LE VM-number hex -> BigInt (registry genesis roots are stored in
    the on-chain LE byte form). */
+/* The inverse of leHexToBig: a BigInt → its 32-B LE hex form (the carrier's
+   byte layout — the SMT keys are the LE slices). */
+function bigToLeHex(value) {
+    const bytes = new Uint8Array(32)
+    let x = BigInt(value)
+
+    for (let i = 0; i < 32; i += 1) {
+        bytes[i] = Number(x & 0xffn)
+        x >>= 8n
+    }
+
+    return binToHex(bytes)
+}
+
 function leHexToBig(hex) {
     const bytes = new Uint8Array(32)
 

@@ -61,18 +61,23 @@ export function findRole2StateIndex(tx) {
 }
 
 /*
- * Decode one role-2 action (the 3-input signature-free shape). Returns null
- * when the tx is not a role-2 action. `args` mirrors the old covenant-arg
- * shape but is sourced from the 169-B carrier: nf0|nf1|cm0|cm1|newRoot|
- * pv(8B LE)|sign(1B); `proven` is the STMT's n0/n1.
+ * Decode one role-2 action (the 3-input signature-free shape, or the v3
+ * 5-input shape with the walk-data inputs at 3/4). Returns null when the tx
+ * is not a role-2 action. `args` mirrors the old covenant-arg shape but is
+ * sourced from the 169/201-B carrier: nf0|nf1|cm0|cm1|[cm2]|newRoot|pv(8B
+ * LE)|sign(1B); `proven` is the STMT's n0/n1. The v3 shape additionally
+ * extracts the 64-B new-state commitment (out1's NFT commitment = LE32
+ * noteRoot ‖ nullSetRoot) and the FT balance (out1's amount) for the scan's
+ * SMT reconstruction (the §6 contract steps 4–6).
  */
 export function decodeRole2Action(raw) {
     const tx = typeof raw === 'string' ? decodeTransaction(hexToBin(raw)) : raw
     if (typeof tx === 'string') return null
-    /* The role-2 shape is EXACTLY 3 inputs with the state (the 642-B STMT)
-       at index 2; the retired 5-input pools also carry a 642-B STMT in their
-       genesis input, so the shape gate is required. */
-    if (tx.inputs.length !== 3) return null
+    /* The role-2 shapes: EXACTLY 3 inputs (2-out/3-out) or 5 inputs (v3 — the
+       walk-data pair at 3/4), with the state (the 642-B STMT) at index 2;
+       the retired 5-input pools also carry a 642-B STMT in their genesis
+       input, so the shape gate is required. */
+    if (tx.inputs.length !== 3 && tx.inputs.length !== 5) return null
     const stateIndex = findRole2StateIndex(tx)
     if (stateIndex !== 2) return null
 
@@ -108,12 +113,28 @@ export function decodeRole2Action(raw) {
             }
     }
 
+    /* v3 (5 inputs): the 64-B new-state commitment + the FT balance ride
+       out1 — the scan's SMT reconstruction anchors against them. */
+    let stateCommitment = null
+    let newBalance = null
+
+    if (tx.inputs.length === 5 && tx.outputs[1]?.token?.nft?.commitment) {
+        const commitment = tx.outputs[1].token.nft.commitment
+
+        if (commitment.length === 64) {
+            stateCommitment = binToHex(commitment)
+            newBalance = typeof tx.outputs[1].token.amount === 'bigint' ? tx.outputs[1].token.amount : BigInt(tx.outputs[1].token.amount ?? 0)
+        }
+    }
+
     return {
         covenantInputIndex: stateIndex,
         prevoutTxid: txidHexOf(tx.inputs[stateIndex].outpointTransactionHash),
         args,
         carrierBytes: carrier ? carrier.length - 3 : null,
         carriers: [],
+        stateCommitment,
+        newBalance,
         proven: {
             merkleRoot: leToBig(stmt.slice(ROLE2_STMT_N0_OFFSET, ROLE2_STMT_N0_OFFSET + 32)),
             actionHash: leToBig(stmt.slice(ROLE2_STMT_N1_OFFSET, ROLE2_STMT_N1_OFFSET + 32)),

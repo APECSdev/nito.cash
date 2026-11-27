@@ -21,12 +21,13 @@ import { beforeAll, describe, expect, it } from 'vitest'
 import { binToHex, cashAddressToLockingBytecode, encodeTransactionBCH, hexToBin } from '@bitauth/libauth'
 
 /* Import pool lib. */
-import { actionHash, deriveSpendKey, noteCommitment, nullifier, getPoseidon } from '@/lib/pool/notes'
+import { actionHash, actionHash3out, deriveSpendKey, noteCommitment, nullifier, getPoseidon } from '@/lib/pool/notes'
 import { computeRoot } from '@/lib/pool/merkle'
 import { deriveDeliveryPoint, encryptNote, ownerPubFromDeliveryPoint } from '@/lib/pool/carrier'
 import { decodePoolAction, leToBig, scriptPushes } from '@/lib/pool/decode'
 import { detectReceived, detectSpent, scanPool, scanPoolActions } from '@/lib/pool/scan'
 import { getDefaultPool, getPools, poolAddress, poolScripthash, poolLockingBytecode } from '@/lib/pool/registry'
+import { nullifierWalkData } from '@/lib/pool/smt'
 
 /* The REAL chipnet registry entry (gate3-demo-pool). */
 /* Pinned to the GATE3 entry explicitly — the chipnet array gains the new
@@ -837,5 +838,163 @@ describe('pool scan — the R3 append-recompute stopgap', () => {
 
         expect(result.actions).toHaveLength(1)
         expect(result.actions[0].args.newMerkleRoot).toEqual(plantedRoot)
+    })
+})
+
+/* ---- the v3 (pool4) SMT reconstruction (the scan contract §6 steps 4–6) ---- */
+
+describe('pool scan — the v3 nullifier-SMT reconstruction', () => {
+    const V3POOL = getPools('chipnet').find((p) => p.variant === 'v3')
+
+    /* The 642-B STMT (the state input's push): n0 at 256, n1 at 288 — the
+       fields are CONTIGUOUS raw LE bytes (no markers between; decode slices
+       them at the fixed offsets). */
+    const stmtOf = (n0, n1) => {
+        const stmt = new Uint8Array(642)
+        stmt.set(le32(n0), 256)
+        stmt.set(le32(n1), 288)
+        return stmt
+    }
+
+    /* The 201-B carrier payload: nf0|nf1|cm0|cm1|cm2|newRoot|pv(8LE)|sign. */
+    const carrierOf = (args) => concatBytes(
+        le32(args.nf0), le32(args.nf1), le32(args.cm0), le32(args.cm1), le32(args.cm2),
+        le32(args.newMerkleRoot), le32(args.publicValueAbs).slice(0, 8), new Uint8Array([Number(args.isUnshield)]),
+    )
+
+    /* One v3 action tx (raw hex): 5 inputs (fuel/fuel/STATE-STMT/walkA/walkB),
+       out0 the 201-B carrier, out1 the new state NFT (64-B commitment + FT). */
+    const buildV3ActionTx = ({ txid, prevoutTxid, args, n0, n1, stateCommitment, balance }) => {
+        const dummy = (hashByte) => ({
+            outpointIndex: 0,
+            outpointTransactionHash: new Uint8Array(32).fill(hashByte),
+            sequenceNumber: 0xffffffff,
+            unlockingBytecode: new Uint8Array([0x00]),
+        })
+        const stmt = stmtOf(n0, n1)
+        const stmtPush = new Uint8Array([0x4d, 0x82, 0x02, ...stmt]) /* PUSHDATA2 <642 LE> */
+
+        const inputs = [
+            dummy(0xa1),
+            dummy(0xa2),
+            { outpointIndex: 0, outpointTransactionHash: hexToBin(txid === prevoutTxid ? '00'.repeat(32) : txid), sequenceNumber: 0xffffffff, unlockingBytecode: stmtPush },
+            dummy(0xa3),
+            dummy(0xa4),
+        ]
+        /* The state input's PREVOUT drives the chain order (display order). */
+        inputs[2] = { ...inputs[2], outpointTransactionHash: hexToBin(prevoutTxid === DEPLOY_TXID ? DEPLOY_TXID : prevoutTxid) }
+
+        const payload = carrierOf(args)
+        const outputs = [
+            { lockingBytecode: new Uint8Array([0x6a, 0x4c, payload.length, ...payload]), valueSatoshis: 0n },
+            {
+                lockingBytecode: poolLockingBytecode(V3POOL),
+                valueSatoshis: 10000n,
+                token: { category: hexToBin(V3POOL.assetCategory), amount: BigInt(balance), nft: { capability: 'mutable', commitment: hexToBin(stateCommitment) } },
+            },
+        ]
+
+        return binToHex(encodeTransactionBCH({ version: 2, inputs, outputs, locktime: 0 }))
+    }
+
+    /* The honest 2-action chain: a DEPOSIT 1,000 (the empty genesis → 3
+       fresh cms; the walk inserts nf0/nf1 from the EMPTY set) → a TRANSFER. */
+    const mkArgs = async (leaves, nf0, nf1, pv, sign, out) => {
+        const cm = out /* the three out-cms ARE the leaves appended */
+        return {
+            nf0, nf1,
+            cm0: cm[0], cm1: cm[1], cm2: cm[2],
+            newMerkleRoot: await computeRoot([...leaves, ...cm]),
+            publicValueAbs: pv, isUnshield: sign,
+        }
+    }
+
+    const v3Cluster = (hexes) => ({
+        getScripthashHistory: async () => hexes.map((_, i) => ({ tx_hash: TXIDS[i], height: 349150 + i })),
+        getTransaction: async (id) => hexes[TXIDS.indexOf(id)],
+    })
+
+    const TXIDS = ['bb' + '00'.repeat(30) + '01', 'bb' + '00'.repeat(30) + '02', 'bb' + '00'.repeat(30) + '03']
+
+    beforeAll(async () => {
+        await getPoseidon()
+    })
+
+    it('VERIFIES the honest v3 chain end-to-end (the SMT steps 4–6 + the balance)', async () => {
+        /* action 1 — DEPOSIT 1,000 from the EMPTY genesis. */
+        const cmA = [9100001n, 9100002n, 9100003n]
+        const argsA = await mkArgs([], 9001001n, 9001002n, 1000n, 0n, cmA)
+        const cat = BigInt('0x' + V3POOL.assetCategory)
+        const n1A = actionHash3out({ ...argsA, publicValueSign: 0n, assetCategory: cat, newMerkleRoot: argsA.newMerkleRoot })
+        const n0A = leHexToBig(V3POOL.genesisRootLE)
+        const walkA1 = nullifierWalkData({ spentKeys: [], kA: binToHex(le32(argsA.nf0)), kB: binToHex(le32(argsA.nf1)) })
+        const commitA = binToHex(le32(argsA.newMerkleRoot)) + walkA1.finalNullRoot
+
+        /* action 2 — TRANSFER (spends notes; appends 3 more). */
+        const cmB = [9200001n, 9200002n, 9200003n]
+        const argsB = await mkArgs(cmA, 9002001n, 9002002n, 0n, 0n, cmB)
+        const n1B = actionHash3out({ ...argsB, publicValueSign: 0n, assetCategory: cat, newMerkleRoot: argsB.newMerkleRoot })
+        const walkB1 = nullifierWalkData({ spentKeys: [binToHex(le32(argsA.nf0)), binToHex(le32(argsA.nf1))], kA: binToHex(le32(argsB.nf0)), kB: binToHex(le32(argsB.nf1)) })
+        const commitB = binToHex(le32(argsB.newMerkleRoot)) + walkB1.finalNullRoot
+
+        const hexA = buildV3ActionTx({ txid: TXIDS[0], prevoutTxid: DEPLOY_TXID, args: argsA, n0: n0A, n1: n1A, stateCommitment: commitA, balance: 1000n })
+        const hexB = buildV3ActionTx({ txid: TXIDS[1], prevoutTxid: TXIDS[0], args: argsB, n0: argsA.newMerkleRoot, n1: n1B, stateCommitment: commitB, balance: 1000n })
+
+        const result = await scanPoolActions({ cluster: v3Cluster([hexA, hexB]), pool: V3POOL, networkId: 'chipnet' })
+
+        expect(result.actions).toHaveLength(2)
+        expect(result.actions[0].leafIndexBase).toBe(0)
+        expect(result.actions[1].leafIndexBase).toBe(3)
+        expect(result.actions[0].stateCommitment).toBe(commitA)
+    })
+
+    it('REJECTS a state commitment whose nullSetRoot half is not the walked finalNullRoot', async () => {
+        const cmA = [9100001n, 9100002n, 9100003n]
+        const argsA = await mkArgs([], 9001001n, 9001002n, 1000n, 0n, cmA)
+        const cat = BigInt('0x' + V3POOL.assetCategory)
+        const n1A = actionHash3out({ ...argsA, publicValueSign: 0n, assetCategory: cat, newMerkleRoot: argsA.newMerkleRoot })
+        const n0A = leHexToBig(V3POOL.genesisRootLE)
+        /* the FORGED second half — not the walked root */
+        const badCommit = binToHex(le32(argsA.newMerkleRoot)) + 'ee'.repeat(32)
+        const hexA = buildV3ActionTx({ txid: TXIDS[0], prevoutTxid: DEPLOY_TXID, args: argsA, n0: n0A, n1: n1A, stateCommitment: badCommit, balance: 1000n })
+
+        await expect(scanPoolActions({ cluster: v3Cluster([hexA]), pool: V3POOL, networkId: 'chipnet' }))
+            .rejects.toThrow(/SMT mismatch .* second half/)
+    })
+
+    it("REJECTS a replayed nullifier (the walk 0-walk guard, client-side)", async () => {
+        const cmA = [9100001n, 9100002n, 9100003n]
+        const argsA = await mkArgs([], 9001001n, 9001002n, 1000n, 0n, cmA)
+        const cat = BigInt('0x' + V3POOL.assetCategory)
+        const n1A = actionHash3out({ ...argsA, publicValueSign: 0n, assetCategory: cat, newMerkleRoot: argsA.newMerkleRoot })
+        const n0A = leHexToBig(V3POOL.genesisRootLE)
+        const walkA1 = nullifierWalkData({ spentKeys: [], kA: binToHex(le32(argsA.nf0)), kB: binToHex(le32(argsA.nf1)) })
+        const commitA = binToHex(le32(argsA.newMerkleRoot)) + walkA1.finalNullRoot
+        const hexA = buildV3ActionTx({ txid: TXIDS[0], prevoutTxid: DEPLOY_TXID, args: argsA, n0: n0A, n1: n1A, stateCommitment: commitA, balance: 1000n })
+
+        /* action 2 REPLAYS action 1's nf0 — a fresh cm set + honest hash, but
+           the walk throws before anything else. */
+        const cmB = [9200001n, 9200002n, 9200003n]
+        const argsB = await mkArgs(cmA, argsA.nf0, 9002002n, 0n, 0n, cmB)
+        const n1B = actionHash3out({ ...argsB, publicValueSign: 0n, assetCategory: cat, newMerkleRoot: argsB.newMerkleRoot })
+        const hexB = buildV3ActionTx({ txid: TXIDS[1], prevoutTxid: TXIDS[0], args: argsB, n0: argsA.newMerkleRoot, n1: n1B, stateCommitment: commitA, balance: 1000n })
+
+        await expect(scanPoolActions({ cluster: v3Cluster([hexA, hexB]), pool: V3POOL, networkId: 'chipnet' }))
+            .rejects.toThrow(/already spent/)
+    })
+
+    it('REJECTS a balance that does not follow balance + pv − 2·sign·pv', async () => {
+        const cmA = [9100001n, 9100002n, 9100003n]
+        const argsA = await mkArgs([], 9001001n, 9001002n, 1000n, 0n, cmA)
+        const cat = BigInt('0x' + V3POOL.assetCategory)
+        const n1A = actionHash3out({ ...argsA, publicValueSign: 0n, assetCategory: cat, newMerkleRoot: argsA.newMerkleRoot })
+        const n0A = leHexToBig(V3POOL.genesisRootLE)
+        const walkA1 = nullifierWalkData({ spentKeys: [], kA: binToHex(le32(argsA.nf0)), kB: binToHex(le32(argsA.nf1)) })
+        const commitA = binToHex(le32(argsA.newMerkleRoot)) + walkA1.finalNullRoot
+        /* out1 carries 777 FT — the deposit says 1,000 */
+        const hexA = buildV3ActionTx({ txid: TXIDS[0], prevoutTxid: DEPLOY_TXID, args: argsA, n0: n0A, n1: n1A, stateCommitment: commitA, balance: 777n })
+
+        await expect(scanPoolActions({ cluster: v3Cluster([hexA]), pool: V3POOL, networkId: 'chipnet' }))
+            .rejects.toThrow(/balance mismatch/)
     })
 })
