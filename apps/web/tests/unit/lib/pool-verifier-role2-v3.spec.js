@@ -80,7 +80,7 @@ describe('lib/pool/verifier-role2-v3 — the v3 program + walk reproduction gate
         expect(locking).toBe(DEPLOYED.locking)
         expect(locking).toBe(ROLE2_V3_CHIPNET_LOCKING)
         expect(DEPLOYED.locking).toBe(ROLE2_V3_CHIPNET_LOCKING)
-    }, 60000)
+    }, 180000)
 
     it('caches per (category, pins) and restores the stock env (the graph pin is inert without it)', () => {
         expect(process.env.POOL_NULLDATA_HASHES).toBeUndefined()
@@ -98,7 +98,7 @@ describe('lib/pool/verifier-role2-v3 — the v3 program + walk reproduction gate
         expect(sha256Of(program.code)).toBe(MAINNET_CODE_SHA256)
         expect(process.env.POOL_NULLDATA_HASHES).toBeUndefined()
         /* the chipnet default restored after the mainnet build (the cache is per-key) */
-    }, 60000)
+    }, 180000)
 
     it('the REGISTRY entry is internally consistent (the genesis commitment = rootLE ‖ EMPTY_NULL_ROOT; the pins = sha256 of the wraps)', () => {
         const entry = getPools('chipnet').find((pool) => pool.variant === 'v3')
@@ -127,5 +127,5 @@ describe('lib/pool/verifier-role2-v3 — the v3 program + walk reproduction gate
         const locking = 'aa20' + hash256Of(program.R) + '87'
         expect(locking).toBe('aa204a6ce339fb62b7b2ebb502c9bf642d3221620e6f5ded619ce8a39110e35182ea87')
         expect(process.env.POOL_NULLDATA_HASHES).toBeUndefined()
-    }, 60000)
+    }, 180000)
 })

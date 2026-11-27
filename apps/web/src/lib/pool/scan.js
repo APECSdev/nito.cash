@@ -308,6 +308,11 @@ export async function scanPoolActions({ cluster, pool, networkId }) {
         creationTxids,
         tipHeight: tip.height,
         tipTxid: tip.txid,
+        /* (v3) the reconstructed NULLIFIER-SET state — the walk-data inputs
+           for the NEXT action's witness (nullifierWalkData anchors here) +
+           the current nullSetRoot (the live state commitment's second half). */
+        spentKeys,
+        nullSetRoot: prevNullRoot,
     }
 }
 
