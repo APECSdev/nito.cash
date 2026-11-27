@@ -376,8 +376,16 @@ sender, receiver, and amount are all masked. Design decisions locked:
   scanned the 2-out default) and `assembleLeaves` was 2-out-only (hard-coded
   ×2, no cm2 → a 3-out tree THREW "incomplete leaf list"). Both are fixed with
   tests; the Wallet pool selector (2-out / 3-out v3) + the registry vending
-  data are live. REMAINING: the browser SHIELD → TRANSFER → UNSHIELD
-  acceptance (the 3-out flip after it).
+  data are live. THE 3-OUT BROWSER ACCEPTANCE PASSED 2026-11-26 (the real
+  Wallet UI: SHIELD 9b3aac2c… block 348,956 → TRANSFER abbb3dc7… 348,960 →
+  UNSHIELD 5a4d6b85… 348,966; final state 788 FT; the registry entry is
+  `walletProverCompatible: true` / `status: 'live'`). Harness notes: the 7
+  live notes are imported via `ACCEPT_NOTES` + `ACCEPT_POOL="3-out v3"` +
+  `ACCEPT_ALL="200,200,112"`; the per-action wait is a NODE POLL loop (a
+  single 600 s `waitForFunction` trips puppeteer's 180 s protocol timeout
+  during the cold 98 MB zkey download + the proof). The pool's program
+  locking is `aa204a6c…10e35182ea87` (the Hush handoff's §1.1 string has a
+  one-char typo: `…10e35882ea87`).
 - THE OLD NOTES ARE NOT KEPT. The `chipnet-pusd-v4` notes came from a WITHDRAWN
   verifier and are ABANDONED — no unshield/re-shield migration, no old-note spend.
   The new role-2 pool starts from its own genesis root; all new notes are created by

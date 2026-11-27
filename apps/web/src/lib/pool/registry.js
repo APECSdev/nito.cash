@@ -137,8 +137,8 @@ const POOLS = {
                store 3-out branch (poolId + outputs===3) is wired, but the
              web-platform SHIELD → TRANSFER → UNSHIELD acceptance has not
                run yet, so the flag stays false until it passes. */
-            walletProverCompatible: false,
-            status: 'awaiting-3out-store-acceptance',
+            walletProverCompatible: true,
+            status: 'live',
             deployTxid: '2f650791…',
             categoryAnchorTxid: 'bc607a96c8a21a1400263d437005d3f434c3c60674018119995dc6200072e635',
             mintTxid: '62d91e4c…',
@@ -176,7 +176,7 @@ const POOLS = {
             carrierBytes: 201,
             fuelSats: 15000,
             blanksPerLock: 2,
-            notes: 'THE 3-OUT V3 DEMO POOL — deployed 2026-11-26 (anchor bc607a96… = the category; mint 62d91e4c…; deploy 2f650791… block 348,569; program 7,848 B sha256 73cb0ccb…; born guarded). 3 inputs (fuel 0, fuel 1, state 2), NO signatures; 201-B OP_RETURN carrier with cm2; 9-field actionHash; 3 out-notes. FIVE confirmed actions: SHIELD 1,000 e847ef56… (out 400+300+300) → TRANSFER ef64f3dd… (out 280+210+210) → UNSHIELD 300 ec31a41c… (out 112+84+84, 300 FT payout) → zero-value-dummy TRANSFER 30f0f9d4… (out 400+20+0 — a 2-out flow) → the zero note SPENT cbfb0503… (in-notes 400+0, out 200+100+100); final state 700 FT, 17 leaves, state outpoint cbfb0503…:1. The wallet 3-out witness generator reproduces the live UNSHIELD byte-exactly (scripts/pool-accept.mjs --pool role2-3out --txid ec31a41c); the store 3-out branch (poolId + outputs===3) and the Wallet pool selector are wired; 3-out blanks are PERMISSIONLESS (vending machine above). Demo only: 1-of-1 setup, public bootstrap in-notes on the first action, no encrypted note delivery — and NO real nullifier set: finding R2-NULLIFIER-DOUBLING (a demonstrated full-balance drain, hushyourmoney handoff §12) means NO valued asset may enter ANY role-2 pool until the v3 nullifier set ships; Gate 7 AND the nullifier set are the mainnet gates.',
+            notes: 'THE 3-OUT V3 DEMO POOL — deployed 2026-11-26 (anchor bc607a96… = the category; mint 62d91e4c…; deploy 2f650791… block 348,569; program 7,848 B sha256 73cb0ccb…; born guarded). 3 inputs (fuel 0, fuel 1, state 2), NO signatures; 201-B OP_RETURN carrier with cm2; 9-field actionHash; 3 out-notes. FIVE confirmed actions: SHIELD 1,000 e847ef56… (out 400+300+300) → TRANSFER ef64f3dd… (out 280+210+210) → UNSHIELD 300 ec31a41c… (out 112+84+84, 300 FT payout) → zero-value-dummy TRANSFER 30f0f9d4… (out 400+20+0 — a 2-out flow) → the zero note SPENT cbfb0503… (in-notes 400+0, out 200+100+100); final state 700 FT, 17 leaves, state outpoint cbfb0503…:1. The wallet 3-out witness generator reproduces the live UNSHIELD byte-exactly (scripts/pool-accept.mjs --pool role2-3out --txid ec31a41c); the store 3-out branch (poolId + outputs===3) and the Wallet pool selector are wired; WEB-PLATFORM ACCEPTANCE PASSED 2026-11-26 (browser, real Wallet UI, chipnet): SHIELD 9b3aac2c044e728919e65658c31949dc5acda26f0ab2b85fc373581b08efe27d (block 348,956) → TRANSFER abbb3dc7ea1de8c4c0c4ffd11fdc3127971a9ecfa887b47645687a571b597ddf (348,960) → UNSHIELD 5a4d6b859665736cf6a9823b25157ec9d1fa70ab244812fd109b60db8612d273 (348,966); final state 788 FT, 10,000 sats. 3-out blanks are PERMISSIONLESS (vending machine above). Demo only: 1-of-1 setup, public bootstrap in-notes on the first action, no encrypted note delivery — and NO real nullifier set: finding R2-NULLIFIER-DOUBLING (a demonstrated full-balance drain, hushyourmoney handoff §12) means NO valued asset may enter ANY role-2 pool until the v3 nullifier set ships; Gate 7 AND the nullifier set are the mainnet gates.',
         },
         {
             id: "chipnet-pusd-v4",

@@ -43,14 +43,22 @@ if (!['shield', 'transfer', 'unshield', 'all'].includes(ACTION)) throw new Error
 if (ACTION === 'transfer' && !/^[0-9a-fA-F]{64}$/.test(RECIPIENT)) throw new Error('transfer needs a 64-hex delivery point')
 
 /* `all` runs the full acceptance in ONE browser session (the role-2 notes are
-   off-chain, so a restore between actions would wipe them). */
+   off-chain, so a restore between actions would wipe them). ACCEPT_ALL overrides
+   the three amounts (e.g. "200,200,112" for the 3-out run). */
+const ALL_AMOUNTS = (process.env.ACCEPT_ALL || '').split(',').filter(Boolean)
 const ALL_ACTIONS = ACTION === 'all'
     ? [
-        { label: 'Shield', amount: '1000' },
-        { label: 'Transfer', amount: '400', recipient: RECIPIENT },
-        { label: 'Unshield', amount: '600' },
+        { label: 'Shield', amount: ALL_AMOUNTS[0] || '1000' },
+        { label: 'Transfer', amount: ALL_AMOUNTS[1] || '400', recipient: RECIPIENT },
+        { label: 'Unshield', amount: ALL_AMOUNTS[2] || '600' },
     ]
     : [{ label: ACTION.charAt(0).toUpperCase() + ACTION.slice(1), amount: String(AMOUNT), recipient: ACTION === 'transfer' ? RECIPIENT : '' }]
+
+/* Optional multi-pool run: ACCEPT_POOL clicks the pool-selector button (its
+   exact label, e.g. "3-out v3") and ACCEPT_NOTES imports a notes JSON (the
+   Hush export) into the sealed store before the actions. */
+const POOL_LABEL = process.env.ACCEPT_POOL || ''
+const NOTES_FILE = process.env.ACCEPT_NOTES || ''
 if (ALL_ACTIONS.some((a) => a.label === 'Transfer' && !/^[0-9a-fA-F]{64}$/.test(a.recipient || ''))) throw new Error('transfer needs a 64-hex delivery point')
 
 const mime = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css', '.json': 'application/json', '.svg': 'image/svg+xml', '.png': 'image/png', '.jpg': 'image/jpeg', '.woff2': 'font/woff2', '.wav': 'audio/wav', '.ico': 'image/x-icon', '.wasm': 'application/wasm' }
@@ -149,6 +157,27 @@ try {
     await page.waitForFunction((name) => {
         return [...document.querySelectorAll('button')].some((b) => b.textContent.trim() === name)
     }, { timeout: 30000 }, ALL_ACTIONS[0].label)
+    if (POOL_LABEL) {
+        await clickButton(POOL_LABEL)
+        await new Promise((r) => setTimeout(r, 600))
+        const selected = await page.evaluate(() => {
+            const btn = [...document.querySelectorAll('button')].find((b) => b.textContent.trim() === document.querySelector('button.border-primary')?.textContent.trim())
+            return btn ? btn.textContent.trim() : null
+        })
+        console.log('pool selected →', POOL_LABEL, '(active:', selected + ')')
+    }
+
+    if (NOTES_FILE) {
+        const notes = JSON.parse(fs.readFileSync(NOTES_FILE, 'utf8'))
+        const imported = await page.evaluate(async (list) => {
+            const facade = window.__nito_store_facade__
+            if (!facade) return -1
+            for (const note of list) await facade.dispatch('pool/recordNote', note)
+            return list.length
+        }, notes)
+        console.log('notes imported →', imported)
+    }
+
     await page.screenshot({ path: path.join(OUT, `wallet-before-${ACTION}.png`) })
 
     /* The next action's scan only sees CONFIRMED actions and its state input
@@ -195,13 +224,21 @@ try {
         await clickButton(`${label} PUSD`)
         console.log('submitted', label, amount, '— waiting for the proof + broadcast…')
 
-        /* The zkey download is 97 MB and the proof ~20 s — allow 10 minutes.
-           The toggle above cleared the previous result, so the match is this
-           action's. */
-        await page.waitForFunction(() => {
-            const text = document.body.innerText
-            return /Broadcast — txid/.test(text) || /Error:|insufficient|Insufficient|required/.test(text)
-        }, { timeout: 600000, polling: 1000 })
+        /* The zkey download is 98 MB and the proof ~20-200 s — allow 15
+           minutes. POLL from node (a single long waitForFunction call trips
+           puppeteer's 180 s protocol timeout during the cold-cache download +
+           proof — measured 2026-11-26: the first 3-out run died at ~3 min with
+           the page still "Working"). The toggle above cleared the previous
+           result, so the match is this action's. */
+        const deadline = Date.now() + 900000
+        while (Date.now() < deadline) {
+            await new Promise((r) => setTimeout(r, 2000))
+            const done = await page.evaluate(() => {
+                const text = document.body.innerText
+                return /Broadcast — txid/.test(text) || /Error:|insufficient|Insufficient|required/.test(text)
+            })
+            if (done) break
+        }
 
         const state = await page.evaluate(() => {
             const text = document.body.innerText

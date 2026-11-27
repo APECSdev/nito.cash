@@ -123,6 +123,18 @@ describe('lib/pool/registry — the role-2 tagged pool', () => {
         expect(getProverPool('mainnet')).toBeNull()
     })
 
+    it('the 3-out v3 demo pool is LIVE after its browser acceptance', () => {
+        /* The browser SHIELD -> TRANSFER -> UNSHIELD passed on chipnet
+           (9b3aac2c... -> abbb3dc7... -> 5a4d6b85...) — the flag flips. */
+        const pool = pools.find((entry) => entry.id === 'chipnet-pusd-role2-3out')
+        expect(pool.walletProverCompatible).toBe(true)
+        expect(pool.status).toBe('live')
+        expect(pool.outputs).toBe(3)
+        expect(pool.carrierBytes).toBe(201)
+        expect(pool.shape).toBe('role2-tagged-3out')
+        expect(pool.vending.priceSats).toBe(1000)
+    })
+
     it('retires the old v4/v3 pools and their notes', () => {
         const old = pools.filter((pool) => pool.id === 'chipnet-pusd-v4' || pool.id === 'chipnet-pusd-v3')
         expect(old).toHaveLength(2)
