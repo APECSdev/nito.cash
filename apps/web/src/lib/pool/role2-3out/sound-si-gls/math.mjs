@@ -18,11 +18,15 @@ import {readFileSync} from 'node:fs';
    buildProgram; the 3-out default is restored after). */
 import FIXTURES_3OUT_JSON from '../our-3out.fixtures.json' with { type: 'json' };
 import FIXTURES_V3_JSON from '../our-v3.fixtures.json' with { type: 'json' };
+/* The POST-MPC fixtures (the three-contribution chain: Nito -> Hush -> user;
+   pool4_0003_user.zkey — the MAINNET Preview v0 pool's VK). sha256 e74555dd… */
+import FIXTURES_V4H_JSON from '../our-v3-user3.fixtures.json' with { type: 'json' };
 import {bn254} from '@noble/curves/bn254.js';
 import {psiFrobenius} from '@noble/curves/abstract/tower.js';
 
 export const VK_FIXTURES_3OUT = FIXTURES_3OUT_JSON;
 export const VK_FIXTURES_V3 = FIXTURES_V3_JSON;
+export const VK_FIXTURES_V4H = FIXTURES_V4H_JSON;
 export let FIXTURES = process.env.BN_VK_FIXTURES ? JSON.parse(readFileSync(process.env.BN_VK_FIXTURES)) : FIXTURES_3OUT_JSON;
 /* The VK-derived chain is LIVE: setVkFixtures flips FIXTURES + VK + VKC and
    notifies vkDerivedListeners (protocol.mjs registers its VK_DIGEST/TAG

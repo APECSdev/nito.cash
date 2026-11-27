@@ -19,6 +19,12 @@ const ITERS = Number(process.env.SCHED_ITERS ?? 4000);
 let WALK_PIN_HASHES_OVERRIDE = null
 export function setWalkPinHashes(hashes) { WALK_PIN_HASHES_OVERRIDE = Array.isArray(hashes) ? hashes : null }
 export function clearWalkPinHashes() { WALK_PIN_HASHES_OVERRIDE = null }
+
+/* The v4h holdings-mode override (the C architecture) — the same
+   browser-safe channel as the walk pins (Vite's per-chunk process.env). */
+let HOLDINGS_MODE_OVERRIDE = null
+export function setHoldingsMode(on) { HOLDINGS_MODE_OVERRIDE = on === true }
+export function clearHoldingsMode() { HOLDINGS_MODE_OVERRIDE = null }
 const D_PIECE = 8; // delta slopes per pile piece (512 B)
 
 // ---------------- layout ----------------
@@ -91,12 +97,23 @@ function defineFunctions(a, WIN) {
   //   reject). The env var remains the CLI path (the ?? order).
   a.defLocal('GRAPH', 0, 0, (s) => {
     const ND = WALK_PIN_HASHES_OVERRIDE ?? (process.env.POOL_NULLDATA_HASHES ? JSON.parse(process.env.POOL_NULLDATA_HASHES) : null);
-    s.emit(IX.TXINPUTCOUNT); s.st.push('n'); s.push(ND ? NROLES + 2 : NROLES).op(OP.NUMEQUALVERIFY, 2);
+    // v4h (POOL_HOLDINGS = the C architecture): inputs NROLES+2/NROLES+3 are the
+    //   holdings/deposit pair — pinned to EACH OTHER by byte-compare (no hash: H pins
+    //   the program by hash, the program must not pin H by hash — that would be
+    //   circular; the byte-pin gives shape totality, H gives the theft guard).
+    //   Stock builds (env unset) and v3.1 builds (ND only) are byte-identical.
+    const HO = HOLDINGS_MODE_OVERRIDE !== null ? HOLDINGS_MODE_OVERRIDE : !!process.env.POOL_HOLDINGS;
+    s.emit(IX.TXINPUTCOUNT); s.st.push('n'); s.push(ND ? NROLES + 2 + (HO ? 2 : 0) : NROLES).op(OP.NUMEQUALVERIFY, 2);
     s.emit(IX.INPUTINDEX); s.st.push('ix'); s.op(IX.UTXOBYTECODE, 1, 'mine');
     for (let j = 0; j < NROLES; j++) { s.push(j).op(IX.UTXOBYTECODE, 1, 'u'); (j < NROLES - 1 ? s.pick('mine') : s.roll('mine')); s.op(OP.EQUALVERIFY, 2); }
     if (ND) for (let i = 0; i < ND.length; i++) {
       s.push(NROLES + i).op(IX.UTXOBYTECODE, 1, 'u'); s.op(OP.SHA256, 1, 'uh');
       s.pushBytes(Buffer.from(ND[i], 'hex')).op(OP.EQUALVERIFY, 2);
+    }
+    if (HO) {
+      s.push(NROLES + 2).op(IX.UTXOBYTECODE, 1, 'h5');
+      s.push(NROLES + 3).op(IX.UTXOBYTECODE, 1, 'h6');
+      s.op(OP.EQUALVERIFY, 2);
     }
   });
   // TRANS: [DG, ZT] -> [rho, z]: h0 = SHA256(TAG || DG), rho_raw = SHA256(h0 || "rho"), z_raw = SHA256(h0 || rho_raw || ZT),
