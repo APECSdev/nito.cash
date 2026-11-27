@@ -29,9 +29,24 @@ describe('popups/Backup.vue', () => {
         expect(wrapper.find('animation-stub').attributes('type')).toBe('president')
     })
 
-    it('renders No and Yes action buttons', () => {
+    it('renders the "Not now" and "Show my backup" action buttons', () => {
         const labels = wrapper.findAll('button-stub').map((btn) => btn.attributes('label'))
 
-        expect(labels).toEqual(expect.arrayContaining(['No', 'Yes']))
+        expect(labels).toEqual(expect.arrayContaining(['Not now', 'Show my backup']))
+    })
+
+    it('emits deny-backup / confirm-backup from its buttons', async () => {
+        /* The wired popup: the buttons EMIT (the old Yes/No stubs only
+         * console.log'd). */
+        const local = shallowMount(Backup, { global: { stubs } })
+
+        /* The button-stub does not re-emit `.native` clicks — drive the
+           methods directly (the views.spec Backup test covers the full
+           click-through wiring). */
+        local.vm.deny()
+        expect(local.emitted('deny-backup')).toHaveLength(1)
+
+        local.vm.confirm()
+        expect(local.emitted('confirm-backup')).toHaveLength(1)
     })
 })
