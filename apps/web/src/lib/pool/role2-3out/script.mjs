@@ -14,6 +14,11 @@ let COVENANT = null;
 export const setCovenant = (fn) => { COVENANT = fn; };
 export const IX = {INPUTINDEX: 0xc0, TXINPUTCOUNT: 0xc3, UTXOBYTECODE: 0xc7, INPUTBYTECODE: 0xca};
 const ITERS = Number(process.env.SCHED_ITERS ?? 4000);
+
+/* The v3 walk-pin override (see the GRAPH note below) — the browser-safe channel. */
+let WALK_PIN_HASHES_OVERRIDE = null
+export function setWalkPinHashes(hashes) { WALK_PIN_HASHES_OVERRIDE = Array.isArray(hashes) ? hashes : null }
+export function clearWalkPinHashes() { WALK_PIN_HASHES_OVERRIDE = null }
 const D_PIECE = 8; // delta slopes per pile piece (512 B)
 
 // ---------------- layout ----------------
@@ -78,8 +83,14 @@ function defineFunctions(a, WIN) {
   // v3 (POOL_NULLDATA_HASHES = JSON [walkAHash, walkBHash] hex): NROLES+2 inputs —
   //   the two nullifier-data inputs (indices NROLES, NROLES+1) carry the walkA/walkB
   //   RAW lockings, pinned here by SHA256 hash. Stock builds (env unset) are unchanged.
+  // BROWSER-SAFE CHANNEL (2026-11-27): the module-level setWalkPinHashes override is
+  //   the primary source — Vite's polyfilled process.env can be a DIFFERENT object
+  //   per chunk, so a runtime process.env assignment from the wrapper's chunk may
+  //   never be visible here in the bundle (the live acceptance measured exactly
+  //   this: the browser built the STOCK body, wrong Kcode/R → on-chain P2SH hash
+  //   reject). The env var remains the CLI path (the ?? order).
   a.defLocal('GRAPH', 0, 0, (s) => {
-    const ND = process.env.POOL_NULLDATA_HASHES ? JSON.parse(process.env.POOL_NULLDATA_HASHES) : null;
+    const ND = WALK_PIN_HASHES_OVERRIDE ?? (process.env.POOL_NULLDATA_HASHES ? JSON.parse(process.env.POOL_NULLDATA_HASHES) : null);
     s.emit(IX.TXINPUTCOUNT); s.st.push('n'); s.push(ND ? NROLES + 2 : NROLES).op(OP.NUMEQUALVERIFY, 2);
     s.emit(IX.INPUTINDEX); s.st.push('ix'); s.op(IX.UTXOBYTECODE, 1, 'mine');
     for (let j = 0; j < NROLES; j++) { s.push(j).op(IX.UTXOBYTECODE, 1, 'u'); (j < NROLES - 1 ? s.pick('mine') : s.roll('mine')); s.op(OP.EQUALVERIFY, 2); }

@@ -30,6 +30,7 @@ import { covenantHook, covenantParams } from './role2-3out/pool-hook.mjs'
 import { buildWalkScripts } from './role2-3out/walk-scripts.mjs'
 import { walkV3, poolTransactionForV3 } from './role2-3out/pool-tx-v3.mjs'
 import { setVkFixtures, restoreVkFixtures, VK_FIXTURES_V3 } from './role2-3out/sound-si-gls/math.mjs'
+import { setWalkPinHashes, clearWalkPinHashes } from './role2-3out/script.mjs'
 import { normalizeProof } from './verifier.js'
 
 /* The deployed chipnet v3 pool's category, display byte order (the state
@@ -95,8 +96,12 @@ export function v3WalkScripts(categoryOnChain) {
 export function role2ProgramV3(categoryOnChain, walkAHash, walkBHash) {
     const key = categoryOnChain + '|' + walkAHash + '|' + walkBHash
     if (_v3Cache && _v3Cache.key === key) return _v3Cache.program
-    const prevNd = process.env.POOL_NULLDATA_HASHES
-    process.env.POOL_NULLDATA_HASHES = JSON.stringify([walkAHash, walkBHash])
+    /* The walk pins ride the MODULE-LEVEL setter — the browser-safe channel
+       (the live acceptance measured Vite's polyfilled process.env being a
+       different object per chunk: the env assignment never reached the
+       graph-pin read, the browser built the STOCK body, and the action died
+       at the on-chain P2SH hash check). The env var remains the CLI path. */
+    setWalkPinHashes([walkAHash, walkBHash])
     /* the program build EMBEDS the VK's curve data — the v3 (pool4) program
        requires the v3 fixtures (the VM's BN_VK_FIXTURES build of record); the
        3-out default is restored after (the 2-out/3-out builds must keep
@@ -106,10 +111,13 @@ export function role2ProgramV3(categoryOnChain, walkAHash, walkBHash) {
         walkAHash: bytesOf(walkAHash),
         walkBHash: bytesOf(walkBHash),
     }))
-    const program = buildProgram()
-    restoreVkFixtures()
-    if (prevNd === undefined) delete process.env.POOL_NULLDATA_HASHES
-    else process.env.POOL_NULLDATA_HASHES = prevNd
+    let program
+    try {
+        program = buildProgram()
+    } finally {
+        restoreVkFixtures()
+        clearWalkPinHashes()
+    }
     _v3Cache = { key, program }
     return program
 }
