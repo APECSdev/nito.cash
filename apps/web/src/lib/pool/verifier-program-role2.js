@@ -65,3 +65,52 @@ export const ROLE2_VENDING = {
     redeemBytes: 157,
     priceSats: 1000,
 }
+
+/* The v3 (pool4) chipnet pool (deployed 2026-11-27T05:38Z, the LIVE build —
+   NOT the aborted v3.0 attempt 03af2eda…). Both drains closed at consensus:
+   the append proof (R3: newMerkleRoot circuit-constrained) + the nullifier
+   SMT (R2: walkA's 0-walk rejects replays; nf0≠nf1 in-circuit) + the DEPOSIT
+   path (the empty genesis tree, no bootstrap seeds). The 5-input shape (the
+   graph pins NROLES+2): fuel0/fuel1/state + the two walk-data UTXOs at the
+   P2SH32 walk wraps (v3.1 — the raw scripts are relay-nonstandard, "code 64";
+   the scripts ride the action unlockings as the redeem push; the hook 4w /
+   graph pins hash the WRAPS). The program hash is VK-BOUND: the MPC cascade
+   (pool4_0001_nito.zkey + the Hush contribution + the tail) rebuilds it with
+   the final vk.ic[0] — the walk scripts + every spec are unchanged. */
+export const ROLE2_PROGRAM_V3 = {
+    id: 'role2-v3',
+    lockingBytecode: 'aa206dc915cef6f1343b7d170caaf79346072222d66fd3285fcb4d506f184069e8cb87',
+    programBytes: 7998,
+    codePin: '27b904a2ddec9e6b4ad5a261084be6ed18e59420e5e41e9400f72586bda88510',
+    codePieces: [4111, 3887],
+    txInputCount: 5,
+    outputs: 3,
+    carrierBytes: 201,
+    /* the walk UTXOs' ON-CHAIN lockings (the P2SH32 wraps) + the deployed pins
+       (sha256 of each wrap — the v3.1 form; the client reproduces the raw
+       278/291-B scripts from the category, byte-exact per the spec) */
+    walkLockings: [
+        'aa20f823d16d3cab573069ba562afb2bfb9a5bcb72bdae85218132e1e12e6bfeaded87',
+        'aa206ae3e5fb435b33afd6e907c9beae8e139a3ea85c90d57f026e99fc4bdbb31a0687',
+    ],
+    walkPins: [
+        '9f0a1a9827c5c9889a888a71d8ac8ebc35e8819f8f097fb72a69cd64dab507f8',
+        '338f4d86798584041cb87801f3b15ccdd656a1be8313bdd29c3d5b69e26ffd6f',
+    ],
+    walkSats: 2000,
+    fuelSats: 23000,
+    /* the CHIPNET-ONLY 1-of-1 trio (published entropy — the testnet norm) —
+       superseded by the POST-MPC trio at the M2 release (a B4 data edit) */
+    vkSha256: '07638f101038418d7b97ba46871476edaf3f6c63086fa9e984a2aa33e530b704',
+    zkeySha256: '942f8fc5327191da4a98bfbd81b74f87bd6f79267efb2d3067ac6cd0175a723a',
+    wasmSha256: 'a9b4b03d17c614ba920c45df5c34949e26ce8cdbdeb3d6b145476a2857289395',
+    hookChecks: '1–11 + 4w (the walk-locking pins); the fold check 7 GONE — the SMT replaces it; check 10 splits the 64-B commitment',
+}
+
+/* The v3 pool's minting guard (born-guarded at the deploy, batch a98ee616…:
+   64 blanks minted + confirmed — pool-agnostic shape, category-pinned). */
+export const ROLE2_GUARD_V3 = {
+    lockingBytecode: 'aa20401034041652ad938c67c8636c9a8c62ba5691936a21abebd507f6d7424f01c487',
+    redeemBytes: 5103,
+    batchSize: 64,
+}

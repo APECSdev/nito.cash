@@ -14,9 +14,12 @@ import { describe, expect, it } from 'vitest'
 import { createHash } from 'crypto'
 
 import { role2ProgramV3, v3WalkScripts, ROLE2_V3_CHIPNET_CATEGORY_DISPLAY, ROLE2_V3_CHIPNET_CODE_SHA256, ROLE2_V3_CHIPNET_LOCKING, ROLE2_V3_CHIPNET_WALK_A_HASH, ROLE2_V3_CHIPNET_WALK_B_HASH } from '@/lib/pool/verifier-role2-v3'
+import { getPools } from '@/lib/pool/registry'
+import { EMPTY_NULL_SET_ROOT } from '@/lib/pool/smt'
 
 import { role2Program3out, ROLE2_3OUT_CATEGORY_ONCHAIN } from '@/lib/pool/verifier-role2-3out'
 
+const bytesOf = (hex) => new Uint8Array(hex.match(/.{2}/g).map((h) => parseInt(h, 16)))
 const sha256Of = (bytes) => createHash('sha256').update(new Uint8Array(bytes)).digest('hex')
 /* p2sh32 = aa20 ‖ sha256(sha256(redeem)) ‖ 87 (vm.mjs's hash256 — DOUBLE sha) */
 const hash256Of = (bytes) => sha256Of(new Uint8Array(Buffer.from(sha256Of(bytes), 'hex')))
@@ -96,6 +99,25 @@ describe('lib/pool/verifier-role2-v3 — the v3 program + walk reproduction gate
         expect(process.env.POOL_NULLDATA_HASHES).toBeUndefined()
         /* the chipnet default restored after the mainnet build (the cache is per-key) */
     }, 60000)
+
+    it('the REGISTRY entry is internally consistent (the genesis commitment = rootLE ‖ EMPTY_NULL_ROOT; the pins = sha256 of the wraps)', () => {
+        const entry = getPools('chipnet').find((pool) => pool.variant === 'v3')
+        expect(entry).toBeDefined()
+        expect(entry.id).toBe('chipnet-role2-pool4-v3')
+        /* the EMPTY genesis: the deployment's 64-B state commitment */
+        expect(entry.genesisStateCommitment).toBe(entry.genesisRootLE + hexOf(EMPTY_NULL_SET_ROOT))
+        expect(entry.genesisLeaves).toEqual([])
+        expect(entry.bootstrapNotes).toEqual([])
+        /* the walk pins = sha256 of the P2SH32 wrap lockings (v3.1) */
+        expect(sha256Of(bytesOf(entry.program.walkLockings[0]))).toBe(entry.program.walkPins[0])
+        expect(sha256Of(bytesOf(entry.program.walkLockings[1]))).toBe(entry.program.walkPins[1])
+        expect(entry.program.walkPins[0]).toBe(DEPLOYED.walkAHash)
+        /* the program record matches the deployed build */
+        expect(entry.program.codePin).toBe(DEPLOYED.codeSha256)
+        expect(entry.program.lockingBytecode).toBe(DEPLOYED.locking)
+        /* the on-chain category byte order */
+        expect(entry.categoryOnChain).toBe(hexOf(new Uint8Array(entry.assetCategory.match(/.{2}/g).map((h) => parseInt(h, 16))).reverse()))
+    })
 
     it('keeps the 3-OUT program byte-identical after the v3-graph-pin patch (the stock-build regression)', () => {
         const program = role2Program3out(ROLE2_3OUT_CATEGORY_ONCHAIN)

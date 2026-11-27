@@ -43,7 +43,7 @@ import { binToHex, lockingBytecodeToCashAddress, sha256 } from '@bitauth/libauth
 import { DEPLOYED_PROGRAM, STEP_LOCKINGS, WALLET_PROGRAM, WALLET_STEP_LOCKINGS } from './verifier-program.js'
 import { GENERALIZED_WALLET_PROGRAM, GENERALIZED_WALLET_STEP_LOCKINGS } from './verifier-program-generalized.js'
 import { BENCH_PROGRAM, BENCH_STEP_LOCKINGS } from './verifier-program-bench.js'
-import { ROLE2_GUARD, ROLE2_GUARD_3OUT, ROLE2_PROGRAM, ROLE2_PROGRAM_3OUT, ROLE2_VENDING } from './verifier-program-role2.js'
+import { ROLE2_GUARD, ROLE2_GUARD_3OUT, ROLE2_GUARD_V3, ROLE2_PROGRAM, ROLE2_PROGRAM_3OUT, ROLE2_PROGRAM_V3, ROLE2_VENDING } from './verifier-program-role2.js'
 
 import { getNetwork } from '../bch/networks.js'
 
@@ -187,6 +187,41 @@ const POOLS = {
             fuelSats: 15000,
             blanksPerLock: 2,
             notes: 'THE 3-OUT V3 DEMO POOL — deployed 2026-11-26 (anchor bc607a96… = the category; mint 62d91e4c…; deploy 2f650791… block 348,569; program 7,848 B sha256 73cb0ccb…; born guarded). 3 inputs (fuel 0, fuel 1, state 2), NO signatures; 201-B OP_RETURN carrier with cm2; 9-field actionHash; 3 out-notes. FIVE confirmed actions: SHIELD 1,000 e847ef56… (out 400+300+300) → TRANSFER ef64f3dd… (out 280+210+210) → UNSHIELD 300 ec31a41c… (out 112+84+84, 300 FT payout) → zero-value-dummy TRANSFER 30f0f9d4… (out 400+20+0 — a 2-out flow) → the zero note SPENT cbfb0503… (in-notes 400+0, out 200+100+100); final state 700 FT, 17 leaves, state outpoint cbfb0503…:1. The wallet 3-out witness generator reproduces the live UNSHIELD byte-exactly (scripts/pool-accept.mjs --pool role2-3out --txid ec31a41c); the store 3-out branch (poolId + outputs===3) and the Wallet pool selector are wired; WEB-PLATFORM ACCEPTANCE PASSED 2026-11-26 (browser, real Wallet UI, chipnet): SHIELD 9b3aac2c044e728919e65658c31949dc5acda26f0ab2b85fc373581b08efe27d (block 348,956) → TRANSFER abbb3dc7ea1de8c4c0c4ffd11fdc3127971a9ecfa887b47645687a571b597ddf (348,960) → UNSHIELD 5a4d6b859665736cf6a9823b25157ec9d1fa70ab244812fd109b60db8612d273 (348,966); final state 788 FT, 10,000 sats. 3-out blanks are PERMISSIONLESS (vending machine above). Demo only: 1-of-1 setup, public bootstrap in-notes on the first action, no encrypted note delivery — and NO real nullifier set: finding R2-NULLIFIER-DOUBLING (a demonstrated full-balance drain, hushyourmoney handoff §12) means NO valued asset may enter ANY role-2 pool until the v3 nullifier set ships; Gate 7 AND the nullifier set are the mainnet gates.',
+        },
+        {
+            id: 'chipnet-role2-pool4-v3',
+            name: 'Chipnet PUSD pool — role-2 v3 (pool4: the nullifier SMT + the deposit path)',
+            network: 'chipnet',
+            variant: 'v3',
+            lockingBytecode: 'aa206dc915cef6f1343b7d170caaf79346072222d66fd3285fcb4d506f184069e8cb87',
+            assetCategory: 'e56c0a8583e36092f20e54c9247f6b8e5a6afd391027aa70ae109c3c42377930',
+            categoryOnChain: '307937423c9c10ae70aa271039fd6a5a8e6b7f24c9540ef29260e383850a6ce5',
+            genesisRootLE: '3e1f1922dfb671d3f912f7ea461e0a88ee848fdde12b6c18ab1ad2c56ae73421',
+            genesisLeafCount: 0,
+            genesisStateCommitment: '3e1f1922dfb671d3f912f7ea461e0a88ee848fdde12b6c18ab1ad2c56ae73421e579b9be0b8f58daacc4f66c959ed3ec903884d1914e11e7e0c3bbf2a5627b43',
+            /* flips with the store wiring + OUR browser acceptance (the 3-out
+               pattern) — the client paths (parts 1/2a/2b) are BUILT; the
+               store branch is the remaining piece */
+            walletProverCompatible: false,
+            status: 'live',
+            deployTxid: '23909dc28ff10c8753d1c60b8775ad163481baac3b652db00094985e7200703a',
+            categoryAnchorTxid: 'e56c0a8583e36092f20e54c9247f6b8e5a6afd391027aa70ae109c3c42377930',
+            mintTxid: '85cd4780ea00d28a020e596b31b0832e0d274a893d1f756091f2980569afd473',
+            /* THE EMPTY GENESIS TREE — no bootstrap seeds, no pre-seeded notes;
+               the first action MUST be a DEPOSIT (the phantom in-note path) */
+            genesisLeaves: [],
+            bootstrapNotes: [],
+            stepLockings: [],
+            program: ROLE2_PROGRAM_V3,
+            guard: ROLE2_GUARD_V3,
+            shape: 'role2-tagged-v3',
+            txInputCount: 5,
+            outputs: 3,
+            carrierBytes: 201,
+            fuelSats: 23000,
+            walkSats: 2000,
+            blanksPerLock: 2,
+            notes: 'THE V3 (pool4) POOL — deployed 2026-11-27 05:38Z (anchor e56c0a85… = the category; mint 85cd4780…; deploy 23909dc2… chipnet h 349,143; program 7,998 B sha256 27b904a2… pieces 4111/3887; born guarded; the guard batch a98ee616… 64 blanks h 349,183). BOTH DRAINS CLOSED AT CONSENSUS: the append proof (R3: newMerkleRoot circuit-constrained) + the SHA256 nullifier SMT (R2: walkA 9f0a1a98…/walkB 338f4d86… pin the WRAPS — v3.1: the raw scripts are relay-nonstandard, the walk UTXOs lock to the P2SH32 wraps aa20f823…/aa206ae3… and the scripts ride the unlockings as the redeem push; the fold check 7 is GONE) + the DEPOSIT path (the empty genesis tree — no bootstrap seeds; onboarding with phantom in-notes). The HUSH lifecycle COMPLETE (every input VM-accepted): DEPOSIT 1,000 137a7907… (fee 50,000) → TRANSFER 8ccc9cd2… (47,500) → UNSHIELD 250 405166f5… (45,500, 1.002 sat/B) — the three txids are the pool-accept oracle. M1 ALL PASSED under v3.1 (acceptance 29/29, red team 164/0, hook cost 39,033 std, sweep 69/0). The 5-input shape: fuel 23,000×2 + state + walk-data 2,000×2; fees ride the locked sats; the 64-B state commitment = LE32(noteRoot) ‖ nullSetRoot. Assets: the CHIPNET-ONLY 1-of-1 trio (VK 07638f10…, zkey 942f8fc5…, wasm a9b4b03d… — published entropy, the testnet norm) — superseded by the POST-MPC trio at the M2 release (the mini-MPC: the Nito contribution DONE first 2026-11-27 01:29 UTC, pool4_0001_nito.zkey; the Hush second; the user-side third). The MAINNET pool (Preview v0) runs the asset category 2469acc5… — the v3.1 mainnet candidate program 40a95991… (the client reproduces it byte-exactly).',
         },
         {
             id: "chipnet-pusd-v4",
