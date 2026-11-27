@@ -604,7 +604,12 @@ const actions = {
                with the pool's published bootstrap notes for a first deposit. */
             const { picked: inNotes } = standingPair
                 ? { picked: standingPair }
-                : selectInNotes({
+                /* A v3 DEPOSIT spends NO in-notes (the phantom path — the
+                   empty-genesis onboarding): the selection must be skipped
+                   entirely, else it throws before the witness can engage. */
+                : isV3 && action === 'deposit'
+                    ? { picked: null }
+                    : selectInNotes({
                 action,
                 amount: BigInt(amount),
                 ownNotes: state.notes,

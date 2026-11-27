@@ -39,19 +39,27 @@ const MNEMONIC = 'direct blame later place ready bronze logic race soda toss cle
 const ACTION = (process.argv[2] || 'shield').toLowerCase()
 const AMOUNT = process.argv[3] || '1000'
 const RECIPIENT = process.argv[4] || ''
-if (!['shield', 'transfer', 'unshield', 'all'].includes(ACTION)) throw new Error('action must be shield|transfer|unshield|all')
+if (!['shield', 'transfer', 'unshield', 'deposit', 'all', 'allv3'].includes(ACTION)) throw new Error('action must be shield|transfer|unshield|deposit|all|allv3')
 if (ACTION === 'transfer' && !/^[0-9a-fA-F]{64}$/.test(RECIPIENT)) throw new Error('transfer needs a 64-hex delivery point')
 
 /* `all` runs the full acceptance in ONE browser session (the role-2 notes are
    off-chain, so a restore between actions would wipe them). ACCEPT_ALL overrides
    the three amounts (e.g. "200,200,112" for the 3-out run). */
 const ALL_AMOUNTS = (process.env.ACCEPT_ALL || '').split(',').filter(Boolean)
+/* `allv3` = the pool4 (v3) lifecycle: DEPOSIT (the empty-genesis onboarding,
+   no ACCEPT_NOTES import) → TRANSFER → UNSHIELD. */
 const ALL_ACTIONS = ACTION === 'all'
     ? [
         { label: 'Shield', amount: ALL_AMOUNTS[0] || '1000' },
         { label: 'Transfer', amount: ALL_AMOUNTS[1] || '400', recipient: RECIPIENT },
         { label: 'Unshield', amount: ALL_AMOUNTS[2] || '600' },
     ]
+    : ACTION === 'allv3'
+        ? [
+        { label: 'Deposit', amount: ALL_AMOUNTS[0] || '1000' },
+        { label: 'Transfer', amount: ALL_AMOUNTS[1] || '400', recipient: RECIPIENT },
+        { label: 'Unshield', amount: ALL_AMOUNTS[2] || '600' },
+        ]
     : [{ label: ACTION.charAt(0).toUpperCase() + ACTION.slice(1), amount: String(AMOUNT), recipient: ACTION === 'transfer' ? RECIPIENT : '' }]
 
 /* Optional multi-pool run: ACCEPT_POOL clicks the pool-selector button (its
@@ -116,8 +124,11 @@ async function clickButton(text) {
 
 /* Navigate + wait for the app shell to render. */
 async function gotoHash(hash) {
-    await page.goto(`${BASE}/#${hash}`, { waitUntil: 'networkidle2', timeout: 60000 })
-    await page.waitForFunction(() => document.querySelector('#app') && document.querySelector('#app').children.length > 0, { timeout: 30000 })
+    /* 180 s: under a loaded VM the app's boot-time network (the Fulcrum
+       cluster sweep + the ticker) can hold >2 inflight connections past the
+       old 60 s window before networkidle2 settles. */
+    await page.goto(`${BASE}/#${hash}`, { waitUntil: 'networkidle2', timeout: 180000 })
+    await page.waitForFunction(() => document.querySelector('#app') && document.querySelector('#app').children.length > 0, { timeout: 60000 })
 }
 
 try {
@@ -154,10 +165,13 @@ try {
     /* 3. The Wallet view (nito-cash) action panel. The amount input only
           renders AFTER an action is toggled, so wait for the Footer button. */
     await gotoHash('/wallets/nito-cash')
-    await page.waitForFunction((name) => {
-        return [...document.querySelectorAll('button')].some((b) => b.textContent.trim() === name)
-    }, { timeout: 30000 }, ALL_ACTIONS[0].label)
+    /* The pool selector chip MUST be clicked BEFORE waiting for the FT-in
+       button — the label depends on the SELECTED pool (Deposit on a v3/pool4
+       pool, Shield on the 2-out default selection). */
     if (POOL_LABEL) {
+        await page.waitForFunction((label) => {
+            return [...document.querySelectorAll('button')].some((b) => b.textContent.trim() === label)
+        }, { timeout: 60000 }, POOL_LABEL)
         await clickButton(POOL_LABEL)
         await new Promise((r) => setTimeout(r, 600))
         const selected = await page.evaluate(() => {
@@ -166,6 +180,9 @@ try {
         })
         console.log('pool selected →', POOL_LABEL, '(active:', selected + ')')
     }
+    await page.waitForFunction((name) => {
+        return [...document.querySelectorAll('button')].some((b) => b.textContent.trim() === name)
+    }, { timeout: 60000 }, ALL_ACTIONS[0].label)
 
     if (NOTES_FILE) {
         const notes = JSON.parse(fs.readFileSync(NOTES_FILE, 'utf8'))
