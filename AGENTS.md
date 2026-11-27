@@ -887,8 +887,13 @@ INTEGRATION HANDOFF** — `hushyourmoney/docs/POOL-V3-INTEGRATION-HANDOFF-2026-1
   straight into snarkjs's stdin; never a file, never recorded (the hygiene
   protocol; only the printed hashes survive). The Hush contribute onto
   `pool4_0001_nito.zkey` next; then verify → VK export → the cascade → M2 → the B4
-  data edit. The user-side third contribution: the user's call, coordinated when
-  the Hush's hash is recorded. Notified: `MPC-NITO-CONTRIBUTION-2026-11-27.md`
+  data edit. **THE USER-SIDE THIRD CONTRIBUTION SLOT: TAKEN (the user's GO,
+  2026-11-27)** — runs immediately after the Hush's, same hygiene (fresh
+  unpublished entropy generated + piped on the user's behalf by their operator;
+  only the printed hash is recorded). Notified: `MPC-USER-DECISION-2026-11-27.md`
+  (their checkout + our docs/). **The user's GO also settles the acceptance
+  question: our chipnet acceptance acts on the EXISTING deployed pool** (their
+  lifecycle txids = the oracle; no fresh deploy). Notified: `MPC-NITO-CONTRIBUTION-2026-11-27.md`
   (their checkout + our docs/).
 - **M3: the chipnet v3 pool DEPLOYED — THE LIVE VALUES (the state file, corrected
   2026-11-27 evening; the earlier `03af2eda`/`934be668`/`89f0829e`/`aa207453` figures
