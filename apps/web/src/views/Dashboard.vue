@@ -62,19 +62,23 @@
 
                     <div class="w-[186px] h-[3px] mx-auto mt-[12px] mb-[14px] rounded-full bg-white/25" />
 
+                    <!-- The three wallet tiles ARE the wallet navigation:
+                         each opens its wallet view. Balances are REAL:
+                         the shielded pool balance, the transparent PUSD,
+                         and the transparent BCH holdings (fiat). -->
                     <div class="grid grid-cols-3 gap-[8px]">
-                        <div class="stat-tile">
+                        <button class="stat-tile" @click="loadWallet('nito-cash')">
                             <small>Nito Wallet</small>
-                            <span>$0.00</span>
-                        </div>
-                        <div class="stat-tile">
+                            <span>{{shieldedTile}}</span>
+                        </button>
+                        <button class="stat-tile" @click="loadWallet('naked-cash')">
                             <small>Cash Wallet</small>
-                            <span>{{walletBalance?.fiat}}</span>
-                        </div>
-                        <div class="stat-tile">
+                            <span>{{nakedTile}}</span>
+                        </button>
+                        <button class="stat-tile" @click="loadWallet('naked-vault')">
                             <small>My Treasury</small>
-                            <span>$0.00</span>
-                        </div>
+                            <span>{{walletBalance?.fiat}}</span>
+                        </button>
                     </div>
                 </div>
             </section>
@@ -110,6 +114,10 @@
 /* Initialize vuex. */
 import { mapActions, mapGetters, mapState } from 'vuex'
 
+/* Import networks (PUSD category lookup — the transparent stablecoin
+   balance fetch). */
+import { getTokenCategory } from '@/lib/bch/networks'
+
 /* Import components. */
 import { BlazeBanner, Backup, Button, Footer, Import, SeedVault, WizardConnect } from '@/components'
 
@@ -134,6 +142,7 @@ export default {
             showImport: false,
             showWizardConnect: false,
             walletBalance: null,
+            nakedPusd: null,
         }
     },
     computed: {
@@ -148,10 +157,16 @@ export default {
         ...mapGetters('wallets', [
             'getAccounts',
             'getBalance',
+            'getTokenBalance',
         ]),
 
         ...mapGetters('profile', [
             'getFlags',
+            'getNetwork',
+        ]),
+
+        ...mapGetters('pool', [
+            'getShieldedBalance',
         ]),
 
         /* PRIMARY (big) figure: the FIAT amount. utils/getFormattedValue
@@ -169,6 +184,23 @@ export default {
             const fiat = this.walletBalance && this.walletBalance.fiat
 
             return fiat ? fiat.split(' ').slice(1).join(' ') : ''
+        },
+
+        /* The SHIELDED PUSD tile (Nito Wallet) — the unspent pool notes,
+        formatted in PUSD base units (the same display the Nito Cash
+        wallet view uses). */
+        shieldedTile() {
+            if (this.getShieldedBalance === null) {
+                return '—'
+            }
+
+            return `${Number(this.getShieldedBalance).toLocaleString()} PUSD`
+        },
+
+        /* The TRANSPARENT PUSD tile (Naked Cash) — fetched in created()
+        (guarded; null while unknown or when the network has no PUSD). */
+        nakedTile() {
+            return this.nakedPusd === null ? '—' : `${Number(this.nakedPusd).toLocaleString()} PUSD`
         },
 
         /* SECONDARY figure: the BCH amount in its auto-scaled unit
@@ -228,6 +260,18 @@ export default {
          */
         loadConcierge() {
             this.$router.push('concierge')
+        },
+
+        /**
+         * Load Wallet View
+         *
+         * The three stat tiles are the wallet navigation: Nito Cash (the
+         * shielded pool), Naked Cash (transparent stablecoins), and the
+         * Naked Vault (transparent holdings). Previously NO UI path led
+         * to `/wallets/*` — the wallet views were reachable only by URL.
+         */
+        loadWallet(id) {
+            this.$router.push(`/wallets/${id}`)
         },
 
         /**
@@ -309,6 +353,19 @@ export default {
            seed set) that has never viewed its SeedVault phrase once
            (profile flag `f.bb`). Re-prompts each launch until viewed. */
         this.backupReminder = !!this.masterSeed && !((this.getFlags || {}).bb)
+
+        /* The TRANSPARENT PUSD balance (the Naked Cash tile) — fetched
+           INDEPENDENTLY (a failure never zeroes the other tiles), and only
+           when the active network tracks a PUSD category. */
+        const pusdCategory = getTokenCategory(this.getNetwork, 'PUSD')
+        if (pusdCategory) {
+            try {
+                this.nakedPusd = await this.getTokenBalance('BCH', pusdCategory)
+            } catch (err) {
+                console.error('PUSD balance fetch failed:', err) // eslint-disable-line no-console
+                this.nakedPusd = null
+            }
+        }
     },
     mounted: function () {
         //
@@ -341,6 +398,11 @@ export default {
     border: 1px solid rgba(255, 255, 255, 0.14);
     border-radius: 12px;
     padding: 8px 6px;
+    cursor: pointer;
+}
+
+.stat-tile:hover {
+    background: rgba(255, 255, 255, 0.16);
 }
 
 .stat-tile small {

@@ -229,6 +229,46 @@ describe('views/Dashboard', () => {
             .toEqual(['Connect a 3rd-party wallet', 'Concierge', 'History'])
     })
 
+    it('navigates to every WALLET view from the stat tiles', async () => {
+        const wrapper = mountView(Dashboard)
+
+        /* Three tiles, all BUTTONS (the old markup was three passive divs
+           with two hardcoded `$0.00` values). */
+        const tiles = wrapper.findAll('.stat-tile')
+        expect(tiles).toHaveLength(3)
+
+        /* Nito Wallet → the SHIELDED pool wallet view. */
+        wrapper.vm.loadWallet('nito-cash')
+        expect(router.push).toHaveBeenCalledWith('/wallets/nito-cash')
+
+        /* Cash Wallet → the TRANSPARENT stablecoin wallet view. */
+        wrapper.vm.loadWallet('naked-cash')
+        expect(router.push).toHaveBeenCalledWith('/wallets/naked-cash')
+
+        /* My Treasury → the transparent holdings view. */
+        wrapper.vm.loadWallet('naked-vault')
+        expect(router.push).toHaveBeenCalledWith('/wallets/naked-vault')
+    })
+
+    it('renders REAL wallet balances on the tiles (no hardcoded $0.00)', async () => {
+        const wrapper = mountView(Dashboard)
+
+        /* The shielded pool balance: 0 notes → "0 PUSD" (never a fake
+           `$0.00`). */
+        expect(wrapper.vm.shieldedTile).toBe('0 PUSD')
+
+        /* The transparent PUSD: awaited in created() — the mocked cluster
+           returns no token UTXOs → 0 PUSD. */
+        await waitFor(() => wrapper.vm.nakedPusd !== null)
+        expect(wrapper.vm.nakedTile).toBe('0 PUSD')
+
+        /* The treasury keeps the REAL BCH fiat (the moved value) — the
+           live-created balance, not a manual assignment (created() races
+           any overwrite here). */
+        await waitFor(() => wrapper.vm.walletBalance && wrapper.vm.walletBalance.fiat)
+        expect(wrapper.findAll('.stat-tile')[2].text()).toContain(wrapper.vm.walletBalance.fiat)
+    })
+
     it('opens the WizardConnect modal', () => {
         const wrapper = mountView(Dashboard)
 
