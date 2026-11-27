@@ -31,6 +31,19 @@ vi.mock('@/lib/solana.js', () => ({
     fetchSolBalance: vi.fn(async () => 0),
 }))
 
+/* B3 — the Wallet mount-scan's mailbox fetch must NEVER open real
+   WebSockets from the suite (the CI crash: undici's global WebSocket
+   dispatching jsdom Events). The module is covered by its own spec. */
+vi.mock('@/lib/pool/note-mailbox', () => ({
+    fetchNotePackets: vi.fn(async () => []),
+    fetchReceipts: vi.fn(async () => new Set()),
+    publishEvent: vi.fn(async () => ({ delivered: false })),
+    buildNoteEvent: vi.fn(),
+    buildReceiptEvent: vi.fn(() => ({ event: {} })),
+    packetTag: () => 'tag',
+    dpTag: () => 'dptag',
+}))
+
 import { useStore, getStoreFacade, StoreCompatPlugin, ensureStoreFacade } from '@/store'
 import Send from '@/views/Send.vue'
 import Settings from '@/views/Settings.vue'
