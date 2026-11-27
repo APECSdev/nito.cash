@@ -14,16 +14,115 @@
 //      lock outputs; first-seen wins the state double-spend — the client rule)
 //   5. deliver the two out-notes off-chain (the carrier has no room for them)
 //
+// STANDING-FUEL PATH (B2): when `standingFuel` is passed (exactly TWO fuel
+// UTXOs already sitting at the program — a lock whose action never
+// broadcast), NO fresh lock is built and the action spends the standing fuel
+// directly. The deposit tag the lock wrote on both fuel UTXOs binds the
+// intended action's nullifiers (hook check 4g), so the recovery MUST reuse
+// that in-note pair — matchStandingFuelNotes finds it. Only the action is
+// broadcast.
+//
 // Every step is observable through `onStage` so the UI can show progress.
+
+import { binToHex } from '@bitauth/libauth'
 
 import { ROLE2_CARRIER_BYTES, ROLE2_CARRIER_BYTES_3OUT, depositTag } from './role2-carrier.js'
 import { buildRole2Lock } from './role2-lock.js'
 import { buildRole2Action } from './role2-action.js'
+import { nullifier } from './notes.js'
 
 const STAGES = ['proving', 'tagging', 'locking', 'building', 'broadcasting', 'done']
+const STAGES_STANDING = ['proving', 'tagging', 'building', 'broadcasting', 'done']
 
 function stage(onStage, name, detail = {}) {
     if (typeof onStage === 'function') onStage(name, detail)
+}
+
+/* The standing fuel's deposit tag: the NFT commitment hex (Fulcrum spells
+   it in `token_data`, the store's normalize() in `token`), normalized. */
+function fuelTagOf(utxo) {
+    const token = utxo?.token || utxo?.token_data || null
+
+    return String(token?.nft?.commitment ?? '').replace(/^0x/, '').toLowerCase()
+}
+
+/*
+ * matchStandingFuelNotes — the in-note pair a standing fuel's deposit tag
+ * binds. The lock tagged both fuel UTXOs with SHA256(nf0_LE ‖ nf1_LE) of the
+ * action it was funding (role2-lock.js), so a recovery action MUST spend
+ * exactly that pair or the program's check 4g rejects the fuel: the wallet's
+ * own unspent notes (BOTH orders — the tag is order-sensitive) and, for a
+ * bootstrap-tagged lock, the pool's published seed pair. The same leaf can
+ * never fund both slots (the selectInNotes duplicate rule).
+ *
+ * @param {object}   opts
+ * @param {string}   opts.commitment        the standing fuel's NFT commitment (the tag) hex
+ * @param {object[]} [opts.ownNotes]        the wallet's notes (the store shape)
+ * @param {object[]} [opts.bootstrapNotes]  the pool's published seed pair (the
+ *                                          registry bootstrapNotes, witness shape)
+ * @returns {Promise<object[]|null>} the matching pair in the buildPoolWitness
+ *   in-note shape [{ note: {value, ownerPub, rho, r}, nk, index }], or null.
+ */
+export async function matchStandingFuelNotes({ commitment, ownNotes = [], bootstrapNotes = [] }) {
+    const tagHex = String(commitment ?? '').replace(/^0x/, '').toLowerCase()
+    if (tagHex.length !== 64) return null
+
+    const candidates = []
+
+    for (const note of ownNotes || []) {
+        if (note.spent) continue
+
+        candidates.push({
+            note: {
+                value: BigInt(note.value),
+                ownerPub: BigInt(note.ownerPub),
+                rho: BigInt(note.rho),
+                r: BigInt(note.r),
+            },
+            nk: BigInt(note.nk),
+            index: note.leafIndex,
+        })
+    }
+
+    for (const bootstrap of bootstrapNotes || []) {
+        candidates.push({
+            note: {
+                value: BigInt(bootstrap.note.value),
+                ownerPub: BigInt(bootstrap.note.ownerPub),
+                rho: BigInt(bootstrap.note.rho),
+                r: BigInt(bootstrap.note.r),
+            },
+            nk: BigInt(bootstrap.nk),
+            index: bootstrap.index,
+        })
+    }
+
+    /* One nullifier per candidate; every ordered distinct-leaf pair is trialed. */
+    const nfs = []
+
+    for (const candidate of candidates) {
+        nfs.push(await nullifier(candidate.nk, candidate.note.rho))
+    }
+
+    const le32 = (value) => {
+        const bytes = new Uint8Array(32)
+        let x = BigInt(value)
+        for (let i = 0; i < 32; i += 1) { bytes[i] = Number(x & 0xffn); x >>= 8n }
+        return bytes
+    }
+    const tagOf = (a, b) => binToHex(depositTag(new Uint8Array([...le32(a), ...le32(b)])))
+
+    for (let i = 0; i < candidates.length; i += 1) {
+        for (let j = 0; j < candidates.length; j += 1) {
+            if (i === j) continue
+            if (candidates[i].index === candidates[j].index) continue
+            if (tagOf(nfs[i], nfs[j]) !== tagHex) continue
+
+            return [candidates[i], candidates[j]]
+        }
+    }
+
+    return null
 }
 
 /*
@@ -36,6 +135,10 @@ function stage(onStage, name, detail = {}) {
  * @param {object}   opts.funding       a plain BCH UTXO for the fuel sats
  * @param {object}   [opts.supply]      a pool-category FT UTXO (shields)
  * @param {bigint}   [opts.shield]      the FT deposit (pv) for a shield
+ * @param {object[]} [opts.standingFuel] exactly TWO fuel UTXOs already at the
+ *                                       program (B2): skips the fresh lock;
+ *                                       both must carry THIS action's deposit
+ *                                       tag as their NFT commitment
  * @param {string}   opts.changeAddress the user's CashAddress
  * @param {Uint8Array} opts.privateKey  the user's signing key
  * @param {Function} opts.prove         async (args) => { carrier, unlockings, newRoot, newNull, newBalance }
@@ -51,6 +154,7 @@ export async function submitRole2Action({
     funding,
     supply = null,
     shield = 0n,
+    standingFuel = null,
     changeAddress,
     privateKey,
     prove,
@@ -63,26 +167,45 @@ export async function submitRole2Action({
     if (!state) throw new Error('role2-actions: state UTXO is required')
     if (typeof prove !== 'function') throw new Error('role2-actions: a prove function is required')
     if (typeof broadcast !== 'function') throw new Error('role2-actions: a broadcast function is required')
+    if (standingFuel && (!Array.isArray(standingFuel) || standingFuel.length !== 2 || !standingFuel[0] || !standingFuel[1])) throw new Error('role2-actions: standingFuel must be exactly TWO fuel UTXOs')
 
     stage(onStage, 'proving')
-    const proof = await prove({ pool, state, blanks, funding, supply, shield, payoutAddress })
+    const proof = await prove({ pool, state, blanks, funding, supply, shield, payoutAddress, standingFuel })
     if (!proof?.carrier || (proof.carrier.length !== ROLE2_CARRIER_BYTES && proof.carrier.length !== ROLE2_CARRIER_BYTES_3OUT)) throw new Error(`role2-actions: the prover returned no ${ROLE2_CARRIER_BYTES}-B or ${ROLE2_CARRIER_BYTES_3OUT}-B carrier`)
     if (!Array.isArray(proof.unlockings) || proof.unlockings.length !== 3) throw new Error('role2-actions: the prover returned no 3 unlockings')
 
     stage(onStage, 'tagging')
     const tag = depositTag(proof.carrier)
+    const tagHex = binToHex(tag)
 
-    stage(onStage, 'locking')
-    const lock = await buildRole2Lock({
-        pool,
-        tag,
-        shield,
-        fundingUtxo: funding,
-        blanks,
-        supplyUtxo: supply,
-        changeAddress,
-        privateKey,
-    })
+    let lock = null
+    let lockTxid = null
+
+    if (standingFuel) {
+        /* B2 — spend the standing fuel: the deposit tag the lock wrote must
+           equal THIS action's tag or the program's check 4g rejects the fuel
+           inputs; fail loudly BEFORE any broadcast. */
+        for (const [index, utxo] of standingFuel.entries()) {
+            const fuelTag = fuelTagOf(utxo)
+            if (fuelTag !== tagHex) {
+                throw new Error(`role2-actions: the standing fuel ${index} carries tag ${fuelTag.slice(0, 16) || '(none)'}… but this action's deposit tag is ${tagHex.slice(0, 16)}… — the fuel is bound to a different nullifier pair`)
+            }
+        }
+
+        lockTxid = standingFuel[0].txid
+    } else {
+        stage(onStage, 'locking')
+        lock = await buildRole2Lock({
+            pool,
+            tag,
+            shield,
+            fundingUtxo: funding,
+            blanks,
+            supplyUtxo: supply,
+            changeAddress,
+            privateKey,
+        })
+    }
 
     stage(onStage, 'building')
     const action = await buildRole2Action({
@@ -92,7 +215,7 @@ export async function submitRole2Action({
         newNull: proof.newNull,
         newBalance: proof.newBalance,
         stateUtxo: state,
-        fuelUtxos: [
+        fuelUtxos: standingFuel || [
             { txid: lock.txid, vout: 0, sats: lock.fuelSats },
             { txid: lock.txid, vout: 1, sats: lock.fuelSats },
         ],
@@ -101,7 +224,7 @@ export async function submitRole2Action({
     })
 
     stage(onStage, 'broadcasting')
-    const lockTxid = await broadcast(lock.hex, 'lock')
+    if (lock) lockTxid = await broadcast(lock.hex, 'lock')
     const actionTxid = await broadcast(action.hex, 'action')
 
     if (typeof saveNotes === 'function') {
@@ -109,7 +232,7 @@ export async function submitRole2Action({
             lockTxid,
             actionTxid,
             carrier: proof.carrier,
-            tag: lock.tag,
+            tag: lock ? lock.tag : tagHex,
             outNotes: proof.outNotes || [],
             stage: 'broadcast',
         })
@@ -121,8 +244,8 @@ export async function submitRole2Action({
         actionTxid,
         lock,
         action,
-        tag: lock.tag,
-        stages: STAGES,
+        tag: lock ? lock.tag : tagHex,
+        stages: lock ? STAGES : STAGES_STANDING,
         fee: action.fee,
     }
 }

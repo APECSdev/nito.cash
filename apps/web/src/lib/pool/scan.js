@@ -30,10 +30,10 @@
 // two leaves, and the global leaf index is derived from the genesis leaf
 // count + the running append offset.
 
-import { actionHash, actionHash3out, nullifier } from './notes'
-import { decryptPacket } from './carrier'
-import { decodePoolAction, decodeRole2Action } from './decode'
-import { poolAddress, poolScripthash } from './registry'
+import { actionHash, actionHash3out, nullifier } from './notes.js'
+import { decryptPacket } from './carrier.js'
+import { decodePoolAction, decodeRole2Action } from './decode.js'
+import { poolAddress, poolScripthash } from './registry.js'
 
 /**
  * Scan one pool's full action chain from the network.

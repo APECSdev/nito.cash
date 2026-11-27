@@ -28,8 +28,8 @@
 
 import * as snarkjs from 'snarkjs'
 
-import { noteCommitment, nullifier, actionHash, actionHash3out } from './notes'
-import { computeRoot, merklePath } from './merkle'
+import { noteCommitment, nullifier, actionHash, actionHash3out } from './notes.js'
+import { computeRoot, merklePath } from './merkle.js'
 
 /* Proving assets (served as static files, fetched on demand by snarkjs). */
 export const PROVING_WASM = 'proving/pool.wasm'

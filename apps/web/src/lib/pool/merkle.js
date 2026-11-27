@@ -8,7 +8,7 @@
 // zero[i+1] = Poseidon(zero[i], zero[i])). PoC-scale: the root and paths are
 // recomputed from the leaf list on demand (fine for chipnet note counts).
 
-import { TREE_DEPTH, poseidonHash } from './notes'
+import { TREE_DEPTH, poseidonHash } from './notes.js'
 
 /* Zero hash per level (index 0 = empty leaf). */
 export async function zeroHashes(depth = TREE_DEPTH) {

@@ -89,25 +89,71 @@ live". The click-through script: `docs/CONCIERGE-VIDEO-DEMO-HANDOFF-2026-11-26.m
   still passing + the nullifier set updated on-chain.
 - **Until it ships: NO VALUED ASSET may enter any role-2 pool** (a mainnet gate beside
   the Gate-7 MPC ceremony).
+- **UPDATE 2026-11-27 (the Hush spike — MEASURED, `hushyourmoney/docs/NULLIFIER-SET-SPIKE-2026-11-27.md`;
+  tooling `pusd-shielded-pool/spike-nullset/`)**: the v3 nullifier set is **HOOK-LEVEL
+  (a SHA256 SMT in BCH script)** — the in-circuit Poseidon option measured 743,608 c
+  (4.03×) and is REFUSED by the pot18 phase-1 they hold; the hook-level walk is VERIFIED
+  accept/reject on the real VM. Consequences for the Nito side: the browser prover stays
+  as-is (98-MB zkey, ~25-s prove; no actionHash change; nPublic stays 2); the action grows
+  +~21–23 KB (fee ~52–54k sats — the v3 pool's registry `fuelSats` must rise ~75%); the
+  ONE circuit revision = the deposit path (0-in/2-out onboarding) + `nf0 ≠ nf1` in-circuit
+  (~4 constraints, fits pot18). The v3 BUILD (circuit → program → hook → ceremony →
+  deploy) is the HUSH's standing #1; Nito's B1 work becomes the client swap when their
+  handoff lands (new VK/program constants, the deposit-path + nf0≠nf1 witness handling,
+  nullifier-tree reconstruction + sibling witnesses per action — their `spike-nullset`
+  JS is the reference).
 
-### B2 — the standing locks
+### B2 — the standing locks — **RESOLVED 2026-11-27 (this session); the wallet path is LIVE-ACCEPTED**
 
-| Lock | Pool | Fuel | Tag | Who can act |
-|---|---|---|---|---|
-| `3db76294aba8fa24ad213520159660fe5280ab0c2430d592f56f9bd434a9a779` | 3-out | 1,000 FT + 30,000 sats | `9b15436a…` = the **public bootstrap tag** (recomputed from `bootstrapNotes`) | **anyone** — we sweep it |
-| `d95e5b974c114411338144399646003d5297a074704ac6930acfff8698704bed` | 2-out | 1,000 FT + 30,000 sats | `f7fa6ad1…` (private — the Hush's notes) | the Hush (ask them) |
-| `10f26fa38a4f7c506db3cb921fbc31615ab08c5b3dc12a7d645608b322b2fe84` | 3-out | 0 FT + 30,000 sats | `e20f2710…` | stuck (the nullifier lost) |
-| `1946084ea07abef655c6f3a55850461726c2252e1ddaf47b2d2528f369450b1c` | 3-out | 0 FT + 30,000 sats | `1ef01ad4…` | stuck |
-| `c3e21c7a99116e0205a1d97bffeff8eef9c314c54826532c72296d81ceaad08a` | 3-out | 600 FT + 30,000 sats | `fefbc49f…` | stuck |
-| `dff42ddb835c39bf2200a6eef697ec5f256ade4a206d41bd85d904876e3e1c2a` | 3-out | 600 FT + 30,000 sats | `1b2d4fa4…` | stuck |
+**STATE CORRECTION (verified on-chain this session; the table below was STALE — it even
+contradicted §1's own "later actions" note):** ALL six locks sat at the **2-OUT** program
+(`aa203e40…`, category `480e30ff…`), NOT the 3-out; and the two actionable locks were
+already swept by the Hush in their funding session:
 
-- **The fix**: a **standing-fuel path** — `submitRole2Action` always builds a fresh lock
-  (`src/lib/pool/role2-actions.js`); the builder must accept existing fuel UTXOs. The
-  sweep for `3db76294…`: the bootstrap in-notes (the public seeds) + the standing fuel +
-  the current state → the out-notes to the wallet (a shield-like action; the 1,000 FT
-  deposit rides the fuel0).
-- **The acceptance**: the sweep broadcast + the lock spent; the 3-out state gains the
-  1,000 FT; the fuel's 30,000 sats minus the fee return.
+- `3db76294…` (the PUBLIC bootstrap tag `9b15436a…`, 1,000 FT) — swept at block 348,512
+  by the Hush's `7aee6780…` (in0/in1 = its fuel; state 760,400 → 761,400). Verified on-chain
+  + `pool-accept --pool role2 --txid 7aee6780` BYTE-EXACT + the carrier's nf0/nf1 ARE the
+  registry bootstrap nullifiers. Hush record: their AGENTS.md "Sweep `3db76294…`" line.
+- `d95e5b97…` (private tag `f7fa6ad1…`) — swept at block 348,514 by `a722ef3b…`, their
+  one-note pre-seed (wallet A holds the resulting 450,600-FT 2-out note, leaf 46; the
+  Hush kept 300,400, leaf 47; state → 762,400, the current tip). Byte-exact under our
+  port as well. The "ask the Hush" item is DONE.
+- `10f26fa3…` / `1946084e…` / `c3e21c7a…` / `dff42ddb…` (1,200 FT + 120,000 sats total) —
+  STUCK: lost private tags whose note preimages are gone; unspendable by ANYONE (both
+  sides' docs agree: a demo loss, not a standing vulnerability). No further action.
+
+**The standing-fuel PATH (the wallet-side deliverable) — BUILT + LIVE-ACCEPTED this
+session** (a lock whose action never broadcast is the exact failure mode that created the
+five locks, and until now `submitRole2Action` could only build a FRESH lock — stranding
+the fuel forever):
+
+- `src/lib/pool/role2-actions.js`: `submitRole2Action` accepts `standingFuel` (exactly
+  TWO fuel UTXOs) — NO fresh lock, ONE broadcast, and both fuel commitments MUST equal
+  `depositTag(carrier)` (the hook's check-4g binding enforced client-side, fail BEFORE
+  any broadcast). New `matchStandingFuelNotes({ commitment, ownNotes, bootstrapNotes })`
+  finds the in-note pair the tag binds (both orders, distinct leaves, spent notes
+  skipped) — a bootstrap-tagged lock matches the public seed pair (the `7aee6780…`
+  mechanic).
+- `src/store/modules/pool.js`: the store action accepts `standingFuel` — validates the
+  pair (same tag, fuel1 = 0 FT, shield amount === fuel0 FT, unshield/transfer need 0-FT
+  fuel), skips the lock set entirely, and proves over the tag-matched pair.
+- `scripts/role2-sweep-standing.mjs`: the two-mode acceptance harness — `make-standing`
+  (prove → tag → lock → broadcast the lock ONLY: the failure simulation) and `sweep`
+  (match the pair → re-prove → the orchestrator's standing-fuel path → BCH-2026 VM gate
+  consensus+standard INSIDE the broadcast hook → broadcast). Local `--assets` are
+  sha256-PINNED against the `role2-proving-assets-3out-v1` hashes (the B4 seed); the
+  broadcast validates the txid against the locally computed hash with a stale-socket
+  reconnect-retry (a dead socket resolves an error STRING — measured live).
+- **The LIVE acceptance (3-out pool, self-funded)**: lock `c17d23e0dfb789b3…` broadcast
+  alone (block 349,048; 112 FT deposit riding fuel0, tag `d0d23e97…` binding wallet A's
+  notes leaves 14+8 = 312 FT) → sweep action `cafab2755d1e5b8dec0177c3af15835f9c188b87a3d0557debd0e681dfad20ee`
+  (block 349,055) spent the standing fuel via the new path: `matchStandingFuelNotes`
+  found leaves 14+8, the state went **788 → 900 FT**, fee 30,000 (all fuel sats — the
+  program's TXOUTPUTCOUNT pin forbids a change output), and
+  `pool-accept --pool role2-3out --txid cafab275` reports **ALL THREE unlockings
+  BYTE-EXACT**. Wallet A's spendable notes: 700 → 812 FT (out-notes at leaves 26–28;
+  the post-sweep notes file is `/home/apecs/cov/role2-pool3-notes-after-sweep.json` on
+  the VM).
 
 ### B3 — the off-chain note delivery
 

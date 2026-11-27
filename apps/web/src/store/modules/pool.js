@@ -28,7 +28,7 @@ import { ownerPubFromDeliveryPoint } from '@/lib/pool/carrier.js'
 
 /* The role-2 (3-input tagged pool) pipeline: the orchestrator, the real prover
    chain, the witness generator, the carrier, and the blank selection. */
-import { submitRole2Action as submitRole2ActionLib } from '@/lib/pool/role2-actions.js'
+import { submitRole2Action as submitRole2ActionLib, matchStandingFuelNotes } from '@/lib/pool/role2-actions.js'
 import { PROVING_WASM_URL, PROVING_ZKEY_URL, PROVING_WASM_3OUT_URL, PROVING_ZKEY_3OUT_URL, buildPoolWitness, buildPoolWitness3out, generateProof } from '@/lib/pool/prover.js'
 /* verifier-role2 is the node-side witness generator (it reads its fixtures
    with node:fs); the store imports it lazily inside prove(). */
@@ -338,14 +338,18 @@ const actions = {
      *   carrier → submitRole2Action (the lock + the action, broadcast together).
      *
      * Params: { action: 'shield'|'transfer'|'unshield', amount: BigInt|number
-     *   (PUSD base units), recipientDeliveryPoint?: hex (transfer only) }.
+     *   (PUSD base units), recipientDeliveryPoint?: hex (transfer only),
+     *   standingFuel?: [utxo, utxo] (B2 — exactly TWO fuel UTXOs already at
+     *   the program: a lock whose action never broadcast; no fresh lock is
+     *   built, the deposit tag binds the in-note pair, and the sweep's
+     *   shield amount must equal the standing fuel0's FT) }.
      * Requires the role-2 pool to be walletProverCompatible (the registry
      * flag flips only after the web-platform acceptance).
      */
     /* v8 ignore start — the proving half is exercised end-to-end by the
        web-platform chipnet acceptance (scripts/pool-accept.mjs pins the
        witness byte-exactly); the store gates are unit-tested above. */
-    async submitRole2Action({ dispatch, state, rootGetters }, { action, amount, recipientDeliveryPoint, onStage, poolId = 'chipnet-pusd-role2' }) {
+    async submitRole2Action({ dispatch, state, rootGetters }, { action, amount, recipientDeliveryPoint, onStage, poolId = 'chipnet-pusd-role2', standingFuel = null }) {
         const entropyHex = rootGetters['profile/getMasterSeed']
 
         if (!entropyHex) {
@@ -450,6 +454,72 @@ const actions = {
             throw error
         }
 
+        /* B2 — the STANDING-FUEL path: exactly TWO fuel UTXOs already at the
+           program (a lock whose action never broadcast). No fresh lock is
+           built; the deposit tag the lock wrote on both fuel UTXOs binds the
+           in-note pair the recovery MUST reuse (matchStandingFuelNotes). The
+           standing fuel0's FT IS the shield deposit; an unshield/transfer
+           lock carries none (the payout comes from the state). */
+        let standingPair = null
+
+        if (standingFuel) {
+            if (!Array.isArray(standingFuel) || standingFuel.length !== 2 || !standingFuel[0] || !standingFuel[1]) {
+                const error = new Error('The standing-fuel sweep needs exactly TWO fuel UTXOs at the program.')
+
+                dispatch('displayError', error, { root: true })
+
+                throw error
+            }
+
+            const fuelTags = standingFuel.map((u) => String(u.token?.nft?.commitment ?? '').replace(/^0x/, '').toLowerCase())
+            const fuel0Ft = BigInt(standingFuel[0].token?.amount ?? 0)
+            const fuel1Ft = BigInt(standingFuel[1].token?.amount ?? 0)
+
+            if (!fuelTags[0] || fuelTags[0] !== fuelTags[1]) {
+                const error = new Error('The two standing fuel UTXOs must carry the SAME deposit tag.')
+
+                dispatch('displayError', error, { root: true })
+
+                throw error
+            }
+
+            if (fuel1Ft !== 0n) {
+                const error = new Error('The standing fuel1 must carry no FT (the deposit rides fuel0 only).')
+
+                dispatch('displayError', error, { root: true })
+
+                throw error
+            }
+
+            if (action === 'shield') {
+                /* The sweep's deposit already rides the fuel — the amount and
+                   the fuel0 FT must agree (token conservation on-chain). */
+                if (shield !== fuel0Ft) {
+                    const error = new Error('The shield amount (' + shield + ') must equal the standing fuel0\u2026s FT (' + fuel0Ft + ') — the deposit already rides the fuel.')
+
+                    dispatch('displayError', error, { root: true })
+
+                    throw error
+                }
+            } else if (fuel0Ft !== 0n) {
+                const error = new Error('A standing-fuel ' + action + ' needs a 0-FT fuel0 (only a shield deposits through the lock).')
+
+                dispatch('displayError', error, { root: true })
+
+                throw error
+            }
+
+            standingPair = await matchStandingFuelNotes({ commitment: fuelTags[0], ownNotes: state.notes, bootstrapNotes: pool.bootstrapNotes })
+
+            if (!standingPair) {
+                const error = new Error('No in-note pair (own notes or the public bootstrap pair) matches the standing fuel\u2026s deposit tag — the fuel is not recoverable by this wallet.')
+
+                dispatch('displayError', error, { root: true })
+
+                throw error
+            }
+        }
+
         /* A plain BCH UTXO funds the lock: 2 x 15,000 fuel sats + the lock fee
            (the blanks and the supply add their own sats to the lock's inputs). */
         const byAddress = new Map()
@@ -461,8 +531,11 @@ const actions = {
         }
 
         let lockSet = null
+        let lockKey = null
 
-        for (const [address, utxos] of byAddress) {
+        /* The standing-fuel path needs NO fresh lock — no blanks, no funding,
+           no supply, no P2PKH key. */
+        for (const [address, utxos] of (!standingFuel ? byAddress : [])) {
             const blanks = selectBlanks(utxos, pool.assetCategory)
 
             /* Accumulate the plain UTXOs (largest first) until the fuel +
@@ -493,7 +566,7 @@ const actions = {
             break
         }
 
-        if (!lockSet) {
+        if (!lockSet && !standingFuel) {
             const error = new Error(shield > 0n
                 ? 'The lock needs ONE wallet address holding 2 blanks + 30,000 sats of plain BCH + a ' + pool.assetCategory.slice(0, 8) + '… FT UTXO covering the deposit.'
                 : 'The lock needs ONE wallet address holding 2 blanks + 30,000 sats of plain BCH.')
@@ -503,24 +576,28 @@ const actions = {
             throw error
         }
 
-        const { blanks, funding, supply } = lockSet
-
-        /* The lock signs with the selected address's HD key — the pool spend
-           key is NOT a BCH key and must never sign P2PKH inputs. */
-        const lockPath = lockSet.account.branch === 1
-            ? `${accountBase}/1/${lockSet.account.index}`
-            : `${derivationPath}/${lockSet.account.index}`
-        const lockNode = derivePath(hdNode, lockPath)
-        const lockKey = { privateKey: toPrivateKeyBytes(lockNode), publicKey: toPublicKeyBytes(lockNode) }
+        if (lockSet) {
+            /* The lock signs with the selected address's HD key — the pool spend
+               key is NOT a BCH key and must never sign P2PKH inputs. */
+            const lockPath = lockSet.account.branch === 1
+                ? `${accountBase}/1/${lockSet.account.index}`
+                : `${derivationPath}/${lockSet.account.index}`
+            const lockNode = derivePath(hdNode, lockPath)
+            lockKey = { privateKey: toPrivateKeyBytes(lockNode), publicKey: toPublicKeyBytes(lockNode) }
+        }
 
         const prove = async () => {
             /* The FULL witness tree: the registry genesis leaves followed by
                every action's cm0/cm1 at the scan-assigned global indices. */
             const leaves = assembleLeaves(scanned.scan, pool)
 
-            /* EXACTLY two in-notes: the wallet's own (largest first), filled
+            /* EXACTLY two in-notes: the STANDING path spends the pair the
+               fuel's deposit tag binds (matchStandingFuelNotes above); the
+               fresh-lock path spends the wallet's own (largest first), filled
                with the pool's published bootstrap notes for a first deposit. */
-            const { picked: inNotes } = selectInNotes({
+            const { picked: inNotes } = standingPair
+                ? { picked: standingPair }
+                : selectInNotes({
                 action,
                 amount: BigInt(amount),
                 ownNotes: state.notes,
@@ -654,14 +731,20 @@ const actions = {
             result = await submitRole2ActionLib({
                 pool,
                 state: stateUtxo,
-                blanks,
-                funding,
-                supply,
+                /* The standing-fuel path passes the TWO fuel UTXOs and builds
+                   NO fresh lock (no blanks/funding/supply/P2PKH key). */
+                ...(standingFuel ? { standingFuel } : {
+                    blanks: lockSet.blanks,
+                    funding: lockSet.funding,
+                    supply: lockSet.supply,
+                }),
                 /* The lock's DEPOSIT (a shield only) — the public value rides
                    the proof/carrier separately. */
                 shield: action === 'shield' ? shield : 0n,
-                changeAddress: lockSet.address,
-                privateKey: lockKey.privateKey,
+                ...(standingFuel ? {} : {
+                    changeAddress: lockSet.address,
+                    privateKey: lockKey.privateKey,
+                }),
                 prove,
                 broadcast: (hex) => {
                     /* Acceptance debug: the harness evaluates the captured tx on

@@ -812,19 +812,51 @@ broadcast) a full-balance drain: one note used as both in-notes yields valid pro
 against BOTH deployed VKs (the 2-out's 762,400 FT in ONE action). The program's check 7
 only folds `newNull = SHA256(oldNull ‖ nf0 ‖ nf1)` — no set membership. **NO VALUED ASSET
 may enter any role-2 pool until the v3 nullifier set ships** (a mainnet gate beside the
-Gate-7 MPC ceremony).
+Gate-7 MPC ceremony). **UPDATE (2026-11-27, the Hush spike — measured,
+`hushyourmoney/docs/NULLIFIER-SET-SPIKE-2026-11-27.md`): the v3 nullifier set is
+HOOK-LEVEL (a SHA256 SMT in BCH script, verified accept/reject on the real VM); the
+in-circuit option (743,608 c, 4.03×) is refused by their pot18. One circuit revision only:
+the deposit path (0-in/2-out) + `nf0 ≠ nf1` in-circuit (~4 constraints, fits pot18). The
+browser prover stays as-is; the action grows +~21–23 KB (fee ~52–54k sats — the v3 pool's
+registry `fuelSats` must rise ~75%). The v3 build is the Hush's standing #1; Nito takes
+the client swap at their handoff (new VK/program constants, the deposit-path + nf0≠nf1
+witness handling, nullifier-tree reconstruction + sibling witnesses — their `spike-nullset`
+JS is the reference).**
 
-**B2 — the standing locks.** `3db76294…` (3-out, 1,000 FT + 30,000 sats) is tagged with
-the PUBLIC bootstrap pair (the tag `9b15436a…`, recomputed from `bootstrapNotes`) — anyone
-can spend it; we can sweep it (needs a standing-fuel path: `submitRole2Action` always
-builds a fresh lock). `d95e5b97…` (2-out, 1,000 FT + 30,000 sats, tag `f7fa6ad1…`) is the
-Hush's notes — ask them to complete/sweep. `10f26fa3…`, `1946084e…`, `c3e21c7a…`,
-`dff42ddb…` (3-out) are stuck (the lost nullifiers).
+**B2 — the standing locks — RESOLVED (2026-11-27; verified on-chain).** The mission doc's
+table was STALE: all six locks sat at the 2-OUT program (`aa203e40…`, category
+`480e30ff…`), and the two actionable locks were ALREADY swept by the Hush:
+`3db76294…` (the PUBLIC bootstrap tag `9b15436a…`, 1,000 FT) by their `7aee6780…`
+(block 348,512; state 760,400 → 761,400; byte-exact under our port; the carrier nf0/nf1
+ARE the registry bootstrap nullifiers) and `d95e5b97…` by `a722ef3b…` (block 348,514;
+their one-note pre-seed: wallet A holds the 450,600-FT 2-out note at leaf 46; state →
+762,400, the current tip). `10f26fa3…`/`1946084e…`/`c3e21c7a…`/`dff42ddb…` (1,200 FT +
+120,000 sats) are stuck FOREVER (lost private tags; unspendable by anyone — a demo
+loss, both sides' docs agree). **THE WALLET STANDING-FUEL PATH IS BUILT + LIVE-ACCEPTED
+(2026-11-27):** `role2-actions.js` `submitRole2Action` accepts `standingFuel` (no fresh
+lock, one broadcast, the fuel commitments MUST equal `depositTag(carrier)` — check 4g
+enforced client-side) + the new `matchStandingFuelNotes` (the tag-bound in-note pair,
+both orders, the bootstrap pair for bootstrap-tagged fuel); the store action takes
+`standingFuel` with fuel-semantics validation; `scripts/role2-sweep-standing.mjs` is the
+two-mode harness (make-standing = broadcast the lock ONLY; sweep = match → re-prove →
+VM-gate consensus+standard inside the broadcast hook → broadcast; local `--assets`
+sha256-PINNED; stale-socket broadcasts retry once + validate the txid). LIVE acceptance
+on the 3-out pool: lock `c17d23e0…` (349,048, 112 FT on fuel0) → sweep
+`cafab275…` (349,055) spent it via the new path — state 788 → 900 FT,
+`matchStandingFuelNotes` found the tag pair (leaves 14+8), fee 30,000,
+`pool-accept --pool role2-3out --txid cafab275` ALL THREE unlockings BYTE-EXACT; wallet
+A's spendable notes 700 → 812 (leaves 26–28; the merged notes file
+`/home/apecs/cov/role2-pool3-notes-after-sweep.json` on the VM).
 
 **B3 — the off-chain note delivery.** Both pools' TRANSFER recipient notes are
-undeliverable (the 169/201-B action carrier carries no encrypted note). `lib/pool/carrier.js`
-has the NP01 note packet from the ORIGINAL pool; the role-2 action builder must add the
-NP01 output and the program must tolerate it (a VM gate). The 2N round needs it.
+undeliverable (the 169/201-B action carrier carries no encrypted note). The role-2 hook
+PINS `TXOUTPUTCOUNT == 2 + sign` (check 8b) — an appended NP01 carrier output is
+REJECTED by the deployed programs, so the in-tx path is dead for role-2 and the note
+handoff must be OUTSIDE the tx (the relay/DM channel the 2N round needs anyway). The
+Hush's v3 design agrees (their `ROLE2-3OUT-V3-DESIGN.md` §3.3: "an encrypted note
+channel (NIP-44/Nostr or a dedicated delivery layer)") — converging with our
+CashShuffle-over-Nostr stack (`src/lib/nostr/`, `src/lib/cashshuffle/`). The 2N round
+needs it.
 
 **B4 — the proving-asset pinning.** The store passes the mirror URLs but verifies no
 bytes; the local `public/proving/pool_final.zkey` is the old `b2398d85…`. Pin the six

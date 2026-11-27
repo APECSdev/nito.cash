@@ -30,7 +30,7 @@
 
 import { binToHex, decodeTransaction, hexToBin } from '@bitauth/libauth'
 
-import { parseCarrierLockingBytecode } from './carrier'
+import { parseCarrierLockingBytecode } from './carrier.js'
 
 /* Byte offset of the n0 (merkleRoot) / n1 (actionHash) DATA payloads in the
    verifier genesis step's unlocking bytecode (asset-pool.cash comments). */

@@ -46,7 +46,7 @@
 
 import { sha256 } from '@bitauth/libauth'
 
-import { getBabyjub, randomField, noteCommitment } from './notes'
+import { getBabyjub, randomField, noteCommitment } from './notes.js'
 
 /* ---- Wire format constants ---- */
 
