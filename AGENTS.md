@@ -862,11 +862,22 @@ INTEGRATION HANDOFF** — `hushyourmoney/docs/POOL-V3-INTEGRATION-HANDOFF-2026-1
   over the 3-out; walk inputs ~66% of budget; fills [0,0,203]). **M1b sweep: IN
   FLIGHT** (64 seeded real proofs; measured v3 prove ≈ 130–220 s at 247,120 c under
   VM contention).
-- **M3: the chipnet v3 pool DEPLOYED** (state file 2026-11-27T05:14Z: id
-  `chipnet-role2-pool4-v3`, anchor/category `03af2eda…` (the CHIPNET stand-in), mint
-  `934be668…`, deploy `89f0829e…`, program locking `aa207453…` (the chipnet-category
-  build), the walk lockings in the state file). Their §9/§10 deploy + fuel-economics
-  records land with the demo lifecycle (PENDING in the doc as written).
+- **M3: the chipnet v3 pool DEPLOYED — THE LIVE VALUES (the state file, corrected
+  2026-11-27 evening; the earlier `03af2eda`/`934be668`/`89f0829e`/`aa207453` figures
+  were the ABORTED v3.0 first attempt)**: id `chipnet-role2-pool4-v3`, anchor/category
+  `e56c0a8583e36092f20e54c9247f6b8e5a6afd391027aa70ae109c3c42377930` (the chipnet
+  stand-in), mint `85cd4780…`, deploy `23909dc2…:0` (state NFT v0, guard minting NFT
+  v1, supply 100M FT v2), program 7,998 B code sha256 `27b904a2…` pieces [4111,3887]
+  locking `aa206dc9…`, walk pins `9f0a1a98…`/`338f4d86…` (sha256 of the P2SH32 WRAPS
+  — the v3.1 correction: the raw 278/291-B scripts are relay-NONSTANDARD, so the walk
+  UTXOs lock to `aa20f823…87`/`aa206ae3…87` and the scripts ride the unlockings as
+  the redeem push, ~8,445/~8,425 B; the aborted v3.0 pinned the RAW scripts
+  `81a280e9…`/`6c101864…` with code `da484534…`). Guard adopted + CONFIRMED
+  (`a98ee616…`, born-guarded, 64 blanks minted + confirmed). Genesis state =
+  LE32(zh[20]) ‖ EMPTY_NULL_ROOT, balance 0, EMPTY tree, nullSet [] — NO action has
+  run yet (the demo lifecycle = their §9/§10 records, still PENDING). The client
+  reproduces the deployed program BYTE-EXACTLY (commit `68881cf` — the reproduction
+  gate + the VK-chain fix; the fixtures/embedding finding recorded there).
 - **THE MINI-MPC — THE USER AGREED (2026-11-27)** to the 2–3-independent-contributions
   scheme with UNPUBLISHED entropy (including the user-side contribution the Hush
   proposed). **The NITO side contributes FIRST** (`snarkjs zkey contribute` on
