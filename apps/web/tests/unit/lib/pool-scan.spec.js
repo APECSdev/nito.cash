@@ -393,6 +393,69 @@ describe('pool note-detection scan', () => {
         expect(result.actions.length).toEqual(3)
     })
 
+    it('B3 — the note-mailbox seam: an off-chain packet delivers the IDENTICAL note', async () => {
+        /* A variant action B WITHOUT the on-chain carrier output — the
+           note's ONLY delivery channel is the mailbox packet. Same args as
+           the fixture's B (the actionHash/carrier are unrelated). */
+        const argsBv = {
+            isUnshield: 0n,
+            publicValueAbs: 0n,
+            newMerkleRoot: 2222222222222222222222222222222222222222222222222222222222222222222n,
+            cm0: deliveredCm,
+            cm1: 104n,
+            nf0: 203n,
+            nf1: 204n,
+        }
+
+        const chainBv = buildActionTx({
+            prevoutTxid: TXID_A,
+            args: argsBv,
+            n0: 1111111111111111111111111111111111111111111111111111111111111111111n,
+            n1: actionHash({ ...argsBv, publicValueSign: argsBv.isUnshield, assetCategory: CATEGORY }),
+        })
+
+        const txsVariant = { [TXID_A]: chainA, [TXID_B]: chainBv, [TXID_C]: chainC }
+        const clusterVariant = {
+            getScripthashHistory: cluster.getScripthashHistory,
+            getTransaction: async (txid) => txsVariant[txid],
+        }
+
+        /* The packet (a REAL NP01 ciphertext for the recipient). */
+        const packet = await encryptNote(deliveredNote, recipientPoint)
+
+        /* The RIGHT action txid: the packet attaches + the note lands with
+           the SAME leaf index + nullifier as the on-chain-carrier path. */
+        const good = await scanPool({
+            cluster: clusterVariant,
+            pool: POOL,
+            networkId: 'chipnet',
+            spendKey: recipientKey,
+            notes: [],
+            mailboxPackets: [{ packet, actionTxid: TXID_B }],
+        })
+
+        expect(good.received).toHaveLength(1)
+        expect(good.received[0].cm).toEqual(deliveredCm)
+        expect(good.received[0].value).toEqual(100n)
+        expect(good.received[0].leafIndex).toEqual(4)
+        expect(good.received[0].nf).toEqual(deliveredNf)
+
+        /* The WRONG action txid: the packet is not attached -> the scan
+           sees no delivery (the recipient's later re-scan of the SAME event
+           still works — the real mailbox event's action tag comes from the
+           SENDER's submit, so it always matches a real action). */
+        const bad = await scanPool({
+            cluster: clusterVariant,
+            pool: POOL,
+            networkId: 'chipnet',
+            spendKey: recipientKey,
+            notes: [],
+            mailboxPackets: [{ packet, actionTxid: 'ff'.repeat(32) }],
+        })
+
+        expect(bad.received).toHaveLength(0)
+    })
+
     it('throws on an actionHash mismatch (a tampered action)', async () => {
         /* Rebuild action B with a WRONG proven n1 — the recomputed actionHash
            no longer matches, exactly like a forged/faulty chain would. */

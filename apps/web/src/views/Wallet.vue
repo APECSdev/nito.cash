@@ -623,6 +623,19 @@ export default {
                 this.deliveryPointHex = ''
             }
         }
+
+        /* B3 — the passive receive leg: on the SHIELDED wallet, run a pool
+           scan on mount. The scan fetches the note mailbox (the off-chain
+           NP01 packets addressed to this wallet's delivery point) and
+           records any received notes — the recipient sees an incoming
+           transfer the moment they open their Nito Cash wallet. Guarded
+           fire-and-forget: a scan failure never blocks the view (the
+           single-flight scanPool reuses any in-flight promise). */
+        if (this.wallet.id === 'nito-cash' && this.getMasterSeed) {
+            this.$store.dispatch('pool/scanPool').catch((err) => {
+                console.error('Passive pool scan failed:', err) // eslint-disable-line no-console
+            })
+        }
     },
 }
 </script>

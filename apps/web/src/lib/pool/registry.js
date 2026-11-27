@@ -441,6 +441,34 @@ export function getPools(networkId) {
     return POOLS[networkId] || []
 }
 
+/*
+ * B3 — the off-chain note delivery (the Nostr note mailbox; see
+ * docs/B3-NOTE-DELIVERY-DESIGN-2026-11-27.md §3.1 + lib/pool/note-mailbox.js).
+ * Per network: the relay set + the two event kinds. The relay set is a
+ * DEPLOYMENT DECISION (swappable here, never a code constant) — the same
+ * G1 relay pair the Hush research pages verified live (damus.io + nos.lol).
+ * A network with NO entry runs wallet-to-wallet transfers WITHOUT the
+ * off-chain delivery (the on-chain backstop remains a separate decision
+ * pending the program-tolerance answer).
+ */
+export const NOTE_MAILBOX = {
+    mainnet: {
+        relays: ['wss://relay.damus.io', 'wss://nos.lol'],
+        noteKind: 4321,
+        receiptKind: 4322,
+    },
+    chipnet: {
+        relays: ['wss://relay.damus.io', 'wss://nos.lol'],
+        noteKind: 4321,
+        receiptKind: 4322,
+    },
+}
+
+/* The note-mailbox config for a network (null when the network has none). */
+export function getNoteMailbox(networkId) {
+    return NOTE_MAILBOX[networkId] || null
+}
+
 /* The DEFAULT pool for a network (first entry; the wallet's scan target). */
 export function getDefaultPool(networkId) {
     return (POOLS[networkId] || [])[0] || null

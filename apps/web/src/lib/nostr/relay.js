@@ -68,11 +68,14 @@ export class Relay {
         })
     }
 
-    /* Subscribe to filters; the callback receives each event. */
-    subscribe(filters, onEvent = this.onEvent) {
+    /* Subscribe to filters; the callback receives each event. The optional
+     * third callback receives the subscription's EOSE (the "fetch is done"
+     * signal the mailbox's poll-style fetches await — the round transport
+     * ignores it). */
+    subscribe(filters, onEvent = this.onEvent, onEose = null) {
         this.connect()
         const subId = `nito-${this.nextSubId++}`
-        this.subscriptions.set(subId, { filters, onEvent })
+        this.subscriptions.set(subId, { filters, onEvent, onEose })
         /* If the socket is still connecting, onopen re-sends the map. */
         if (this.state === 'open') this.#send(['REQ', subId, ...filters])
         return subId

@@ -55,6 +55,9 @@ vi.mock('@/lib/pool/registry.js', async (importOriginal) => ({
     ...(await importOriginal()),
     getProverPool: proverPoolMock,
     getPools: getPoolsMock,
+    /* B3 — the mount-scan's mailbox path stays inert in view tests (no
+       real WebSocket fetches from the suite). */
+    getNoteMailbox: vi.fn(() => null),
 }))
 
 vi.mock('@/lib/pool/actions.js', () => ({
@@ -781,6 +784,21 @@ describe('views/Wallet', () => {
         expect(wrapper.text()).toContain('No PUSD yet?')
         expect(wrapper.text()).toContain('sent to')
         expect(wrapper.text()).toContain('your regular BCH address')
+    })
+
+    it('B3 — the SHIELDED wallet runs a PASSIVE pool scan on mount (the receive leg)', async () => {
+        /* The registry mock has NO mailbox (getNoteMailbox -> null) — the
+           scan runs the mailbox-less path against the REAL scan engine +
+           the mocked cluster (empty history -> zero actions). */
+        const wrapper = mountView(Wallet)
+
+        /* The scan checkpoint appears: the passive scan COMPLETED. */
+        const ok = await waitFor(() => {
+            const scan = getStoreFacade().state.pool.scan
+            return scan && scan.actionCount === 0
+        }, 15000)
+
+        expect(ok).toBe(true)
     })
 
     it('shows the PREVIEW-V0 gate message for a not-yet-compatible pool', async () => {

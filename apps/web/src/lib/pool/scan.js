@@ -428,12 +428,33 @@ export async function detectSpent({ actions, notes }) {
 /*
  * The convenience orchestrator used by the store: full scan + detection.
  *
- * @param {object} params — { cluster, pool, networkId, spendKey, notes }
+ * @param {object} params — { cluster, pool, networkId, spendKey, notes,
+ *   mailboxPackets } — `mailboxPackets` (B3, the off-chain note delivery)
+ *   is the list of fetched NP01 packets [{ packet: Uint8Array, actionTxid }]
+ *   from the note mailbox; each attaches to its action's carriers list so
+ *   the trial-decrypt path is EXACTLY the on-chain carriers flow.
  * @returns {Promise<object>} { address, actions, creationTxids, tipHeight,
  *   tipTxid, received, spent }
  */
-export async function scanPool({ cluster, pool, networkId, spendKey, notes = [] }) {
+export async function scanPool({ cluster, pool, networkId, spendKey, notes = [], mailboxPackets = [] }) {
     const scan = await scanPoolActions({ cluster, pool, networkId })
+
+    /* B3 — attach the off-chain mailbox packets to their actions (by the
+     * event's action-txid tag). A packet whose action is not in THIS pool's
+     * chain is skipped (the recipient may hold notes from another pool).
+     * The trial-decrypt + cm-validation below is unchanged — a wrong-key or
+     * tampered packet yields a cm that matches no commitment and drops. */
+    for (const entry of mailboxPackets || []) {
+        if (!entry || !entry.packet) continue
+
+        const action = entry.actionTxid
+            ? scan.actions.find((a) => a.txid === entry.actionTxid)
+            : null
+
+        if (action) {
+            action.carriers.push(entry.packet)
+        }
+    }
 
     const received = await detectReceived({
         actions: scan.actions,

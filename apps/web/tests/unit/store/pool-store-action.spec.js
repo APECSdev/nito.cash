@@ -50,6 +50,9 @@ vi.mock('@/lib/pool/registry', () => ({
     getDefaultPool: defaultPoolMock,
     getProverPool: proverPoolMock,
     getPools: poolsMock,
+    /* B3 — no mailbox in these (old-flow) tests: the scan's mailbox path
+       stays inert. */
+    getNoteMailbox: vi.fn(() => null),
 }))
 vi.mock('@/lib/bch/provider', () => ({ getCluster: clusterMock }))
 

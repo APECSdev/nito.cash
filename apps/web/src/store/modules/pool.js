@@ -18,7 +18,10 @@ import { deriveSealKey, sealJSON, unsealJSON } from '@/lib/pool/seal.js'
 
 /* Import the note-detection scan (blocker #2 wiring — see lib/pool/scan.js). */
 import { scanPool } from '@/lib/pool/scan.js'
-import { getDefaultPool, getProverPool, getPools } from '@/lib/pool/registry.js'
+import { getDefaultPool, getProverPool, getPools, getNoteMailbox } from '@/lib/pool/registry.js'
+/* B3 — the off-chain note delivery (the Nostr note mailbox). */
+import { buildNoteEvent, buildReceiptEvent, dpTag, fetchNotePackets, fetchReceipts, packetTag, publishEvent } from '@/lib/pool/note-mailbox.js'
+import { deriveDeliveryPoint, encryptNote } from '@/lib/pool/carrier.js'
 import { deriveSpendKey, noteCommitment, nullifier } from '@/lib/pool/notes.js'
 
 /* Import the end-to-end action orchestrator (blocker #4 wiring — see
@@ -37,11 +40,17 @@ import { encodeRole2Carrier } from '@/lib/pool/role2-carrier.js'
 import { selectBlanks } from '@/lib/pool/blanks.js'
 
 /* Import byte helpers + the Fulcrum provider (quorum-verified chain data). */
-import { derivePath, hexToBytes, toPrivateKeyBytes, toPublicKeyBytes } from '@/lib/bch/crypto.js'
+import { bytesToHex, derivePath, hexToBytes, toPrivateKeyBytes, toPublicKeyBytes } from '@/lib/bch/crypto.js'
 import { getCluster } from '@/lib/bch/provider.js'
 
 /* Runtime-only seal key — never persisted, never part of store state. */
 let _sealKey = null
+
+/* The in-flight scanPool promises, keyed by the scanned pool id (SINGLE-
+   FLIGHT — the Wallet view's passive mount-scan must never race the submit
+   path's pre-action scan; a scan for the DEFAULT pool must never satisfy a
+   submit's SELECTED-pool scan). */
+const _scanPromises = new Map()
 
 /* Initialize state. */
 const state = {
@@ -62,6 +71,15 @@ const state = {
     /* Last note-detection scan checkpoint (informational; the scan is a
        full rescan by design — chipnet-scale). { height, txid, actionCount }. */
     scan: null,
+
+    /* B3 — the TRANSFER outbox: NP01 packets this wallet has SENT that are
+       not yet acknowledged. Each: { packetHex, actionTxid, dpTag, eventId,
+       eventKeys: { publicKey, privateKey }, receiptSeen, publishedAt }.
+       The packet CONTENT is ciphertext to the RECIPIENT's delivery point
+       (useless to anyone else); the event keys are throwaway per-note
+       identities (kept so a re-publish reuses the SAME event id — relays
+       dedupe naturally). Persisted plaintext via the root store. */
+    outbox: [],
 }
 
 /* Getters. */
@@ -119,6 +137,17 @@ const actions = {
      * Requires the wallet seed (no seed -> no-op, like unlockPool).
      */
     async scanPool({ commit, state, dispatch, rootGetters }, payload = {}) {
+        /* SINGLE-FLIGHT: the Wallet view mounts a passive scan on every visit
+           (the B3 receive leg) — two concurrent scans of the SAME pool would
+           race the note bookkeeping. Reuse the in-flight promise FOR THE SAME
+           POOL ONLY (the default-pool key is `__default__`). */
+        const scanKey = payload.poolId || '__default__'
+
+        if (_scanPromises.has(scanKey)) {
+            return _scanPromises.get(scanKey)
+        }
+
+        const scanPromise = (async () => {
         const entropyHex = rootGetters['profile/getMasterSeed']
 
         if (!entropyHex) {
@@ -141,6 +170,24 @@ const actions = {
 
         const spendKey = deriveSpendKey(hexToBytes(entropyHex))
 
+        /* B3 — the off-chain note mailbox: fetch the NP01 packets addressed
+           to THIS wallet's delivery point (one poll per scan; guarded — a
+           relay outage must NEVER break the chain scan). The packets attach
+           to their actions inside scanPool and flow through the EXISTING
+           trial-decrypt + cm-validation path. */
+        let mailboxPackets = []
+        const mailbox = getNoteMailbox(network)
+
+        if (mailbox) {
+            try {
+                const ownDeliveryPoint = await deriveDeliveryPoint(spendKey)
+
+                mailboxPackets = await fetchNotePackets({ mailbox, ownDeliveryPoint })
+            } catch (err) {
+                console.error('note-mailbox fetch failed:', err) // eslint-disable-line no-console
+            }
+        }
+
         /* Scan + detect (throws on any chain/validation break). */
         const result = await scanPool({
             cluster,
@@ -148,6 +195,7 @@ const actions = {
             networkId: network,
             spendKey,
             notes: state.notes,
+            mailboxPackets,
         })
 
         /* Record received notes (dedupe by commitment — a rescan must not
@@ -162,6 +210,55 @@ const actions = {
             await dispatch('recordNote', note)
 
             received += 1
+        }
+
+        /* B3 — acknowledge every delivered mailbox packet (a receipt event
+           per packet that decrypts for THIS wallet — the note is recorded or
+           already present in either case; the receipt clears the sender's
+           outbox). Fire-and-forget + guarded. */
+        if (mailbox && mailboxPackets.length > 0) {
+            ;(async () => {
+                for (const { packet } of mailboxPackets) {
+                    try {
+                        const { event } = buildReceiptEvent({ mailbox, packet })
+
+                        await publishEvent({ mailbox, event })
+                    } catch (err) {
+                        console.error('note-mailbox receipt failed:', err) // eslint-disable-line no-console
+                    }
+                }
+            })()
+        }
+
+        /* B3 — the outbox sweep: clear acknowledged entries, re-publish the
+           rest (the SAME event ids — relays dedupe; the re-publish covers
+           relays that evicted or were down at send time). Fire-and-forget. */
+        if (mailbox && state.outbox.length > 0) {
+            ;(async () => {
+                try {
+                    const pending = state.outbox.filter((e) => !e.receiptSeen)
+                    const seen = await fetchReceipts({ mailbox, packets: pending.map((e) => hexToBytes(e.packetHex)) })
+                    const cleared = pending.filter((e) => seen.has(packetTag(hexToBytes(e.packetHex))))
+
+                    /* Re-publish everything still pending (cheap: relays
+                       dedupe by event id). */
+                    for (const entry of pending) {
+                        if (seen.has(packetTag(hexToBytes(entry.packetHex)))) continue
+
+                        try {
+                            await publishEvent({ mailbox, event: JSON.parse(entry.event) })
+                        } catch (err) {
+                            console.error('note-mailbox outbox republish failed:', err) // eslint-disable-line no-console
+                        }
+                    }
+
+                    if (cleared.length > 0) {
+                        commit('SET_OUTBOX', { outbox: state.outbox.filter((e) => !seen.has(packetTag(hexToBytes(e.packetHex)))) })
+                    }
+                } catch (err) {
+                    console.error('note-mailbox outbox sweep failed:', err) // eslint-disable-line no-console
+                }
+            })()
         }
 
         /* Mark on-chain-spent notes (spendNote is idempotent). */
@@ -187,7 +284,111 @@ const actions = {
         /* `scan` carries the RAW engine result (the ordered action chain) —
            submitPoolAction assembles the witness tree from it. */
         return { received, spent, actions: result.actions.length, scan: result }
+        })().finally(() => {
+            /* Release the single-flight slot (a rejection propagates to the
+               original caller; later callers start a fresh scan). */
+            _scanPromises.delete(scanKey)
+        })
+
+        _scanPromises.set(scanKey, scanPromise)
+
+        return scanPromise
     },
+
+    /*
+     * B3 — deliver a TRANSFER's recipient note off-chain (the Nostr note
+     * mailbox). Called right after the action broadcast: encrypts the
+     * RECIPIENT's out-note with the existing NP01 packet machinery and
+     * publishes it to the configured relays. The packet enters the outbox
+     * FIRST (persisted before any network attempt — a relay outage must
+     * never lose the note material; the sweep re-publishes until the
+     * recipient's receipt clears it).
+     *
+     * Params: { result (the submit return: actionTxid + outNotes),
+     *   recipientDeliveryPoint (hex), network }.
+     */
+    async deliverTransferNote({ state, commit, rootGetters }, { result, recipientDeliveryPoint, network }) {
+        const mailbox = getNoteMailbox(network)
+
+        if (!mailbox) {
+            /* No mailbox configured for this network — nothing we can do
+               (the registry gates this by configuration). */
+            console.error('note-mailbox: no mailbox configured for', network) // eslint-disable-line no-console
+            return null
+        }
+
+        /* The RECIPIENT'S out-note: the one whose ownerPub is the delivery
+           point's BabyJub public key (every transfer shape puts it at index
+           0 — find it properly anyway). */
+        const recipientOwnerPub = await ownerPubFromDeliveryPoint(parseDeliveryPoint(recipientDeliveryPoint))
+
+        const outNote = (result.outNotes || []).find((n) => BigInt(n.ownerPub) === recipientOwnerPub)
+
+        if (!outNote) {
+            throw new Error('The transfer produced no recipient out-note to deliver.')
+        }
+
+        /* The NP01 packet (encrypted to the recipient's delivery point). */
+        const packet = await encryptNote({
+            value: BigInt(outNote.value),
+            ownerPub: recipientOwnerPub,
+            rho: BigInt(outNote.rho),
+            r: BigInt(outNote.r),
+        }, parseDeliveryPoint(recipientDeliveryPoint))
+
+        /* Build + persist FIRST (the outbox owns durability), then publish. */
+        const { event, keys } = buildNoteEvent({ mailbox, recipientDeliveryPoint, packet, actionTxid: result.actionTxid })
+
+        commit('SET_OUTBOX', { outbox: [...state.outbox, {
+            packetHex: bytesToHex(packet),
+            actionTxid: result.actionTxid,
+            dpTag: dpTag(parseDeliveryPoint(recipientDeliveryPoint)),
+            eventId: event.id,
+            event: JSON.stringify(event),
+            eventKeys: {
+                publicKey: bytesToHex(keys.publicKey),
+                privateKey: bytesToHex(keys.privateKey),
+            },
+            receiptSeen: false,
+            publishedAt: Date.now(),
+        }] })
+
+        /* Publish (the sweep re-publishes on failure — a rejection here
+           must not fail the transfer, which is already on-chain). */
+        const { delivered } = await publishEvent({ mailbox, event })
+
+        return { eventId: event.id, delivered }
+    },
+
+    /*
+     * B3 — re-publish every pending outbox entry NOW (called at boot when
+     * the pool unlocks: the recipient may come online before the first
+     * scan; the delivery window should not wait for one). Fire-and-forget
+     * safe: relays dedupe by event id.
+     */
+    async republishOutbox({ state, rootGetters }) {
+        const network = rootGetters['profile/getNetwork']
+        const mailbox = getNoteMailbox(network)
+
+        if (!mailbox) {
+            return null
+        }
+
+        for (const entry of state.outbox) {
+            if (entry.receiptSeen) continue
+
+            try {
+                await publishEvent({ mailbox, event: JSON.parse(entry.event) })
+            } catch (err) {
+                console.error('note-mailbox republish failed:', err) // eslint-disable-line no-console
+            }
+        }
+
+        return true
+    },
+
+    /*
+     * Blocker #4 wiring — the end-to-end SHIELD / TRANSFER / UNSHIELD flow.
 
     /*
      * Blocker #4 wiring — the end-to-end SHIELD / TRANSFER / UNSHIELD flow.
@@ -1001,6 +1202,25 @@ const actions = {
             throw error
         }
 
+        /* B3 — the off-chain note delivery: a TRANSFER's recipient out-note
+           is encrypted (the NP01 packet) + published to the note mailbox.
+           GUARDED: the action is ALREADY on-chain — a mailbox failure must
+           never fail the submit (the outbox entry is committed BEFORE the
+           publish and re-delivers on every scan until receipted). */
+        if (action === 'transfer' && recipientDeliveryPoint && result && Array.isArray(result.outNotes) && result.outNotes.length > 0) {
+            try {
+                const delivery = await dispatch('deliverTransferNote', { result, recipientDeliveryPoint, network: rootGetters['profile/getNetwork'] })
+
+                dispatch('displayNotification', delivery && delivery.delivered
+                    ? 'Transfer broadcast — the recipient note is delivered.'
+                    : 'Transfer broadcast — the recipient note is queued for delivery.', { root: true })
+            } catch (err) {
+                console.error('note-mailbox delivery failed:', err) // eslint-disable-line no-console
+
+                dispatch('displayNotification', 'Transfer broadcast — the recipient note will be re-delivered on your next scan.', { root: true })
+            }
+        }
+
         dispatch('displayNotification', 'Role-2 action broadcast!', { root: true })
         return result
     },
@@ -1011,7 +1231,7 @@ const actions = {
      * ciphertext into the runtime-only `notes` mirror. No-op (returns false)
      * when no seed is set yet; returns whether the store is unlocked.
      */
-    async unlockPool({ commit, state, rootGetters }) {
+    async unlockPool({ commit, state, dispatch, rootGetters }) {
         const entropyHex = rootGetters['profile/getMasterSeed']
 
         if (!entropyHex) {
@@ -1024,6 +1244,14 @@ const actions = {
             const notes = await unsealJSON(state.sealed, _sealKey)
 
             commit('SET_NOTES', { notes })
+        }
+
+        /* B3 — re-publish any pending outbox notes at boot (fire-and-forget:
+           relays dedupe by event id; unlockPool must not block on them). */
+        if (state.outbox.length > 0) {
+            dispatch('republishOutbox').catch((err) => {
+                console.error('note-mailbox boot republish failed:', err) // eslint-disable-line no-console
+            })
         }
 
         return true
@@ -1100,10 +1328,21 @@ const mutations = {
 
         /* Reset (public) scan checkpoint. */
         state.scan = null
+
+        /* Reset the (B3) transfer outbox — a destroyed wallet's undelivered
+           packets are undeliverable (the recipient's receipt can never clear
+           them) and the entries carry delivery metadata. */
+        state.outbox = []
     },
 
     SET_SCAN(state, { height, txid, actionCount }) {
         state.scan = { height, txid, actionCount }
+    },
+
+    /* B3 — replace the whole outbox (the scan's receipt sweep + the
+       delivery appends both rewrite it wholesale). */
+    SET_OUTBOX(state, { outbox }) {
+        state.outbox = outbox || []
     },
 }
 

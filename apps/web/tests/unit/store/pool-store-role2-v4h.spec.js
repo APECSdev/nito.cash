@@ -68,6 +68,9 @@ vi.mock('@/lib/pool/scan', () => ({ scanPool: scanPoolMock }))
 vi.mock('@/lib/pool/registry', async (importOriginal) => ({
     ...(await importOriginal()),
     getPools: poolsMock,
+    /* B3 — no mailbox in these tests: the submit hook's delivery is inert
+       (the transfer test asserts the hook's null path). */
+    getNoteMailbox: vi.fn(() => null),
 }))
 vi.mock('@/lib/bch/provider', () => ({ getCluster: clusterMock }))
 vi.mock('@/lib/pool/prover', async (importOriginal) => ({
@@ -242,6 +245,11 @@ describe('store/modules/pool submitRole2Action — the v4h branch', () => {
         expect(witnessMock.mock.calls[0][0].isDeposit).toBe(false)
         /* The scenario's balance = the scan's validated chain (1,000). */
         expect(produceMock.mock.calls[0][0].scenarioArgs.balance).toBe(1000n)
+
+        /* B3 — the transfer's delivery hook ran with NO mailbox configured
+           (the registry mock): the outbox stays empty, the submit still
+           succeeds (the delivery is a registry-gated add-on). */
+        expect(facade.state.pool.outbox).toEqual([])
     }, 90000)
 
     it('the deposit SUPPLY reads the HELD category (the user pre-sends their PUSD to their wallet)', async () => {
