@@ -31,6 +31,7 @@
 // count + the running append offset.
 
 import { actionHash, actionHash3out, nullifier } from './notes.js'
+import { computeRoot } from './merkle.js'
 import { decryptPacket } from './carrier.js'
 import { decodePoolAction, decodeRole2Action } from './decode.js'
 import { poolAddress, poolScripthash } from './registry.js'
@@ -134,6 +135,21 @@ export async function scanPoolActions({ cluster, pool, networkId }) {
     let prevRoot = genesisRootBig
     let leafCount = pool.genesisLeafCount || 0
 
+    /* The reconstructible leaf list (the R3 stopgap, 2026-11-27): the
+       registry genesis leaves at their slots — the SAME layout
+       assembleLeaves builds its witness tree from. Unpublished seed leaves
+       leave HOLES, which DISABLE the append check for the rest of the scan
+       (the runner-gated legacy pools scan for note detection only — their
+       behavior is unchanged); a fully reconstructible tree (every role-2
+       pool, and every v3 pool — genesis EMPTY, no seeds at all) keeps the
+       check armed for every action. */
+    const genesisLeaves = pool.genesisLeaves || []
+    const leaves = new Array(Math.max(pool.genesisLeafCount || 0, genesisLeaves.length)).fill(undefined)
+
+    genesisLeaves.forEach((leaf, i) => {
+        leaves[i] = BigInt(leaf)
+    })
+
     for (const action of ordered) {
         const { args, proven } = action
         const outs = action.carrierBytes === 201 || pool.outputs === 3 ? 3 : 2
@@ -173,8 +189,42 @@ export async function scanPoolActions({ cluster, pool, networkId }) {
             throw new Error(`pool scan: root-continuity break at ${action.txid}`)
         }
 
+        /* b2. APPEND RECOMPUTE — the R3-FREE-NEWROOT stopgap (2026-11-27).
+              newMerkleRoot is a FREE WITNESS in every current circuit
+              (bound into the actionHash, never verified against the
+              append), so a TRANSFER whose newRoot anchors a FAKE tree —
+              the real leaves + its own commitments + fabricated notes —
+              passes BOTH checks above; the fabricated notes are then
+              spendable against the planted root (the measured full-balance
+              drain, hushyourmoney/docs/POOL-UPDATE-NITO-2026-11-27.md §1;
+              our scan's root check was continuity-only). This recomputes
+              the append the HONEST builder performs — computeRoot(leaves ‖
+              this action's own cms), the exact witness formula in prover.js
+              buildPoolWitness* — and HALTS the scan on a planted root.
+              DETECTION, not prevention: consensus still accepts the plant;
+              only the v3 in-circuit append proof prevents it. */
+        if (!leaves.some((leaf) => leaf === undefined)) {
+            const appendedRoot = await computeRoot([
+                ...leaves,
+                ...(outs === 3 ? [args.cm0, args.cm1, args.cm2] : [args.cm0, args.cm1]),
+            ])
+
+            if (appendedRoot !== args.newMerkleRoot) {
+                throw new Error(`pool scan: APPEND mismatch at ${action.txid} — the carrier newMerkleRoot is not the append of this action's own commitments (a planted root: R3-FREE-NEWROOT); the on-chain state is corrupt`)
+            }
+        }
+
         /* The global leaf indices of this action's appended notes (2 or 3). */
         action.leafIndexBase = leafCount
+
+        /* The reconstructible leaf list grows with this action's own
+              commitments (mirrors assembleLeaves' layout exactly). */
+        leaves[leafCount] = args.cm0
+        leaves[leafCount + 1] = args.cm1
+
+        if (outs === 3) {
+            leaves[leafCount + 2] = args.cm2
+        }
 
         leafCount += outs
 

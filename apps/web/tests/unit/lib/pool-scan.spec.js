@@ -22,6 +22,7 @@ import { binToHex, cashAddressToLockingBytecode, encodeTransactionBCH, hexToBin 
 
 /* Import pool lib. */
 import { actionHash, deriveSpendKey, noteCommitment, nullifier, getPoseidon } from '@/lib/pool/notes'
+import { computeRoot } from '@/lib/pool/merkle'
 import { deriveDeliveryPoint, encryptNote, ownerPubFromDeliveryPoint } from '@/lib/pool/carrier'
 import { decodePoolAction, leToBig, scriptPushes } from '@/lib/pool/decode'
 import { detectReceived, detectSpent, scanPool, scanPoolActions } from '@/lib/pool/scan'
@@ -735,5 +736,106 @@ describe('pool scan edge + guard paths', () => {
         })
 
         expect(received).toEqual([])
+    })
+})
+
+/* ── the R3 append-recompute stopgap (2026-11-27) ─────────────────────────
+ *
+ * scan.js gained the APPEND RECOMPUTE: on pools whose full leaf list is
+ * reconstructible (published genesisLeaves), each action's carrier
+ * newMerkleRoot must equal computeRoot(leaves ‖ its own cms) — the exact
+ * witness formula in prover.js buildPoolWitness*. A planted root (the
+ * R3-FREE-NEWROOT drain, hushyourmoney/docs/POOL-UPDATE-NITO-2026-11-27.md
+ * §1 — an honest actionHash over a FAKE tree) now HALTS the scan.
+ *
+ * The gate3 entry (POOL above) publishes NO genesisLeaves — its scan keeps
+ * the check disabled (the HOLES path), which is why the arbitrary-root chain
+ * in the describes above still passes. This pool entry ARMS the check. */
+describe('pool scan — the R3 append-recompute stopgap', () => {
+    const SEED_G0 = 900001n
+    const SEED_G1 = 900002n
+    const CM0 = 1111111301n
+    const CM1 = 1111111307n
+
+    /* A pool entry WITH published seed leaves (same category + locking as
+       gate3, so buildActionTx/poolLockingBytecode keep working). */
+    const SEEDED_POOL = {
+        ...POOL,
+        id: 'r3-seeded-test-pool',
+        genesisLeaves: [SEED_G0.toString(), SEED_G1.toString()],
+        genesisLeafCount: 2,
+    }
+
+    let honestArgs
+    let honestChain
+    let plantedChain
+    let plantedRoot
+
+    const oneActionCluster = (txid, hex) => ({
+        getScripthashHistory: async () => [{ tx_hash: txid, height: 330438 }],
+        getTransaction: async (id) => (id === txid ? hex : undefined),
+    })
+
+    beforeAll(async () => {
+        /* Warm the poseidon singleton (computeRoot needs it). */
+        await getPoseidon()
+
+        /* The HONEST action: newMerkleRoot = the real append. */
+        honestArgs = {
+            isUnshield: 0n,
+            publicValueAbs: 0n,
+            cm0: CM0,
+            cm1: CM1,
+            nf0: 2222222303n,
+            nf1: 2222222309n,
+            newMerkleRoot: await computeRoot([SEED_G0, SEED_G1, CM0, CM1]),
+        }
+
+        const n0 = leHexToBig(SEEDED_POOL.genesisRootLE)
+        const n1 = actionHash({ ...honestArgs, publicValueSign: honestArgs.isUnshield, assetCategory: CATEGORY })
+
+        honestChain = buildActionTx({ prevoutTxid: DEPLOY_TXID, args: honestArgs, n0, n1 })
+
+        /* The PLANT (R3 "action A"): the REAL leaves + the action's own
+           commitments + TWO FABRICATED NOTES (one carrying the pool's
+           entire balance — the drain's forged note), with an HONEST
+           actionHash over the fake tree. Continuity + actionHash BOTH pass
+           for this action; only the append recompute catches it. */
+        plantedRoot = await computeRoot([SEED_G0, SEED_G1, CM0, CM1, 3333333301n, 3333333307n])
+
+        const plantedArgs = { ...honestArgs, newMerkleRoot: plantedRoot }
+        const n1Planted = actionHash({ ...plantedArgs, publicValueSign: plantedArgs.isUnshield, assetCategory: CATEGORY })
+
+        plantedChain = buildActionTx({ prevoutTxid: DEPLOY_TXID, args: plantedArgs, n0, n1: n1Planted })
+    }, 120000)
+
+    it('accepts an HONEST action — the recomputed append matches the carrier root', async () => {
+        const cluster = oneActionCluster(TXID_A, honestChain)
+        const result = await scanPoolActions({ cluster, pool: SEEDED_POOL, networkId: 'chipnet' })
+
+        expect(result.actions).toHaveLength(1)
+        expect(result.actions[0].txid).toEqual(TXID_A)
+        expect(result.actions[0].leafIndexBase).toEqual(2)
+        expect(result.actions[0].args.newMerkleRoot).toEqual(honestArgs.newMerkleRoot)
+    })
+
+    it('REJECTS a planted root (R3-FREE-NEWROOT) and HALTS the scan', async () => {
+        const cluster = oneActionCluster(TXID_A, plantedChain)
+
+        /* The plant satisfies actionHash + continuity — the append
+           recompute is the only check that fires. */
+        await expect(scanPoolActions({ cluster, pool: SEEDED_POOL, networkId: 'chipnet' }))
+            .rejects.toThrow(/APPEND mismatch .* R3-FREE-NEWROOT/)
+    })
+
+    it('keeps the check DISABLED for pools with unpublished seed leaves (the legacy holes path)', async () => {
+        /* The SAME planted root against the gate3 entry (no genesisLeaves):
+           the holes disable the append recompute, and the scan still
+           completes (the pre-stopgap behavior — note detection only). */
+        const cluster = oneActionCluster(TXID_A, plantedChain)
+        const result = await scanPoolActions({ cluster, pool: POOL, networkId: 'chipnet' })
+
+        expect(result.actions).toHaveLength(1)
+        expect(result.actions[0].args.newMerkleRoot).toEqual(plantedRoot)
     })
 })
