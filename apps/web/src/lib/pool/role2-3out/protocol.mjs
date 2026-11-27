@@ -10,7 +10,7 @@ import assert from 'node:assert';
 import {encodeDataPush} from '@bitauth/libauth';
 import {bn254} from '@noble/curves/bn254.js';
 import {p, r, mod, F2, F12, f2, g1, g2, DIGITS, NE, NADD, LAMBDA, N6R, PI, GLS_BITS, GLS_OFFSET, glsDecompose, glsFactorPoly,
-  VKC, psiK, ETA, frob1Monic, linePoly, fromPoly, monicRep, pmul, psub, pneg, psubst, peval, pdivM, M, VK, Fp} from './sound-si-gls/math.mjs';
+  VKC, psiK, ETA, frob1Monic, linePoly, fromPoly, monicRep, pmul, psub, pneg, psubst, peval, pdivM, M, VK, Fp, vkDerivedListeners} from './sound-si-gls/math.mjs';
 import {BOUNDS, NSTATES, K_IDS, isBoundary, NQ_MAX, nqFor, le32, rdle, sha, toFp} from './sound-si-gls/protocol.mjs';
 
 export {BOUNDS, NSTATES, K_IDS, isBoundary, NQ_MAX, nqFor, le32, rdle, sha, toFp};
@@ -34,17 +34,24 @@ export const ROLES = Array.from({length: NROLES}, (_, i) => {
 // delta-step index j before each event (88 delta lines: 65 doublings, 21 additions, 2 Frobenius lines)
 export const J_AT = (() => { const j = [0]; for (let e = 0; e < NE; e++) j.push(j[e] + (DIGITS[e] ? 2 : 1)); return j; })();
 assert.equal(J_AT[NE], NE + NADD);
-export const DLAMS = [...VKC.lams, VKC.frob2.lam]; assert.equal(DLAMS.length, 88);
+/* DLAMS/DS/DSTATE are LIVE (v3 re-pointing 2026-11-27): all three are VK-derived
+   (DLAMS from VKC.lams, DS from DLAMS, DSTATE from VKC.deltaAff + DLAMS) and all
+   three are program-EMBEDDED — the v3 (pool4) program requires the v3 VK's
+   values; they recompute inside the vkDerivedListeners chain (math.mjs's
+   setVkFixtures fires the listeners AFTER VKC updates, so the recomputes see
+   the new VKC). */
+export let DLAMS = [...VKC.lams, VKC.frob2.lam]; assert.equal(DLAMS.length, 88);
 // role i's delta slice: slopes j in [J_AT[a], J_AT[b]) (+ the 2 Frobenius slopes for the last role)
-export const DS = ROLES.map(({a, b, i}) => Buffer.concat(DLAMS.slice(J_AT[a], i === NROLES - 1 ? 88 : J_AT[b]).flatMap((l) => [le32(l.c0), le32(l.c1)])));
+export let DS = ROLES.map(({a, b, i}) => Buffer.concat(DLAMS.slice(J_AT[a], i === NROLES - 1 ? 88 : J_AT[b]).flatMap((l) => [le32(l.c0), le32(l.c1)])));
 // the delta recursion state (x_j, c_{j-1}, lambda_{j-1}) before each event (start of every role), from one single
 // chain over all 88 lines (the script's recursion: c_j = (lambda_{j-1} + lambda_j) x_j - c_{j-1}, x_{j+1} = lambda_j^2 - x_j - s)
-export const DSTATE = (() => {
+export const computeDState = () => {
   const d = VKC.deltaAff; let x = d.x, c = d.y, l = F2.ZERO, j = 0; const out = [];
   const step = (s) => { const cj = F2.sub(F2.mul(F2.add(l, DLAMS[j]), x), c); const nx = F2.sub(F2.sub(F2.sqr(DLAMS[j]), x), s); c = cj; l = DLAMS[j]; x = nx; j++; };
   for (let e = 0; e < NE; e++) { out.push({x, c, l, j}); step(x); if (DIGITS[e]) step(d.x); }
   out.push({x, c, l, j}); return out;
-})();
+};
+export let DSTATE = computeDState();
 // per-role schedule: digits of events a+1..b-1 then a dummy byte (the first digit is pushed separately), and an
 // explicit boundary flag per event; asserted against the single-input schedule
 export const SCHEDULE = ROLES.map(({a, b}) => {
@@ -56,8 +63,20 @@ SCHEDULE.forEach(({sch, bnd, d0}, i) => { const {a, b} = ROLES[i]; assert.equal(
   assert.deepEqual([d0, ...[...sch.subarray(0, -1)].map((x) => (x === 0x81 ? -1 : x))], DIGITS.slice(a, b)); assert.equal(bnd.reduce((x, y) => x + y, 0), ROLES[i].nStates); });
 
 // ---------------- witness items and the transcript ----------------
-export const VK_DIGEST = sha(...[VK.alpha.x, VK.alpha.y, ...[VK.beta, VK.gamma, VK.delta].flatMap((q) => [q.x.c0, q.x.c1, q.y.c0, q.y.c1]), ...VK.ic.flatMap((q) => [q.x, q.y])].map((v) => le32(BigInt(v))));
-export const TAG = Buffer.concat([Buffer.from('BNMX3/1'), VK_DIGEST]);
+/* VK_DIGEST + TAG are LIVE (v3 re-pointing 2026-11-27): the program hashes TAG
+   (the VK-digest domain tag), so the v3 (pool4) program requires the v3 VK's
+   digest; the recompute registers in math.mjs's vkDerivedListeners so
+   setVkFixtures flips the whole chain atomically (the 2-out/3-out default is
+   restored after the v3 build — their programs keep reproducing byte-exactly). */
+export let VK_DIGEST = sha(...[VK.alpha.x, VK.alpha.y, ...[VK.beta, VK.gamma, VK.delta].flatMap((q) => [q.x.c0, q.x.c1, q.y.c0, q.y.c1]), ...VK.ic.flatMap((q) => [q.x, q.y])].map((v) => le32(BigInt(v))));
+export let TAG = Buffer.concat([Buffer.from('BNMX3/1'), VK_DIGEST]);
+vkDerivedListeners.push(() => {
+    VK_DIGEST = sha(...[VK.alpha.x, VK.alpha.y, ...[VK.beta, VK.gamma, VK.delta].flatMap((q) => [q.x.c0, q.x.c1, q.y.c0, q.y.c1]), ...VK.ic.flatMap((q) => [q.x, q.y])].map((v) => le32(BigInt(v))));
+    TAG = Buffer.concat([Buffer.from('BNMX3/1'), VK_DIGEST]);
+    DLAMS = [...VKC.lams, VKC.frob2.lam]; assert.equal(DLAMS.length, 88);
+    DS = ROLES.map(({a, b, i}) => Buffer.concat(DLAMS.slice(J_AT[a], i === NROLES - 1 ? 88 : J_AT[b]).flatMap((l) => [le32(l.c0), le32(l.c1)])));
+    DSTATE = computeDState();
+});
 export const STMT_SIZE = 642, D_SIZE = 96, HAND_SIZE = 224, F_MAX = 10000, NQ_MIN = 1;
 export const STMT_LAYOUT = {n0: 256, n1: 288, N0: 320, N1: 385, sc: 450};
 export const pushLen = (n) => encodeDataPush(new Uint8Array(n)).length; // minimal push of n bytes (n = 0: OP_0)

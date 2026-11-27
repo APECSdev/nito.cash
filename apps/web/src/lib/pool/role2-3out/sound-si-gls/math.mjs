@@ -8,10 +8,38 @@ import assert from 'node:assert';
 import {readFileSync} from 'node:fs';
 /* The fixtures are a STATIC import so the browser bundle carries them (the
    node:fs polyfill cannot resolve the import.meta.url path); the optional
-   BN_VK_FIXTURES override stays for the node harnesses. */
-import FIXTURES_JSON from '../our-3out.fixtures.json' with { type: 'json' };
+   BN_VK_FIXTURES override stays for the node harnesses.
+   V3 RE-POINTING (2026-11-27): the program build EMBEDS the VK's curve data,
+   so the v3 (pool4) program REQUIRES the v3 fixtures (our-v3.fixtures.json —
+   the VM's BN_VK_FIXTURES=/home/apecs/cov/our-v3.fixtures.json build of
+   record) and the 2-out/3-out programs require this 3-out default. The
+   fixtures are therefore a LIVE export switchable at runtime via
+   setVkFixtures()/restoreVkFixtures() (verifier-role2-v3.js switches before
+   buildProgram; the 3-out default is restored after). */
+import FIXTURES_3OUT_JSON from '../our-3out.fixtures.json' with { type: 'json' };
+import FIXTURES_V3_JSON from '../our-v3.fixtures.json' with { type: 'json' };
 import {bn254} from '@noble/curves/bn254.js';
 import {psiFrobenius} from '@noble/curves/abstract/tower.js';
+
+export const VK_FIXTURES_3OUT = FIXTURES_3OUT_JSON;
+export const VK_FIXTURES_V3 = FIXTURES_V3_JSON;
+export let FIXTURES = process.env.BN_VK_FIXTURES ? JSON.parse(readFileSync(process.env.BN_VK_FIXTURES)) : FIXTURES_3OUT_JSON;
+/* The VK-derived chain is LIVE: setVkFixtures flips FIXTURES + VK + VKC and
+   notifies vkDerivedListeners (protocol.mjs registers its VK_DIGEST/TAG
+   recompute there) so the WHOLE chain moves atomically. verifier-role2-v3.js
+   switches to the v3 fixtures before buildProgram and restores the 3-out
+   default after — the 2-out/3-out builds keep reproducing their deployed
+   programs byte-exactly. */
+export const vkDerivedListeners = [];
+export function setVkFixtures(f) {
+    FIXTURES = f;
+    VK = f.vk;
+    VKC = computeVkC();
+    for (const recompute of vkDerivedListeners) recompute();
+}
+export function restoreVkFixtures() {
+    setVkFixtures(process.env.BN_VK_FIXTURES ? JSON.parse(readFileSync(process.env.BN_VK_FIXTURES)) : FIXTURES_3OUT_JSON);
+}
 
 export const {Fp, Fp2: F2, Fp6, Fp12: F12} = bn254.fields;
 export const p = Fp.ORDER, r = bn254.fields.Fr.ORDER, BN_X = 4965661367192848881n;
@@ -21,11 +49,11 @@ export const inv = (x) => Fp.inv(mod(x));
 // ---------------- fixtures / VK (same as the densless entries) ----------------
 // BN_VK_FIXTURES (optional, Track 11 real keys): a fixtures file of the same shape ({vk, fixtures}) for another BN254 VK
 // with exactly 2 public inputs (../real-keys/*.fixtures.json). Unset = the densless VK, byte-identical to before.
-export const FIXTURES = process.env.BN_VK_FIXTURES ? JSON.parse(readFileSync(process.env.BN_VK_FIXTURES)) : FIXTURES_JSON;
+// (the live `let` FIXTURES above replaces the old `const` — see the v3 re-pointing note at the import block)
 assert.equal(FIXTURES.vk.ic.length, 3, 'the verifier binds exactly 2 public inputs (IC0..IC2)');
 export const g1 = (x) => bn254.G1.Point.fromAffine({x: BigInt(x.x), y: BigInt(x.y)});
 export const g2 = (x) => bn254.G2.Point.fromAffine({x: {c0: BigInt(x.x.c0), c1: BigInt(x.x.c1)}, y: {c0: BigInt(x.y.c0), c1: BigInt(x.y.c1)}});
-export const VK = FIXTURES.vk;
+export let VK = FIXTURES.vk;
 
 // ---------------- polynomials over Fp (coefficient arrays, low degree first) ----------------
 export const trim = (a) => { a = a.slice(); while (a.length > 1 && a.at(-1) === 0n) a.pop(); return a; };
@@ -180,7 +208,7 @@ export const affineLine = (xP, yP, lam, c) => F12.create({c0: Fp6.create({c0: {c
 // polynomial of the line l0 yP + l1 xP X + l3 X^3 (l's in Fp2, Phi-mapped)
 export const linePoly = (xP, yP, l0, l1, l3) => { const o = Array(10).fill(0n); const [a, b, c] = [Phi(l0), Phi(l1), Phi(l3)];
   for (let i = 0; i < 7; i++) { o[i] = mod(o[i] + yP * a[i]); o[i + 1] = mod(o[i + 1] + xP * b[i]); o[i + 3] = mod(o[i + 3] + c[i]); } return o; };
-export const VKC = (() => {
+export const computeVkC = () => {
   const V = vkPoints();
   // delta trajectory: lambda_j for the 86 loop lines (65 doublings, 21 additions with +-delta), then the
   // first Frobenius line (T + psi(delta)) as lambda_86 (it is the loop's last "next lambda"), and the second
@@ -217,6 +245,7 @@ export const VKC = (() => {
   corr = F12.conjugate(F12.pow(corr, GLS_OFFSET)); // conj = inverse up to Fp6 (same class); exponent -2^64
   const Rconst = monicRep(F12.mul(mConst, corr));
   return {deltaAff: d, deltaPsi: {x: p1x, y: p1y}, lams, deltaStart: {x: d.x, c: c0}, frob2: {lam: lamF2, c: cF2}, mIC, mConst, R, Rconst, deltaEnd: T};
-})();
+};
+export let VKC = computeVkC();
 // polynomial of the GLS factor (k, i) with sign s (0: +, 1: -): R_{k,i}(+-X), R_{k,2/3} = R_{k,0/1}(eta X)
 export const glsFactorPoly = (k, i) => { let f = VKC.R[k][i % 2]; if (i >= 2) f = psubst(f, ETA); return f; };

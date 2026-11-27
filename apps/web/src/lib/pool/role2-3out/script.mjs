@@ -75,10 +75,18 @@ function defineFunctions(a, WIN) {
   a.defLocal('FILL', 1, 1, (s) => { s.op(OP.SIZE, 1, 'in0', 'fs').pick('fs', 'c').push(F_MAX + 1).op(OP.LESSTHAN, 2, 'ok').op(OP.VERIFY, 1)
     .push(0, 'z0').pick('fs', 'c').op(OP.NUM2BIN, 2, 'zz').roll('in0').op(OP.EQUALVERIFY, 2).invoke('PLEN', ['len']); });
   // GRAPH: exactly NROLES inputs, every spent output has this input's locking bytecode
+  // v3 (POOL_NULLDATA_HASHES = JSON [walkAHash, walkBHash] hex): NROLES+2 inputs —
+  //   the two nullifier-data inputs (indices NROLES, NROLES+1) carry the walkA/walkB
+  //   RAW lockings, pinned here by SHA256 hash. Stock builds (env unset) are unchanged.
   a.defLocal('GRAPH', 0, 0, (s) => {
-    s.emit(IX.TXINPUTCOUNT); s.st.push('n'); s.push(NROLES).op(OP.NUMEQUALVERIFY, 2);
+    const ND = process.env.POOL_NULLDATA_HASHES ? JSON.parse(process.env.POOL_NULLDATA_HASHES) : null;
+    s.emit(IX.TXINPUTCOUNT); s.st.push('n'); s.push(ND ? NROLES + 2 : NROLES).op(OP.NUMEQUALVERIFY, 2);
     s.emit(IX.INPUTINDEX); s.st.push('ix'); s.op(IX.UTXOBYTECODE, 1, 'mine');
     for (let j = 0; j < NROLES; j++) { s.push(j).op(IX.UTXOBYTECODE, 1, 'u'); (j < NROLES - 1 ? s.pick('mine') : s.roll('mine')); s.op(OP.EQUALVERIFY, 2); }
+    if (ND) for (let i = 0; i < ND.length; i++) {
+      s.push(NROLES + i).op(IX.UTXOBYTECODE, 1, 'u'); s.op(OP.SHA256, 1, 'uh');
+      s.pushBytes(Buffer.from(ND[i], 'hex')).op(OP.EQUALVERIFY, 2);
+    }
   });
   // TRANS: [DG, ZT] -> [rho, z]: h0 = SHA256(TAG || DG), rho_raw = SHA256(h0 || "rho"), z_raw = SHA256(h0 || rho_raw || ZT),
   // rho, z = BIN2NUM(raw || 0x00) mod p, z != 0
