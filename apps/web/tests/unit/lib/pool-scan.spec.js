@@ -1110,6 +1110,13 @@ describe('pool scan — the v4h nullifier-SMT + balance-chain reconstruction (th
             .rejects.toThrow(/holdings line at out2/)
     })
 
+    it('REJECTS a v4h pool whose genesis commitment is not rootLE ‖ EMPTY_NULL_ROOT ‖ balance', async () => {
+        const badPool = { ...V4HPOOL, genesisStateCommitment: V4HPOOL.genesisStateCommitment.slice(0, 64) + 'ee'.repeat(32) + '00'.repeat(32) }
+        /* any action hex would do — the genesis check fires FIRST. */
+        await expect(scanPoolActions({ cluster: v4hCluster([], []), pool: badPool, networkId: 'mainnet' }))
+            .rejects.toThrow(/genesis commitment/)
+    })
+
     it('REJECTS a forged balance in the 96-B commitment (the balance chain)', async () => {
         const cmA = [9100001n, 9100002n, 9100003n]
         const argsA = await mkArgs([], 9001001n, 9001002n, 1000n, 0n, cmA)
