@@ -135,7 +135,19 @@ export function produceRole2InputsV3({ proof, publicSignals, categoryOnChain, wa
     const program = role2ProgramV3(categoryOnChain, walkAHash, walkBHash)
     const fx = { proof: normalizeProof(proof), publicInputs: publicSignals }
     const { walkA, walkB } = v3WalkScripts(categoryOnChain)
-    const t = poolTransactionForV3(fx, program, scenarioArgs, [walkA, walkB])
+    /* The transaction build runs proveCore internally (the Groth16 pairing
+       check + the c/cInv derivation) — it MUST run under the v3 fixtures:
+       the proof was made under the v3 (pool4) zkey, and the DEFAULT (3-out)
+       fixtures reject it ('Groth16 equation fails'). The CLI scripts never
+       see this because they run with BN_VK_FIXTURES set at import; the
+       BROWSER has no env var, so the swap is explicit here. */
+    setVkFixtures(VK_FIXTURES_V3)
+    let t
+    try {
+        t = poolTransactionForV3(fx, program, scenarioArgs, [walkA, walkB])
+    } finally {
+        restoreVkFixtures()
+    }
     return {
         program,
         unlockings: t.unlockings,

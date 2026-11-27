@@ -731,8 +731,11 @@ const actions = {
                     categoryDisplay: stateUtxo.token.category,
                 }
 
-                const { produceRole2InputsV3, v3WalkScripts } = await import('@/lib/pool/verifier-role2-v3.js')
-                const { unlockings } = produceRole2InputsV3({
+                const { produceRole2InputsV3 } = await import('@/lib/pool/verifier-role2-v3.js')
+                /* The walk unlockings come WITH the transaction build (the
+                   scripts ride as the redeem pushes — v3.1; the P2SH32 wraps
+                   are the on-chain lockings). */
+                const { unlockings, walkUnlockings } = produceRole2InputsV3({
                     proof,
                     publicSignals,
                     categoryOnChain: pool.categoryOnChain,
@@ -740,12 +743,6 @@ const actions = {
                     walkBHash: pool.program.walkPins[1],
                     scenarioArgs,
                 })
-
-                /* The walk unlockings: the scripts ride as the redeem pushes
-                   (v3.1) — the P2SH32 wraps are the on-chain lockings. */
-                const { walkA, walkB } = v3WalkScripts(pool.categoryOnChain)
-                const { walkWitnesses } = await import('@/lib/pool/role2-3out/pool-tx-v3.mjs')
-                const walkUnlockings = walkWitnesses(walk, walkA, walkB)
 
                 const newBalance = balance + shield - 2n * sign * shield
                 const rootLE = new Uint8Array(32)
