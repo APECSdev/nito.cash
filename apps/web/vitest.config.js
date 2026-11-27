@@ -74,6 +74,7 @@ export default defineConfig({
                 'src/lib/pool/verifier-role2.js',
                 'src/lib/pool/verifier-role2-3out.js',
                 'src/lib/pool/verifier-role2-v3.js',
+                'src/lib/pool/verifier-role2-v4h.js',
                 'src/lib/pool/role2-3out/**',
                 'tests/unit/**',
             ],

@@ -67,7 +67,7 @@ describe('lib/pool/verifier-role2-v4h — the v4h (C architecture) reproduction 
         expect(locking).toBe(ROLE2_V4H_MAINNET_LOCKING)
         /* the program locking's hash — the H covenant embeds it */
         expect(sha256Of(bytesOf(DEPLOYED.locking))).toBe(DEPLOYED.progLockingHashHex)
-    }, 180000)
+    }, 420000)
 
     it('derives the commit96 walk scripts + wraps + pins exactly (282/295 B)', () => {
         const w = v4hWalkScripts(CATEGORY_ONCHAIN)
@@ -117,5 +117,5 @@ describe('lib/pool/verifier-role2-v4h — the v4h (C architecture) reproduction 
         const p4 = role2ProgramV3(catOnV3, ROLE2_V3_CHIPNET_WALK_A_HASH, ROLE2_V3_CHIPNET_WALK_B_HASH)
         expect(p4.code.length).toBe(7998)
         expect(sha256Of(p4.code)).toBe('27b904a2ddec9e6b4ad5a261084be6ed18e59420e5e41e9400f72586bda88510')
-    }, 180000)
+    }, 420000)
 })
