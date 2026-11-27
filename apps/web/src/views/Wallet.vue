@@ -73,11 +73,16 @@
                             class="px-[10px] py-[4px] rounded-[6px] text-[11px] font-semibold border transition-colors"
                             :class="pool.id === role2PoolId ? 'border-primary bg-list-bg text-fg' : 'border-input-border text-muted'"
                             @click="role2PoolId = pool.id">
-                            {{pool.outputs === 3 ? '3-out v3' : '2-out'}}
+                            {{pool.variant === 'v3' ? 'v4' : pool.outputs === 3 ? '3-out' : '2-out'}}
                         </button>
                     </div>
                     <div class="text-[13px] font-semibold text-fg" :class="{'mt-[10px]': role2Pools.length > 1}">
                         {{role2Pool.name}}
+                    </div>
+                    <!-- The registry stageLabel renders VERBATIM (the Preview v0
+                         convention — the functional status never shows raw). -->
+                    <div v-if="role2Pool.stageLabel" class="mt-[2px] text-[11px] font-semibold uppercase tracking-wide text-primary">
+                        {{role2Pool.stageLabel}}
                     </div>
                     <div class="mt-[6px] flex items-center justify-between text-[12px] font-semibold text-muted">
                         <span>Blanks held</span>
@@ -221,7 +226,7 @@
 
         <!-- Per-wallet actions. -->
         <Footer v-if="wallet.id === 'nito-cash'">
-            <Button @click.native="toggleAction('Shield')" label="Shield" />
+            <Button @click.native="toggleAction(isV3Pool ? 'Deposit' : 'Shield')" :label="isV3Pool ? 'Deposit' : 'Shield'" />
             <Button @click.native="toggleAction('Transfer')" label="Transfer" />
             <Button @click.native="toggleAction('Unshield')" label="Unshield" />
         </Footer>
@@ -372,6 +377,13 @@ export default {
             return this.role2Pools.find((pool) => pool.id === this.role2PoolId) || this.role2Pools[0] || null
         },
 
+        /* The v3 (pool4) pools onboard through DEPOSIT — the empty-genesis
+           phantom path (no imported notes): the FT-in button + label switch
+           on the selected pool. */
+        isV3Pool() {
+            return !!(this.role2Pool && this.role2Pool.variant === 'v3')
+        },
+
         /* The active action's submit-button label (busy state included). */
         submitButtonLabel() {
             return this.actionBusy
@@ -382,6 +394,8 @@ export default {
         /* A one-line description of the active shield/transfer/unshield flow. */
         actionDescription() {
             switch (this.activeAction) {
+            case 'Deposit':
+                return 'Move PUSD into the pool through the on-chain deposit path — this pool starts from an empty tree, so the deposit creates your first notes. The deposit amount is visible on-chain; your notes from then on are private.'
             case 'Shield':
                 return 'Move PUSD from Naked Cash into the shielded pool. The deposit amount is visible on-chain; from then on your balance and transfers are private.'
             case 'Transfer':

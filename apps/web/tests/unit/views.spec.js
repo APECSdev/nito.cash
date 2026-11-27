@@ -93,7 +93,9 @@ const router = { push: vi.fn(), replace: vi.fn(), back: vi.fn() }
 const stubs = {
     Animation: true,
     BlazeBanner: true,
-    Button: { template: '<button @click="$emit(\'click\')"><slot /></button>' },
+    /* The Button stub must declare + render its label PROP — the real Button
+       renders `label`, not slot content (the AGENTS precedent). */
+    Button: { props: ['label'], template: '<button @click="$emit(\'click\')">{{label}}<slot /></button>' },
     Dropdown: { template: '<div />' },
     Footer: { template: '<footer><slot /></footer>' },
     Header: { template: '<header><slot /></header>' },
@@ -543,6 +545,56 @@ describe('views/Wallet', () => {
 
         expect(wrapper.vm.actionResult).toBe('ff'.repeat(32))
         expect(wrapper.text()).toContain('Broadcast — txid')
+
+        dispatchSpy.mockRestore()
+    })
+
+    it('switches the FT-in flow to DEPOSIT on a v3 (pool4) pool + renders the stage label', async () => {
+        getPoolsMock.mockReturnValue([{
+            id: 'chipnet-role2-pool4-v3', name: 'Chipnet PUSD pool — role-2 v3', variant: 'v3',
+            shape: 'role2-tagged-v3', walletProverCompatible: true, stageLabel: 'Chipnet pilot',
+        }, {
+            /* The second pool shows the selector chips — the v4 vs 2-out
+               label discrimination. */
+            id: 'chipnet-pusd-role2', name: 'Role-2 pool', shape: 'role2-tagged', outputs: 2,
+        }])
+
+        /* Stub the STORE action (the proving half is the acceptance harness's
+           territory — the view wiring is what is pinned here). */
+        const facade = getStoreFacade()
+        const origDispatch = facade.dispatch.bind(facade)
+        const dispatchSpy = vi.spyOn(facade, 'dispatch').mockImplementation(async (type, payload) => {
+            if (type === 'pool/submitRole2Action') return { lockTxid: 'ee'.repeat(32), actionTxid: 'ff'.repeat(32) }
+            return origDispatch(type, payload)
+        })
+
+        const wrapper = mountView(Wallet)
+        await new Promise((r) => setTimeout(r, 60))
+
+        /* The v4 selector chip + the registry stageLabel (rendered VERBATIM). */
+        expect(wrapper.text()).toContain('v4')
+        expect(wrapper.text()).toContain('Chipnet pilot')
+
+        /* The footer's FT-in button reads Deposit on a v3 pool (the Shield
+           label on the 2-out pools — pinned by the other Wallet tests). */
+        const depositButton = wrapper.findAll('button').find((b) => b.text() === 'Deposit')
+        expect(depositButton).toBeTruthy()
+
+        /* The house pattern: drive the flow through the view method (the
+           .native footer wiring is the CDP click-through's territory). */
+        wrapper.vm.toggleAction('Deposit')
+
+        expect(wrapper.vm.activeAction).toBe('Deposit')
+        expect(wrapper.vm.actionDescription).toContain('empty tree')
+
+        wrapper.vm.actionAmount = '1000'
+        await wrapper.vm.submitAction()
+        await wrapper.vm.$nextTick()
+
+        /* The view dispatched the DEPOSIT action (the v3 onboarding path). */
+        const call = dispatchSpy.mock.calls.find(([type]) => type === 'pool/submitRole2Action')
+        expect(call).toBeTruthy()
+        expect(call[1].action).toBe('deposit')
 
         dispatchSpy.mockRestore()
     })

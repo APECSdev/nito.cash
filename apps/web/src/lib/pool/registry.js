@@ -193,6 +193,7 @@ const POOLS = {
             name: 'Chipnet PUSD pool — role-2 v3 (pool4: the nullifier SMT + the deposit path)',
             network: 'chipnet',
             variant: 'v3',
+            stageLabel: 'Chipnet pilot',
             lockingBytecode: 'aa206dc915cef6f1343b7d170caaf79346072222d66fd3285fcb4d506f184069e8cb87',
             assetCategory: 'e56c0a8583e36092f20e54c9247f6b8e5a6afd391027aa70ae109c3c42377930',
             categoryOnChain: '307937423c9c10ae70aa271039fd6a5a8e6b7f24c9540ef29260e383850a6ce5',
