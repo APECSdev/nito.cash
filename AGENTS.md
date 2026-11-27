@@ -857,11 +857,39 @@ truncates toward zero (+ the 10-item full list in the integration handoff §12).
 INTEGRATION HANDOFF** — `hushyourmoney/docs/POOL-V3-INTEGRATION-HANDOFF-2026-11-27.md`
 (copied to our docs/) + their morning response (same dir). Records, verified by us:
 - **M1 red team: PASSED — 164 runs, 0 accepted** (consensus + standard; both positive
-  controls accepted; `wip-role2-hook/pool-redteam-v3-report.json` — the runs/accepted
-  counts verified directly). **M1c hook cost: PASSED** (v3 hook 41,567 std op, +2,485
-  over the 3-out; walk inputs ~66% of budget; fills [0,0,203]). **M1b sweep: IN
-  FLIGHT** (64 seeded real proofs; measured v3 prove ≈ 130–220 s at 247,120 c under
-  VM contention).
+  controls accepted; re-run under v3.1 — the report committed). **M1c hook cost:
+  PASSED under v3.1** (the difference method: 39,033 op standard / 37,881 consensus;
+  walkA 63.7%/walkB 64.3% of budget). **M1b sweep: COMPLETE — 69 cases, 0 failed**
+  (5 fixtures + 64 seeded real proofs, all four classes incl. DEPOSIT; standard
+  min margins 8.13%/8.71%/6.00% (input 2 — the design target)/36.26%/35.72%; the
+  report `pool-sweep-v3-report.json` committed). **ALL M1 GATES DONE.**
+- **THE CHIPNET v3.1 LIFECYCLE IS COMPLETE** (their review §4 — every input
+  VM-ACCEPTED): DEPOSIT 1,000 `137a7907…` (fee 50,000 sats) → TRANSFER
+  `8ccc9cd2…` (47,500) → UNSHIELD 250 `405166f5…` (45,500, 1.002 sat/B). Deploy
+  `23909dc2…` confirmed h 349,143; the guard batch `a98ee616…` h 349,183.
+- **THE M2 RELEASE NAMES COMMITTED** (their review): `pool4_final.zkey` /
+  `pool4.wasm` / `verification_key_v3.json` under the tag
+  `role2-proving-assets-v3-v1` — same names through any re-derivation. Walk-dust
+  CONFIRMED: fuel 23,000 × 2, walk-data 2,000 × 2 (the lifecycle ran the last two
+  leaner at 21,750/21,250 — both in their §10).
+- **THE MAINNET v3.1 CANDIDATE** (their review §2 — `d98c1d2a…` was the v3.0
+  program, superseded): category `2469acc5…`, code 7,998 B sha256
+  `40a9599141686539edd5590ba03fe012701ea0cc2ec4aae6a9fb7749416db012`, walk
+  lockings `aa2035fb…87`/`aa20bf54…87`, pins `781c6ff7…`/`ee03a03e…` — **our
+  client reproduces it BYTE-EXACTLY** (verified post-`68881cf`; the spec pins it).
+- **THE NITO MPC CONTRIBUTION IS DONE (2026-11-27 01:29 UTC) — WE CONTRIBUTED
+  FIRST.** `build4/pool4_0001_nito.zkey` on the VM (120,818,020 B, sha256
+  `ef4b1ec9…`): contribution hash
+  `ba66883d 462a461c 87edf9ba 0494c3bb ee3e84a6 adfd57bf 4ff45c4d e93d1e19
+  b91630e7 7cfe12c2 afe282c9 5347482d 497ae329 3ca9a691 c229bb5b 3b2d10e8`;
+  circuit hash `69622946 620445cf 135a9b12 cdc8dece … 82341d11 32b2eff9`. **The
+  entropy is UNPUBLISHED** — /dev/urandom piped through the encrypted ssh channel
+  straight into snarkjs's stdin; never a file, never recorded (the hygiene
+  protocol; only the printed hashes survive). The Hush contribute onto
+  `pool4_0001_nito.zkey` next; then verify → VK export → the cascade → M2 → the B4
+  data edit. The user-side third contribution: the user's call, coordinated when
+  the Hush's hash is recorded. Notified: `MPC-NITO-CONTRIBUTION-2026-11-27.md`
+  (their checkout + our docs/).
 - **M3: the chipnet v3 pool DEPLOYED — THE LIVE VALUES (the state file, corrected
   2026-11-27 evening; the earlier `03af2eda`/`934be668`/`89f0829e`/`aa207453` figures
   were the ABORTED v3.0 first attempt)**: id `chipnet-role2-pool4-v3`, anchor/category

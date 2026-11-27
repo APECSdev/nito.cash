@@ -14,12 +14,22 @@ import { describe, expect, it } from 'vitest'
 import { createHash } from 'crypto'
 
 import { role2ProgramV3, v3WalkScripts, ROLE2_V3_CHIPNET_CATEGORY_DISPLAY, ROLE2_V3_CHIPNET_CODE_SHA256, ROLE2_V3_CHIPNET_LOCKING, ROLE2_V3_CHIPNET_WALK_A_HASH, ROLE2_V3_CHIPNET_WALK_B_HASH } from '@/lib/pool/verifier-role2-v3'
+
 import { role2Program3out, ROLE2_3OUT_CATEGORY_ONCHAIN } from '@/lib/pool/verifier-role2-3out'
 
 const sha256Of = (bytes) => createHash('sha256').update(new Uint8Array(bytes)).digest('hex')
 /* p2sh32 = aa20 ‖ sha256(sha256(redeem)) ‖ 87 (vm.mjs's hash256 — DOUBLE sha) */
 const hash256Of = (bytes) => sha256Of(new Uint8Array(Buffer.from(sha256Of(bytes), 'hex')))
 const hexOf = (bytes) => Array.from(bytes, (b) => b.toString(16).padStart(2, '0')).join('')
+
+/* The MAINNET candidate (the user-confirmed category 2469acc5… — the Hush review §2
+   record): the v3.1 build (P2SH32 walk pins), code sha256 40a95991…, walk lockings
+   aa2035fb…87 / aa20bf54…87, pins 781c6ff7… / ee03a03e… — modulo the post-MPC VK
+   cascade (the fixtures swap only). */
+const MAINNET_DISPLAY = '2469acc5afa4b10cb5b5c04afb89c3a3ffd61c5da9c01e26d00951cae2a02544'
+const MAINNET_ONCHAIN = hexOf(new Uint8Array(MAINNET_DISPLAY.match(/.{2}/g).map((h) => parseInt(h, 16))).reverse())
+const MAINNET_CODE_SHA256 = '40a9599141686539edd5590ba03fe012701ea0cc2ec4aae6a9fb7749416db012'
+const MAINNET_WALK_A_LOCKING = 'aa2035fb34211578f35ec23120b5f9156956790c560a9d66d5d2243d78c62cc67c4087'
 
 /* The deployed chipnet v3 pool, on-chain category byte order (display reversed). */
 const CATEGORY_DISPLAY = ROLE2_V3_CHIPNET_CATEGORY_DISPLAY
@@ -76,6 +86,16 @@ describe('lib/pool/verifier-role2-v3 — the v3 program + walk reproduction gate
         expect(a).toBe(b) /* the cache returns the SAME program object */
         expect(process.env.POOL_NULLDATA_HASHES).toBeUndefined() /* restored */
     })
+
+    it('builds the MAINNET v3.1 candidate BYTE-EXACTLY (40a95991… — the review §2 record)', () => {
+        const w = v3WalkScripts(MAINNET_ONCHAIN)
+        expect(hexOf(w.walkLockings[0])).toBe(MAINNET_WALK_A_LOCKING)
+        const program = role2ProgramV3(MAINNET_ONCHAIN, w.walkAHash, w.walkBHash)
+        expect(program.code.length).toBe(7998)
+        expect(sha256Of(program.code)).toBe(MAINNET_CODE_SHA256)
+        expect(process.env.POOL_NULLDATA_HASHES).toBeUndefined()
+        /* the chipnet default restored after the mainnet build (the cache is per-key) */
+    }, 60000)
 
     it('keeps the 3-OUT program byte-identical after the v3-graph-pin patch (the stock-build regression)', () => {
         const program = role2Program3out(ROLE2_3OUT_CATEGORY_ONCHAIN)
