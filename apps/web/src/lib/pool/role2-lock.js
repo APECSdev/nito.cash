@@ -356,3 +356,177 @@ export async function buildRole2LockV3({
         carrierBytes: ROLE2_CARRIER_BYTES_3OUT,
     }
 }
+
+/*
+ * buildRole2LockV4h — the C-architecture (holdings) lock tx: the next action's
+ * TAGGED fuel pair (NFT-ONLY in v4h — the deposit FT never rides the fuel, it
+ * rides the in6 slot) + the walk-data dust pair + the H-covenant pair:
+ *
+ *   out0/out1 — the tagged fuel pair at the program locking (fuelSats each,
+ *               NFT-only, the deposit tag);
+ *   out2/out3 — the walk-data pair at the P2SH32 walk lockings (walkSats);
+ *   out4      — in6, the DEPOSIT SLOT at H (holdingsSats; the user's ASSET FT
+ *               == the deposit on a deposit, tokenless otherwise) — funded
+ *               EVERY action (the user's lock funds the slot per the Hush's
+ *               §3 answer; no standing deposit address exists on-chain);
+ *   out5      — the BCH change (the index is FIXED — the Hush's refill hit a
+ *               moving-change-index bug on mainnet 2026-11-27, "dust (code
+ *               64)"; ours never moves);
+ *   out6      — GENESIS ONLY: in5, the tokenless holdings slot at H (only the
+ *               FIRST action — every later action takes in5 = the previous
+ *               action's out2, never lock-funded);
+ *   out7      — the ASSET FT change (when the deposit supply UTXO splits).
+ *
+ * The categories split: the fuel pair + the blanks carry the POOL's own
+ * category; the deposit slot + the FT change carry the HELD asset (the real
+ * PUSD — a category we do not own and can never mint).
+ */
+export const ROLE2_V4H_HOLDINGS_SATS = 1000n
+
+export async function buildRole2LockV4h({
+    pool,
+    tag,
+    shield = 0n,
+    fundingUtxo,
+    blanks,
+    supplyUtxo = null,
+    changeAddress,
+    privateKey,
+    publicKey,
+    fuelSats = ROLE2_V3_FUEL_SATS,
+    walkSats = ROLE2_V3_WALK_SATS,
+    holdingsSats = ROLE2_V4H_HOLDINGS_SATS,
+    isGenesis = false,
+}) {
+    if (!pool?.program?.lockingBytecode) throw new Error('role2-lock: pool program locking missing')
+    if (!pool?.program?.hLockingHex) throw new Error('role2-lock: the v4h pool needs the H covenant locking (program.hLockingHex)')
+    const walkLockings = pool.walkLockings ?? pool.program.walkLockings
+    if (!Array.isArray(walkLockings) || walkLockings.length !== 2) throw new Error('role2-lock: the v3 pool needs exactly TWO walk lockings (the P2SH32 wraps)')
+    if (!tag || tag.length !== 32) throw new Error('role2-lock: a 32-byte deposit tag is required')
+    if (!Array.isArray(blanks) || blanks.length !== 2) throw new Error('role2-lock: exactly TWO blanks are required')
+    const fundingUtxos = Array.isArray(fundingUtxo) ? fundingUtxo : [fundingUtxo]
+    if (fundingUtxos.length === 0 || !fundingUtxos[0]) throw new Error('role2-lock: a funding UTXO is required')
+
+    const sha256 = await instantiateSha256()
+    const secp = await instantiateSecp256k1()
+    /* The categories SPLIT in v4h: the fuel/blanks ride the POOL category; the
+       deposit slot + the FT change ride the HELD asset (the real PUSD). */
+    const poolCategoryBytes = hexToBin(pool.assetCategory)
+    const assetCategoryBytes = hexToBin(pool.heldCategoryOnChain ?? pool.assetCategoryOnChain)
+    if (!assetCategoryBytes || assetCategoryBytes.length !== 32) throw new Error('role2-lock: the v4h pool needs the HELD asset category (heldCategoryOnChain)')
+    const programLocking = hexToBin(pool.program.lockingBytecode)
+    const hLocking = hexToBin(pool.program.hLockingHex)
+    const walkA = hexToBin(walkLockings[0])
+    const walkB = hexToBin(walkLockings[1])
+    const changeLocking = cashAddressToLockingBytecode(changeAddress).bytecode
+    const pub = publicKey || secp.derivePublicKeyCompressed(privateKey)
+    if (typeof pub === 'string') throw new Error('role2-lock: public-key derivation failed: ' + pub)
+
+    const deposit = toBigInt(shield)
+    const supplyAmount = supplyUtxo ? toBigInt(tokenOf(supplyUtxo)?.amount) : 0n
+    if (deposit > 0n && !supplyUtxo) throw new Error('role2-lock: a v4h deposit needs an ASSET FT supply UTXO (the user pre-sends their PUSD to their wallet)')
+    if (deposit > 0n && supplyAmount < deposit) throw new Error('role2-lock: the ASSET supply UTXO is smaller than the deposit')
+
+    const inputs = [...fundingUtxos.map(outpointOf), outpointOf(blanks[0]), outpointOf(blanks[1])]
+    if (supplyUtxo) inputs.push(outpointOf(supplyUtxo))
+
+    const CHANGE_INDEX = 5
+    const outputs = [
+        /* out0/out1 — the tagged fuel pair (NFT-ONLY in v4h). */
+        {
+            lockingBytecode: programLocking,
+            valueSatoshis: toBigInt(fuelSats),
+            token: { category: poolCategoryBytes, amount: 0n, nft: { capability: 'mutable', commitment: tag } },
+        },
+        {
+            lockingBytecode: programLocking,
+            valueSatoshis: toBigInt(fuelSats),
+            token: { category: poolCategoryBytes, amount: 0n, nft: { capability: 'mutable', commitment: tag } },
+        },
+        /* out2/out3 — the walk-data pair at the DEPLOYED P2SH32 walk lockings. */
+        { lockingBytecode: walkA, valueSatoshis: toBigInt(walkSats) },
+        { lockingBytecode: walkB, valueSatoshis: toBigInt(walkSats) },
+        /* out4 — in6, the deposit slot at H: the ASSET FT == the deposit on a
+           deposit, tokenless dust otherwise. */
+        {
+            lockingBytecode: hLocking,
+            valueSatoshis: toBigInt(holdingsSats),
+            ...(deposit > 0n ? { token: { category: assetCategoryBytes, amount: deposit } } : {}),
+        },
+        /* out5 — the BCH change (FIXED index — filled after the fee probe). */
+        { lockingBytecode: changeLocking, valueSatoshis: 0n },
+    ]
+    const ftChange = supplyAmount - deposit
+    if (isGenesis) {
+        /* out6 — GENESIS ONLY: in5, the tokenless holdings slot at H. */
+        outputs.push({ lockingBytecode: hLocking, valueSatoshis: toBigInt(holdingsSats) })
+    }
+    if (ftChange > 0n) {
+        /* out7 — the ASSET FT change (a zero-amount FT output is invalid). */
+        outputs.push({ lockingBytecode: changeLocking, valueSatoshis: 1000n, token: { category: assetCategoryBytes, amount: ftChange } })
+    }
+
+    const transaction = { version: 2, locktime: 0, inputs, outputs }
+    const sources = [
+        ...fundingUtxos.map((utxo) => ({ lockingBytecode: changeLocking, valueSatoshis: toBigInt(utxo.sats ?? utxo.value) })),
+        ...[blanks[0], blanks[1]].map((utxo) => ({
+            lockingBytecode: changeLocking,
+            valueSatoshis: toBigInt(utxo.sats ?? utxo.value),
+            token: { category: poolCategoryBytes, amount: 0n, nft: { capability: 'mutable', commitment: new Uint8Array(0) } },
+        })),
+        ...(supplyUtxo ? [{
+            lockingBytecode: changeLocking,
+            valueSatoshis: toBigInt(supplyUtxo.sats ?? supplyUtxo.value),
+            token: { category: assetCategoryBytes, amount: supplyAmount },
+        }] : []),
+    ]
+
+    const probe = {
+        ...transaction,
+        inputs: transaction.inputs.map((input) => ({ ...input, unlockingBytecode: new Uint8Array(ROLE2_LOCK_PLACEHOLDER_BYTES) })),
+    }
+    const probeFee = BigInt(encodeTransactionBCH(probe).length) * 2n
+    const fixed = 2n * toBigInt(fuelSats) + 2n * toBigInt(walkSats)
+        + (isGenesis ? 2n : 1n) * toBigInt(holdingsSats)
+        + (ftChange > 0n ? 1000n : 0n)
+    const inSats = sources.reduce((sum, source) => sum + source.valueSatoshis, 0n)
+    const change = inSats - fixed - probeFee
+    if (change < 0n) throw new Error(`role2-lock: funding cannot cover the v4h lock (short ${-change} sats)`)/* the Hush's funding check leaves 2,400 sats of headroom */
+    transaction.outputs[CHANGE_INDEX].valueSatoshis = change
+
+    for (let i = 0; i < transaction.inputs.length; i += 1) {
+        const serialization = generateSigningSerializationBCH(
+            { inputIndex: i, sourceOutputs: sources, transaction },
+            { coveredBytecode: changeLocking, signingSerializationType: Uint8Array.of(SigningSerializationTypeBCH.allOutputs) },
+            sha256,
+        )
+        const digest = hash256(serialization, sha256)
+        const signature = secp.signMessageHashSchnorr(privateKey, digest)
+        if (typeof signature === 'string') throw new Error('role2-lock: Schnorr signing failed: ' + signature)
+        transaction.inputs[i].unlockingBytecode = Uint8Array.from([...encodeDataPush(Uint8Array.from([...signature, SigningSerializationTypeBCH.allOutputs])), ...encodeDataPush(pub)])
+    }
+
+    const hex = binToHex(encodeTransactionBCH(transaction))
+    const txid = binToHex(new Uint8Array(hash256(encodeTransactionBCH(transaction), sha256)).reverse())
+
+    return {
+        transaction,
+        hex,
+        txid,
+        fee: probeFee,
+        fuelOutpoints: [
+            { txid, vout: 0, sats: Number(fuelSats), tag: binToHex(tag) },
+            { txid, vout: 1, sats: Number(fuelSats), tag: binToHex(tag) },
+        ],
+        walkOutpoints: [
+            { txid, vout: 2, sats: Number(walkSats), walk: 'A' },
+            { txid, vout: 3, sats: Number(walkSats), walk: 'B' },
+        ],
+        /* in6 — the deposit slot (funded EVERY action). */
+        slotOutpoint: { txid, vout: 4, sats: Number(holdingsSats), slot: 'in6', ...(deposit > 0n ? { ftAmount: deposit.toString() } : {}) },
+        /* in5 — GENESIS ONLY (the tokenless holdings slot; later actions take
+           the prior action's out2 — the caller resolves it from the scan). */
+        ...(isGenesis ? { genesisHoldingsOutpoint: { txid, vout: 6, sats: Number(holdingsSats), slot: 'in5' } } : {}),
+        carrierBytes: ROLE2_CARRIER_BYTES_3OUT,
+    }
+}

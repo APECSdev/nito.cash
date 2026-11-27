@@ -27,8 +27,8 @@
 import { binToHex } from '@bitauth/libauth'
 
 import { ROLE2_CARRIER_BYTES, ROLE2_CARRIER_BYTES_3OUT, depositTag } from './role2-carrier.js'
-import { buildRole2Lock, buildRole2LockV3 } from './role2-lock.js'
-import { buildRole2Action, buildRole2ActionV3 } from './role2-action.js'
+import { buildRole2Lock, buildRole2LockV3, buildRole2LockV4h } from './role2-lock.js'
+import { buildRole2Action, buildRole2ActionV3, buildRole2ActionV4h } from './role2-action.js'
 import { nullifier } from './notes.js'
 
 const STAGES = ['proving', 'tagging', 'locking', 'building', 'broadcasting', 'done']
@@ -376,5 +376,143 @@ export async function submitRole2ActionV3({
         tag: lock ? lock.tag : tagHex,
         stages: lock ? STAGES : STAGES_STANDING,
         fee: action.fee,
+    }
+}
+
+/*
+ * submitRole2ActionV4h — the C-architecture (holdings) orchestrator:
+ * prove FIRST → tag → (lock: the fuel pair + walks + the H pair) → the
+ * SEVEN-input action → broadcast. The v3 flow plus the holdings line:
+ *
+ *   - the LOCK funds in6 (the deposit slot at H) EVERY action, and in5 (the
+ *     tokenless genesis holdings slot) ONLY at genesis — the user's lock
+ *     funds the slot per the Hush's §3 answer (no standing deposit address
+ *     exists on-chain);
+ *   - at steady state the action's in5 = the PRIOR action's out2 (the caller
+ *     resolves it from the scan; the standing path passes it);
+ *   - the H pair's unlockings are the bare redeem pushes — the prove result
+ *     carries `hUnlocking` (the store builds it from the deployed H record
+ *     via v4hHoldingsCovenant + the locking assertion);
+ *   - NO SIGNATURES anywhere in the action (the fees ride the locked sats).
+ */
+export async function submitRole2ActionV4h({
+    pool,
+    state,
+    blanks,
+    funding,
+    supply = null,
+    shield = 0n,
+    standing = null,
+    /* in5 — the prior action's out2 (steady); built by the lock at genesis. */
+    holdings = null,
+    isGenesis = false,
+    changeAddress,
+    privateKey,
+    prove,
+    broadcast,
+    onStage,
+    saveNotes,
+    payoutAddress,
+}) {
+    if (!pool) throw new Error('role2-actions: pool is required')
+    if (!state) throw new Error('role2-actions: state UTXO is required')
+    if (typeof prove !== 'function') throw new Error('role2-actions: a prove function is required')
+    if (typeof broadcast !== 'function') throw new Error('role2-actions: a broadcast function is required')
+    if (!Array.isArray(blanks) || blanks.length !== 2) throw new Error('role2-actions: exactly TWO blanks are required')
+    if (standing && (!Array.isArray(standing?.fuel) || standing.fuel.length !== 2 || !Array.isArray(standing?.walk) || standing.walk.length !== 2 || !standing?.holdings || !standing?.slot)) throw new Error('role2-actions: the v4h standing must be { fuel: [f0, f1], walk: [wA, wB], holdings, slot }')
+    if (!standing && !isGenesis && !holdings) throw new Error("role2-actions: a steady v4h action needs the holdings UTXO (the prior action's out2)")
+
+    stage(onStage, 'proving')
+    const proof = await prove({ pool, state, blanks, funding, supply, shield, payoutAddress, standing, holdings, isGenesis })
+    if (!proof?.carrier || proof.carrier.length !== ROLE2_CARRIER_BYTES_3OUT) throw new Error(`role2-actions: the v3 prover returned no ${ROLE2_CARRIER_BYTES_3OUT}-B carrier`)
+    if (!Array.isArray(proof.unlockings) || proof.unlockings.length !== 3) throw new Error('role2-actions: the prover returned no 3 program unlockings')
+    if (!Array.isArray(proof.walkUnlockings) || proof.walkUnlockings.length !== 2) throw new Error('role2-actions: the prover returned no 2 walk unlockings')
+    if (!proof?.hUnlocking || proof.hUnlocking.length < 2) throw new Error('role2-actions: the v4h prover returned no H redeem push')
+
+    stage(onStage, 'tagging')
+    const tag = depositTag(proof.carrier)
+    const tagHex = binToHex(tag)
+
+    let lock = null
+    let lockTxid = null
+    let fuelUtxos
+    let walkUtxos
+    let holdingsUtxo
+    let slotUtxo
+
+    if (standing) {
+        for (const [index, utxo] of standing.fuel.entries()) {
+            const fuelTag = fuelTagOf(utxo)
+            if (fuelTag !== tagHex) {
+                throw new Error(`role2-actions: the standing fuel ${index} carries tag ${fuelTag.slice(0, 16) || '(none)'}… but this action's deposit tag is ${tagHex.slice(0, 16)}… — the fuel is bound to a different nullifier pair`)
+            }
+        }
+        fuelUtxos = standing.fuel
+        walkUtxos = standing.walk
+        holdingsUtxo = standing.holdings
+        slotUtxo = standing.slot
+        lockTxid = standing.fuel[0].txid
+    } else {
+        stage(onStage, 'locking')
+        lock = await buildRole2LockV4h({
+            pool,
+            tag,
+            shield,
+            fundingUtxo: funding,
+            blanks,
+            supplyUtxo: supply,
+            changeAddress,
+            privateKey,
+            isGenesis,
+        })
+        fuelUtxos = lock.fuelOutpoints
+        walkUtxos = lock.walkOutpoints
+        slotUtxo = lock.slotOutpoint
+        holdingsUtxo = isGenesis ? lock.genesisHoldingsOutpoint : holdings
+    }
+
+    stage(onStage, 'building')
+    const action = await buildRole2ActionV4h({
+        pool,
+        carrier: proof.carrier,
+        newRoot: proof.newRoot,
+        finalNullRoot: proof.finalNullRoot,
+        newBalance: proof.newBalance,
+        stateUtxo: state,
+        fuelUtxos,
+        walkUtxos,
+        holdingsUtxo,
+        depositSlotUtxo: slotUtxo,
+        unlockings: proof.unlockings,
+        walkUnlockings: proof.walkUnlockings,
+        hUnlocking: proof.hUnlocking,
+        payoutAddress,
+    })
+
+    stage(onStage, 'broadcasting')
+    if (lock) lockTxid = await broadcast(lock.hex, 'lock')
+    const actionTxid = await broadcast(action.hex, 'action')
+
+    if (typeof saveNotes === 'function') {
+        await saveNotes({
+            lockTxid,
+            actionTxid,
+            carrier: proof.carrier,
+            tag: lock ? lock.tag : tagHex,
+            outNotes: proof.outNotes || [],
+            stage: 'broadcast',
+        })
+    }
+
+    stage(onStage, 'done', { lockTxid, actionTxid })
+    return {
+        lockTxid,
+        actionTxid,
+        lock,
+        action,
+        tag: lock ? lock.tag : tagHex,
+        stages: lock ? STAGES : STAGES_STANDING,
+        fee: action.fee,
+        newHoldings: action.newHoldings,
     }
 }

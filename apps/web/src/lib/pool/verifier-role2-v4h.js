@@ -41,6 +41,7 @@ import { covenantHook, covenantParams } from './role2-3out/pool-hook.mjs'
 import { buildWalkScripts } from './role2-3out/walk-scripts.mjs'
 import { buildHoldingsCovenant } from './role2-3out/holdings-covenant.mjs'
 import { walkV3, walkWitnesses, poolTransactionForC } from './role2-3out/pool-tx-v3.mjs'
+import { pushData } from './role2-3out/asm.mjs'
 import { setVkFixtures, restoreVkFixtures, VK_FIXTURES_V4H } from './role2-3out/sound-si-gls/math.mjs'
 import { normalizeProof } from './verifier.js'
 
@@ -144,6 +145,17 @@ export function v4hWalkScripts(categoryOnChain) {
  */
 export function v4hHoldingsCovenant({ progLockingHashHex, walkAHashHex, walkBHashHex }) {
     return buildHoldingsCovenant({ progLockingHashHex, walkAHashHex, walkBHashHex })
+}
+
+/**
+ * The H pair's UNLOCKINGS — the bare redeem push (the H covenant is
+ * witness-free; both inputs 5/6 carry the identical push).
+ *
+ * @returns Uint8Array — pushData(H script)
+ */
+export function v4hHUnlocking({ progLockingHashHex, walkAHashHex, walkBHashHex }) {
+    const h = v4hHoldingsCovenant({ progLockingHashHex, walkAHashHex, walkBHashHex })
+    return Uint8Array.from(pushData(Uint8Array.from(h.script)))
 }
 
 /**

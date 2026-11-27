@@ -247,3 +247,156 @@ export async function buildRole2ActionV3({
         newStateCommitment: binToHex(new Uint8Array([...newRoot, ...finalNullRoot])),
     }
 }
+
+/*
+ * buildRole2ActionV4h — the C-architecture (holdings) action tx.
+ *
+ * THE SEVEN-INPUT SHAPE (the H pair carries no witness — the redeem push is the
+ * whole unlocking; the program runs only at inputs 0/1/2, the walks at 3/4,
+ * H at 5/6):
+ *   inputs  0/1 — program-locking TAGGED fuel UTXOs (hook 4c/4g; NFT-ONLY —
+ *                 the deposit FT never rides the fuel in v4h, it rides in6);
+ *   input   2   — the pool state NFT (the 96-B commitment's third field is
+ *                 the authenticated balance);
+ *   inputs  3/4 — the walk-data UTXOs (commit96 walks, P2SH32);
+ *   input   5   — the holdings line: the prior action's out2 (steady), or the
+ *                 genesis lock-funded tokenless slot (the first action);
+ *   input   6   — the deposit slot: the ASSET FT == pv on a deposit,
+ *                 tokenless otherwise.
+ *   outputs — out0 the 201-B carrier · out1 the new state (NFT-only, the 96-B
+ *             commitment = LE32(newRoot) ‖ finalNullRoot ‖ LE32(newBalance)) ·
+ *             out2 the new holdings (the ASSET FT == newBalance, at the H
+ *             locking) · out3 the unshield payout (the ASSET FT == pv).
+ *
+ * NO SIGNATURES anywhere (the fees ride the locked sats). The conservation is
+ * asserted off-chain here; the consensus token rules + the hook's check 5 +
+ * check 9h make the holdings line unforgeable on-chain.
+ *
+ * @param {object} params — the v3 shape + holdingsUtxo (in5), depositSlotUtxo
+ *   (in6), hUnlocking (the bare H redeem push), heldCategoryOnChain (the ASSET
+ *   category, on-chain byte order), stateSats/holdingsSats/payoutSats overrides
+ * @returns {Promise<object>} { transaction, hex, txid, fee, sign, publicValue,
+ *   carrierBytes, txInputCount, txOutputCount, newStateCommitment, newHoldings }
+ */
+export const ROLE2_V4H_HOLDINGS_SATS = 1000n
+export const ROLE2_V4H_PAYOUT_SATS = 1000n
+
+export async function buildRole2ActionV4h({
+    pool,
+    carrier,
+    newRoot,
+    finalNullRoot,
+    newBalance,
+    stateUtxo,
+    fuelUtxos,
+    walkUtxos,
+    holdingsUtxo,
+    depositSlotUtxo,
+    unlockings,
+    walkUnlockings,
+    hUnlocking,
+    payoutAddress,
+    payoutLocking,
+}) {
+    if (!pool?.program?.lockingBytecode) throw new Error('role2-action: pool program locking missing')
+    if (!pool?.program?.hLockingHex) throw new Error('role2-action: the v4h pool needs the H covenant locking (program.hLockingHex)')
+    const walkLockings = pool.walkLockings ?? pool.program.walkLockings
+    if (!Array.isArray(walkLockings) || walkLockings.length !== 2) throw new Error('role2-action: the v3 pool needs exactly TWO walk lockings (the P2SH32 wraps)')
+    if (!carrier || carrier.length !== ROLE2_CARRIER_BYTES_3OUT) throw new Error(`role2-action: the v3 carrier must be ${ROLE2_CARRIER_BYTES_3OUT} bytes`)
+    if (!Array.isArray(fuelUtxos) || fuelUtxos.length !== 2) throw new Error('role2-action: exactly TWO fuel UTXOs are required')
+    if (!Array.isArray(walkUtxos) || walkUtxos.length !== 2) throw new Error('role2-action: exactly TWO walk-data UTXOs are required')
+    if (!holdingsUtxo) throw new Error('role2-action: the v4h action needs the holdings UTXO (in5 — the prior out2 or the genesis slot)')
+    if (!depositSlotUtxo) throw new Error('role2-action: the v4h action needs the deposit-slot UTXO (in6 — the lock funds it every action)')
+    if (!stateUtxo) throw new Error('role2-action: the state UTXO is required')
+    if (!Array.isArray(unlockings) || unlockings.length !== 3) throw new Error('role2-action: exactly THREE program unlockings are required')
+    if (!Array.isArray(walkUnlockings) || walkUnlockings.length !== 2) throw new Error('role2-action: exactly TWO walk unlockings are required')
+    if (!hUnlocking || hUnlocking.length < 2) throw new Error('role2-action: the v4h action needs the H redeem push (hUnlocking)')
+    if (!finalNullRoot || finalNullRoot.length !== 32) throw new Error('role2-action: a 32-byte finalNullRoot is required')
+    if (!newRoot || newRoot.length !== 32) throw new Error('role2-action: a 32-byte newRoot is required')
+
+    const sha256 = await instantiateSha256()
+    const programLocking = hexToBin(pool.program.lockingBytecode)
+    const hLocking = hexToBin(pool.program.hLockingHex)
+    /* The CATEGORIES split in v4h: the state + fuel carry the POOL's own
+     * category; the holdings + the payout carry the HELD asset (the real
+     * PUSD — a category we do not own and can never mint). */
+    const poolCategoryBytes = hexToBin(pool.assetCategory)
+    const assetCategoryBytes = hexToBin(pool.heldCategoryOnChain ?? pool.assetCategoryOnChain)
+    if (!assetCategoryBytes || assetCategoryBytes.length !== 32) throw new Error('role2-action: the v4h pool needs the HELD asset category (heldCategoryOnChain)')
+
+    const sign = carrier[carrier.length - 1] === 1 ? 1n : 0n
+    let pv = 0n
+    const pvOffset = carrier.length - 9
+    for (let i = 7; i >= 0; i -= 1) pv = (pv << 8n) | BigInt(carrier[pvOffset + i])
+    const pvValue = pv
+
+    const inputs = [
+        outpointOf(fuelUtxos[0]),
+        outpointOf(fuelUtxos[1]),
+        outpointOf(stateUtxo),
+        outpointOf(walkUtxos[0]),
+        outpointOf(walkUtxos[1]),
+        outpointOf(holdingsUtxo),
+        outpointOf(depositSlotUtxo),
+    ]
+    const allUnlockings = [...unlockings, ...walkUnlockings, hUnlocking, hUnlocking]
+    inputs.forEach((input, index) => { input.unlockingBytecode = allUnlockings[index] })
+
+    /* The 96-B state commitment: LE32(newRoot) ‖ finalNullRoot ‖ LE32(newBalance). */
+    const bal32 = new Uint8Array(32)
+    let balValue = toBigInt(newBalance)
+    for (let i = 0; i < 32; i += 1) { bal32[i] = Number(balValue & 0xffn); balValue >>= 8n }
+    const commitment96 = new Uint8Array([...newRoot, ...finalNullRoot, ...bal32])
+
+    const outputs = [
+        { lockingBytecode: role2CarrierOutput(carrier), valueSatoshis: 0n },
+        {
+            lockingBytecode: programLocking,
+            valueSatoshis: ROLE2_STATE_FLOAT,
+            token: {
+                category: poolCategoryBytes,
+                amount: 0n,
+                nft: { capability: 'mutable', commitment: commitment96 },
+            },
+        },
+        /* out2 — the new holdings line: the ASSET FT == newBalance at H. */
+        {
+            lockingBytecode: hLocking,
+            valueSatoshis: ROLE2_V4H_HOLDINGS_SATS,
+            token: { category: assetCategoryBytes, amount: toBigInt(newBalance) },
+        },
+    ]
+    if (sign === 1n) {
+        const locking = payoutLocking || (payoutAddress ? cashAddressToLockingBytecode(payoutAddress).bytecode : null)
+        if (!locking) throw new Error('role2-action: an unshield needs a payout address')
+        outputs.push({ lockingBytecode: locking, valueSatoshis: ROLE2_V4H_PAYOUT_SATS, token: { category: assetCategoryBytes, amount: pvValue } })
+    }
+
+    /* Fees ride the SEVEN locked inputs (the graph pins TXINPUTCOUNT == 7). */
+    const inSats = [fuelUtxos[0], fuelUtxos[1], stateUtxo, walkUtxos[0], walkUtxos[1], holdingsUtxo, depositSlotUtxo]
+        .reduce((sum, utxo) => sum + toBigInt(utxo.sats ?? utxo.value), 0n)
+    const outSats = outputs.reduce((sum, output) => sum + toBigInt(output.valueSatoshis), 0n)
+    const fee = inSats - outSats
+    if (fee < 0n) throw new Error(`role2-action: outputs exceed the inputs by ${-fee} sats`)
+
+    const transaction = { version: 2, locktime: 0, inputs, outputs }
+    const hex = binToHex(encodeTransactionBCH(transaction))
+    const decoded = decodeTransaction(hexToBin(hex))
+    if (typeof decoded === 'string') throw new Error('role2-action: the v4h action does not decode: ' + decoded)
+    if (fee < BigInt(hex.length / 2)) throw new Error(`role2-action: fee below 1 sat/B — underfunded action: need ${hex.length / 2}, have ${fee}`)
+    const txid = binToHex(new Uint8Array(hash256(encodeTransactionBCH(transaction), sha256)).reverse())
+
+    return {
+        transaction,
+        hex,
+        txid,
+        fee,
+        sign,
+        publicValue: pvValue,
+        carrierBytes: carrier.length,
+        txInputCount: inputs.length,
+        txOutputCount: outputs.length,
+        newStateCommitment: binToHex(commitment96),
+        newHoldings: { sats: Number(ROLE2_V4H_HOLDINGS_SATS), amount: toBigInt(newBalance).toString() },
+    }
+}
