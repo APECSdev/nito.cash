@@ -155,34 +155,29 @@ describe('lib/pool/prover B4 — the proving-asset pins', () => {
 
         expect(fetchFn).not.toHaveBeenCalled()
 
-        const payload = new Uint8Array([7, 7, 7])
-        vi.unstubAllGlobals()
-        const fetch2 = stubFetch({ 'proving/custom-dev.wasm': payload })
-
-        const bytes = await prover.fetchVerifiedAsset('proving/custom-dev.wasm', { allowUnpinned: true })
-
-        expect(fetch2).toHaveBeenCalledTimes(1)
-        expect([...bytes]).toEqual([...payload])
+        /* The escape hatch: NULL (the caller passes the original location
+           through to snarkjs — fastfile reads node paths/URLs itself; the
+           node harnesses use this ONLY after their own sha256 gate). */
+        expect(await prover.fetchVerifiedAsset('proving/custom-dev.wasm', { allowUnpinned: true })).toBe(null)
+        expect(fetchFn).not.toHaveBeenCalled()
     })
 
     it('generateProof verifies BOTH assets and hands snarkjs the bytes', async () => {
         const snarkjs = await import('snarkjs')
-        const wasmBytes = new Uint8Array([1, 1, 1])
-        const zkeyBytes = new Uint8Array([2, 2, 2, 2])
-        stubFetch({
-            'proving/custom.wasm': wasmBytes,
-            'proving/custom.zkey': zkeyBytes,
-        })
+        stubFetch({})
         snarkjs.groth16.fullProve.mockResolvedValue({ proof: { pi: 1 }, publicSignals: [11, 22] })
 
+        /* The allowUnpinned pass-through: the ORIGINAL locations go to
+           snarkjs (its fastfile reads node paths/URLs itself) — the node
+           harness pattern (--assets, pre-hash-verified by the harness). */
         const input = { a: '1', b: '2' }
         const result = await prover.generateProof(input, 'proving/custom.wasm', 'proving/custom.zkey', { allowUnpinned: true })
 
         expect(snarkjs.groth16.fullProve).toHaveBeenCalledTimes(1)
         const [witnessArg, wasmArg, zkeyArg] = snarkjs.groth16.fullProve.mock.calls[0]
         expect(witnessArg).toBe(input)
-        expect([...wasmArg]).toEqual([...wasmBytes])
-        expect([...zkeyArg]).toEqual([...zkeyBytes])
+        expect(wasmArg).toBe('proving/custom.wasm')
+        expect(zkeyArg).toBe('proving/custom.zkey')
         expect(result).toEqual({ proof: { pi: 1 }, publicSignals: [11, 22] })
     })
 

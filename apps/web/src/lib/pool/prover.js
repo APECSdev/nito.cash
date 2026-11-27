@@ -124,18 +124,18 @@ export function pinnedSha256Of(url) {
 
 /*
  * Fetch an asset and VERIFY its sha256 against the pin (B4). Returns the
- * verified bytes (Uint8Array). An unknown location refuses BEFORE any
- * fetch unless `allowUnpinned` is explicitly set (the local-dev escape
- * hatch — the store paths never set it); a known location whose bytes do
- * not hash to its pin refuses, naming both values.
+ * verified bytes (Uint8Array) — or NULL when `allowUnpinned` is explicitly
+ * set for an unpinned location (the caller then passes the ORIGINAL
+ * location through to snarkjs, whose fastfile reads node paths/URLs itself;
+ * the node harnesses use this ONLY after their own sha256 gate — see
+ * scripts/role2-sweep-standing.mjs --assets). Without the escape hatch an
+ * unknown location refuses BEFORE any fetch; a known location whose bytes
+ * do not hash to its pin refuses, naming both values.
  */
 export async function fetchVerifiedAsset(url, { expectedSha256 = pinnedSha256Of(url), allowUnpinned = false } = {}) {
     if (!expectedSha256) {
-        if (allowUnpinned) {
-            const raw = await fetch(url)
-            if (!raw.ok) throw new Error(`prover: cannot fetch proving asset (${raw.status} ${url})`)
-            return new Uint8Array(await raw.arrayBuffer())
-        }
+        if (allowUnpinned) return null
+
         throw new Error(`prover: REFUSING unpinned proving asset '${url}' — no sha256 pin (B4)`)
     }
 
@@ -167,10 +167,18 @@ export async function fetchVerifyingKey(url = VERIFYING_KEY, { allowUnpinned = f
 
     /* B4: the vkey bytes are sha256-PINNED before parsing — a substituted
        verifying key makes forged proofs verify (the verification-side
-       wrong-asset trap). The verified bytes are parsed here; no unverified
-       res.json() path remains. */
+       wrong-asset trap). The verified bytes are parsed here; the
+       allowUnpinned escape hatch (harness-only) keeps the plain res.json()
+       path for locations fastfile/fetch-shape the caller owns. */
     const bytes = await fetchVerifiedAsset(url, { allowUnpinned })
-    const vkey = JSON.parse(new TextDecoder().decode(bytes))
+
+    const vkey = bytes === null
+        ? await fetch(url).then((res) => {
+            if (!res.ok) throw new Error(`prover: cannot fetch verifying key (${res.status} ${url})`)
+
+            return res.json()
+        })
+        : JSON.parse(new TextDecoder().decode(bytes))
 
     if (url === VERIFYING_KEY) {
         _vkeyCache = vkey
@@ -350,7 +358,9 @@ export async function generateProof(input, wasmUrl = PROVING_WASM_URL, zkeyUrl =
         fetchVerifiedAsset(zkeyUrl, { allowUnpinned }),
     ])
 
-    return snarkjs.groth16.fullProve(input, wasm, zkey)
+    /* A NULL result = the allowUnpinned pass-through: snarkjs's fastfile
+       reads the original location (a node path or URL) itself. */
+    return snarkjs.groth16.fullProve(input, wasm ?? wasmUrl, zkey ?? zkeyUrl)
 }
 
 /* Verify a proof against the verifying key (sanity check / tests). */

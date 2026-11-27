@@ -325,7 +325,11 @@ const buildProve = ({ inNotes, pv }) => {
         })
 
         console.log(`proving (pv ${pv}, inSum ${inSum} → outSum ${outSum})…`)
-        const { proof, publicSignals } = await generateProof(witness, provingWasm, provingZkey)
+        /* B4: generateProof refuses UNPINNED locations — the harness's --assets
+           mode already sha256-verifies these LOCAL files against the SAME
+           pins (the check at startup), so the pre-verified bytes pass through
+           with allowUnpinned; the mirror-URL default path stays pinned. */
+        const { proof, publicSignals } = await generateProof(witness, provingWasm, provingZkey, { allowUnpinned: true })
 
         const carrier = encodeRole2Carrier({
             nf0: BigInt(witness.nf[0]),
