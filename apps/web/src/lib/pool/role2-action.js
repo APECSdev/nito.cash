@@ -135,3 +135,112 @@ export async function buildRole2Action({
         newStateCommitment: binToHex(new Uint8Array([...newRoot, ...newNull])),
     }
 }
+
+/*
+ * buildRole2ActionV3 — the v3 (pool4) FIVE-input action (the M4 contract +
+ * the v3.1 field correction, both measured on the live chipnet lifecycle):
+ *
+ *   in0  fuel/deposit UTXO  (program; tagged NFT; FT deposit on sign=0)
+ *   in1  fuel UTXO          (program; tagged NFT)
+ *   in2  state NFT          (program; 64-B commitment = LE32(noteRoot) ‖ nullSetRoot)
+ *   in3  walkA data UTXO    (the P2SH32 walkA wrap; unlocking = midRoot ‖ sibBlobA ‖ walkA-script redeem)
+ *   in4  walkB data UTXO    (the P2SH32 walkB wrap; unlocking = sibBlobB ‖ walkB-script redeem)
+ *
+ *   out0 OP_RETURN <201-B carrier>   nf0 ‖ nf1 ‖ cm0 ‖ cm1 ‖ cm2 ‖ newRoot ‖ pv ‖ sign
+ *   out1 new state NFT      (program; commitment = LE32(newRoot) ‖ finalNullRoot —
+ *                            role 2 pins the first half, walkB the second)
+ *   out2 (unshield only)    the public payout: pv FT @ 1,000 sats
+ *
+ * The graph pins TXINPUTCOUNT == 5 (NROLES+2) — fees ride the locked UTXOs'
+ * own sats: fee = Σin.sats − Σout.sats, asserted ≥ 1 sat/B (the Hush's own
+ * op-builder assert). The walk UTXOs are the lock's v3.1 P2SH32 outputs.
+ */
+export async function buildRole2ActionV3({
+    pool,
+    carrier,
+    newRoot,
+    finalNullRoot,
+    newBalance,
+    stateUtxo,
+    fuelUtxos,
+    walkUtxos,
+    unlockings,
+    walkUnlockings,
+    payoutAddress,
+    payoutLocking,
+}) {
+    if (!pool?.program?.lockingBytecode) throw new Error('role2-action: pool program locking missing')
+    if (!Array.isArray(pool.walkLockings) || pool.walkLockings.length !== 2) throw new Error('role2-action: the v3 pool needs exactly TWO walk lockings (the P2SH32 wraps)')
+    if (!carrier || carrier.length !== ROLE2_CARRIER_BYTES_3OUT) throw new Error(`role2-action: the v3 carrier must be ${ROLE2_CARRIER_BYTES_3OUT} bytes`)
+    if (!Array.isArray(fuelUtxos) || fuelUtxos.length !== 2) throw new Error('role2-action: exactly TWO fuel UTXOs are required')
+    if (!Array.isArray(walkUtxos) || walkUtxos.length !== 2) throw new Error('role2-action: exactly TWO walk-data UTXOs are required')
+    if (!stateUtxo) throw new Error('role2-action: the state UTXO is required')
+    if (!Array.isArray(unlockings) || unlockings.length !== 3) throw new Error('role2-action: exactly THREE program unlockings are required')
+    if (!Array.isArray(walkUnlockings) || walkUnlockings.length !== 2) throw new Error('role2-action: exactly TWO walk unlockings are required')
+    if (!finalNullRoot || finalNullRoot.length !== 32) throw new Error('role2-action: a 32-byte finalNullRoot is required')
+
+    const sha256 = await instantiateSha256()
+    const programLocking = hexToBin(pool.program.lockingBytecode)
+    const categoryBytes = hexToBin(pool.assetCategory)
+    const sign = carrier[carrier.length - 1] === 1 ? 1n : 0n
+    let pv = 0n
+    const pvOffset = carrier.length - 9
+    for (let i = 7; i >= 0; i -= 1) pv = (pv << 8n) | BigInt(carrier[pvOffset + i])
+    const pvValue = pv
+
+    const inputs = [
+        outpointOf(fuelUtxos[0]),
+        outpointOf(fuelUtxos[1]),
+        outpointOf(stateUtxo),
+        outpointOf(walkUtxos[0]),
+        outpointOf(walkUtxos[1]),
+    ]
+    const allUnlockings = [...unlockings, ...walkUnlockings]
+    inputs.forEach((input, index) => { input.unlockingBytecode = allUnlockings[index] })
+
+    const outputs = [
+        { lockingBytecode: role2CarrierOutput(carrier), valueSatoshis: 0n },
+        {
+            lockingBytecode: programLocking,
+            valueSatoshis: ROLE2_STATE_FLOAT,
+            token: {
+                category: categoryBytes,
+                amount: toBigInt(newBalance),
+                nft: { capability: 'mutable', commitment: new Uint8Array([...newRoot, ...finalNullRoot]) },
+            },
+        },
+    ]
+    if (sign === 1n) {
+        const locking = payoutLocking || (payoutAddress ? cashAddressToLockingBytecode(payoutAddress).bytecode : null)
+        if (!locking) throw new Error('role2-action: an unshield needs a payout address')
+        outputs.push({ lockingBytecode: locking, valueSatoshis: 1000n, token: { category: categoryBytes, amount: pvValue } })
+    }
+
+    /* Fees ride the FIVE locked inputs (the graph pins TXINPUTCOUNT == 5 — no
+     * fee input exists); the walk UTXOs are P2SH32 (v3.1), sources 3/4. */
+    const inSats = [fuelUtxos[0], fuelUtxos[1], stateUtxo, walkUtxos[0], walkUtxos[1]]
+        .reduce((sum, utxo) => sum + toBigInt(utxo.sats ?? utxo.value), 0n)
+    const outSats = outputs.reduce((sum, output) => sum + toBigInt(output.valueSatoshis), 0n)
+    const fee = inSats - outSats
+    if (fee < 0n) throw new Error(`role2-action: outputs exceed the inputs by ${-fee} sats`)
+
+    const transaction = { version: 2, locktime: 0, inputs, outputs }
+    const hex = binToHex(encodeTransactionBCH(transaction))
+    const decoded = decodeTransaction(hexToBin(hex))
+    if (typeof decoded === 'string') throw new Error('role2-action: the v3 action does not decode: ' + decoded)
+    if (fee < BigInt(hex.length / 2)) throw new Error(`role2-action: fee below 1 sat/B — underfunded lock: need ${hex.length / 2}, have ${fee}`)
+    const txid = binToHex(new Uint8Array(hash256(encodeTransactionBCH(transaction), sha256)).reverse())
+
+    return {
+        transaction,
+        hex,
+        txid,
+        fee,
+        sign,
+        publicValue: pvValue,
+        carrierBytes: carrier.length,
+        txInputCount: inputs.length,
+        txOutputCount: outputs.length,
+        newStateCommitment: binToHex(new Uint8Array([...newRoot, ...finalNullRoot])),
+    }
+}
