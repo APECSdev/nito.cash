@@ -25,9 +25,9 @@ const PRIV = hexToBin('11'.repeat(32))
 /* The v4h pool shape the builders consume (the deployed mainnet record
    subset — the categories SPLIT: the pool's own + the HELD asset). */
 const POOL = {
+    heldCategory: '2469acc5afa4b10cb5b5c04afb89c3a3ffd61c5da9c01e26d00951cae2a02544',
     id: 'mainnet-role2-pool4-v4h-test',
     assetCategory: '324b1dbfb05c605937f7e68f62210102beacc8b0ece0537e5bde04e90a875814',
-    heldCategoryOnChain: '2469acc5afa4b10cb5b5c04afb89c3a3ffd61c5da9c01e26d00951cae2a02544',
     program: {
         lockingBytecode: 'aa2006d764d4a149900fe8cbe2a0b01753643b21bda74b0fc76018172bfc098dc3c987',
         hLockingHex: 'aa2006fa0f9ebadd88eaac1b8801c69329c6c3e6d9209bced65ed01340a6e4e19b2087',
@@ -48,7 +48,7 @@ const FUNDING = { txid: 'ab'.repeat(32), vout: 0, sats: 400000, value: 400000 }
 const BLANKS = [blankUtxo('cc'), blankUtxo('dd')]
 
 /* The ASSET supply UTXO (the user's pre-sent PUSD at their wallet). */
-const SUPPLY = { txid: 'ef'.repeat(32), vout: 0, sats: 2000, value: 2000, token_data: { category: POOL.heldCategoryOnChain, amount: 5000, nft: undefined } }
+const SUPPLY = { txid: 'ef'.repeat(32), vout: 0, sats: 2000, value: 2000, token_data: { category: POOL.heldCategory, amount: 5000, nft: undefined } }
 
 /* the carrier parts: nf0 ‖ nf1 ‖ cm0 ‖ cm1 ‖ cm2 ‖ newRoot ‖ pv(8 LE) ‖ sign */
 function carrierOf(pv = 0n, sign = 0n) {
@@ -81,7 +81,7 @@ const WALKS = [
     { txid: '01'.repeat(32), vout: 3, sats: 2000, value: 2000 },
 ]
 const STATE = { txid: '22'.repeat(32), vout: 0, sats: 10000, value: 10000 }
-const HOLDINGS = { txid: '33'.repeat(32), vout: 2, sats: 1000, value: 1000, token_data: { category: POOL.heldCategoryOnChain, amount: 1000, nft: undefined } }
+const HOLDINGS = { txid: '33'.repeat(32), vout: 2, sats: 1000, value: 1000, token_data: { category: POOL.heldCategory, amount: 1000, nft: undefined } }
 const SLOT = { txid: '44'.repeat(32), vout: 4, sats: 1000, value: 1000 }
 
 describe('lib/pool/role2-lock — buildRole2LockV4h (the C-architecture lock)', () => {
@@ -106,7 +106,7 @@ describe('lib/pool/role2-lock — buildRole2LockV4h (the C-architecture lock)', 
         expect(decoded.outputs[3].lockingBytecode).toEqual(hexToBin(POOL.walkLockings[1]))
         /* out4: in6 — the deposit slot at H, carrying the ASSET FT deposit. */
         expect(decoded.outputs[4].lockingBytecode).toEqual(hexToBin(POOL.program.hLockingHex))
-        expect(decoded.outputs[4].token.category).toEqual(hexToBin(POOL.heldCategoryOnChain))
+        expect(decoded.outputs[4].token.category).toEqual(hexToBin(POOL.heldCategory))
         expect(decoded.outputs[4].token.amount).toBe(1000n)
         /* out5: the BCH change (the FIXED index — non-zero after the fee). */
         expect(decoded.outputs[5].valueSatoshis).toBeGreaterThan(1000n)
@@ -114,7 +114,7 @@ describe('lib/pool/role2-lock — buildRole2LockV4h (the C-architecture lock)', 
         expect(decoded.outputs[6].lockingBytecode).toEqual(hexToBin(POOL.program.hLockingHex))
         expect(decoded.outputs[6].token).toBeUndefined()
         /* out7: the ASSET FT change (5000 − 1000). */
-        expect(decoded.outputs[7].token.category).toEqual(hexToBin(POOL.heldCategoryOnChain))
+        expect(decoded.outputs[7].token.category).toEqual(hexToBin(POOL.heldCategory))
         expect(decoded.outputs[7].token.amount).toBe(4000n)
         /* the outpoints bookkeeping */
         expect(lock.fuelOutpoints).toHaveLength(2)
@@ -180,7 +180,7 @@ describe('lib/pool/role2-action — buildRole2ActionV4h (the SEVEN-input shape)'
         expect(commitment).toBe('0a'.repeat(32) + '0b'.repeat(32) + 'dc05000000000000000000000000000000000000000000000000000000000000')
         /* out2: the holdings — the ASSET FT == newBalance at H. */
         expect(decoded.outputs[2].lockingBytecode).toEqual(hexToBin(POOL.program.hLockingHex))
-        expect(decoded.outputs[2].token.category).toEqual(hexToBin(POOL.heldCategoryOnChain))
+        expect(decoded.outputs[2].token.category).toEqual(hexToBin(POOL.heldCategory))
         expect(decoded.outputs[2].token.amount).toBe(1500n)
         /* the fee over SEVEN locked inputs ≥ 1 sat/B. */
         expect(action.fee).toBeGreaterThanOrEqual(BigInt(action.hex.length / 2))
@@ -203,7 +203,7 @@ describe('lib/pool/role2-action — buildRole2ActionV4h (the SEVEN-input shape)'
         })
         const decoded = decodeTransaction(hexToBin(action.hex))
         expect(decoded.outputs).toHaveLength(4)
-        expect(decoded.outputs[3].token.category).toEqual(hexToBin(POOL.heldCategoryOnChain))
+        expect(decoded.outputs[3].token.category).toEqual(hexToBin(POOL.heldCategory))
         expect(decoded.outputs[3].token.amount).toBe(300n)
         expect(decoded.outputs[3].valueSatoshis).toBe(1000n)
     })

@@ -73,11 +73,13 @@ export function findRole2StateIndex(tx) {
 export function decodeRole2Action(raw) {
     const tx = typeof raw === 'string' ? decodeTransaction(hexToBin(raw)) : raw
     if (typeof tx === 'string') return null
-    /* The role-2 shapes: EXACTLY 3 inputs (2-out/3-out) or 5 inputs (v3 — the
-       walk-data pair at 3/4), with the state (the 642-B STMT) at index 2;
-       the retired 5-input pools also carry a 642-B STMT in their genesis
-       input, so the shape gate is required. */
-    if (tx.inputs.length !== 3 && tx.inputs.length !== 5) return null
+    /* The role-2 shapes: EXACTLY 3 inputs (2-out/3-out), 5 inputs (v3 — the
+       walk-data pair at 3/4), or 7 inputs (v4h — the C architecture: the
+       walk pair at 3/4 + the H-covenant holdings/deposit pair at 5/6), with
+       the state (the 642-B STMT) at index 2; the retired 5-input pools also
+       carry a 642-B STMT in their genesis input, so the shape gate is
+       required. */
+    if (tx.inputs.length !== 3 && tx.inputs.length !== 5 && tx.inputs.length !== 7) return null
     const stateIndex = findRole2StateIndex(tx)
     if (stateIndex !== 2) return null
 
@@ -114,9 +116,14 @@ export function decodeRole2Action(raw) {
     }
 
     /* v3 (5 inputs): the 64-B new-state commitment + the FT balance ride
-       out1 — the scan's SMT reconstruction anchors against them. */
+       out1 — the scan's SMT reconstruction anchors against them.
+       v4h (7 inputs — the C architecture): the commitment grows to 96 B
+       [noteRoot ‖ nullSetRoot ‖ balance32] — the AUTHENTICATED balance is the
+       commitment's third field (the state NFT is FT-less in v4h; the balance
+       lives on the H-covenant holdings line at out2). */
     let stateCommitment = null
     let newBalance = null
+    let holdingsAmount = null
 
     if (tx.inputs.length === 5 && tx.outputs[1]?.token?.nft?.commitment) {
         const commitment = tx.outputs[1].token.nft.commitment
@@ -124,6 +131,18 @@ export function decodeRole2Action(raw) {
         if (commitment.length === 64) {
             stateCommitment = binToHex(commitment)
             newBalance = typeof tx.outputs[1].token.amount === 'bigint' ? tx.outputs[1].token.amount : BigInt(tx.outputs[1].token.amount ?? 0)
+        }
+    } else if (tx.inputs.length === 7 && tx.outputs[1]?.token?.nft?.commitment) {
+        const commitment = tx.outputs[1].token.nft.commitment
+
+        if (commitment.length === 96) {
+            stateCommitment = binToHex(commitment)
+            /* the balance chain's third field: LE32(balance) — bytes [64..96). */
+            newBalance = leToBig(commitment.slice(64, 96))
+            /* the holdings line at out2: the ASSET FT == the committed balance. */
+            holdingsAmount = tx.outputs[2]?.token && typeof tx.outputs[2].token.amount === 'bigint'
+                ? tx.outputs[2].token.amount
+                : BigInt(tx.outputs[2]?.token?.amount ?? 0)
         }
     }
 
@@ -135,6 +154,7 @@ export function decodeRole2Action(raw) {
         carriers: [],
         stateCommitment,
         newBalance,
+        holdingsAmount,
         proven: {
             merkleRoot: leToBig(stmt.slice(ROLE2_STMT_N0_OFFSET, ROLE2_STMT_N0_OFFSET + 32)),
             actionHash: leToBig(stmt.slice(ROLE2_STMT_N1_OFFSET, ROLE2_STMT_N1_OFFSET + 32)),

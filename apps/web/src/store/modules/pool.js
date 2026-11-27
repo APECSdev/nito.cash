@@ -28,7 +28,7 @@ import { ownerPubFromDeliveryPoint } from '@/lib/pool/carrier.js'
 
 /* The role-2 (3-input tagged pool) pipeline: the orchestrator, the real prover
    chain, the witness generator, the carrier, and the blank selection. */
-import { submitRole2Action as submitRole2ActionLib, submitRole2ActionV3 as submitRole2ActionV3Lib, matchStandingFuelNotes } from '@/lib/pool/role2-actions.js'
+import { submitRole2Action as submitRole2ActionLib, submitRole2ActionV3 as submitRole2ActionV3Lib, submitRole2ActionV4h as submitRole2ActionV4HLib, matchStandingFuelNotes } from '@/lib/pool/role2-actions.js'
 import { PROVING_WASM_URL, PROVING_ZKEY_URL, PROVING_WASM_3OUT_URL, PROVING_ZKEY_3OUT_URL, PROVING_WASM_V3_URL, PROVING_ZKEY_V3_URL, buildPoolWitness, buildPoolWitness3out, buildPoolWitnessV3, generateProof } from '@/lib/pool/prover.js'
 import { nullifierWalkData } from '@/lib/pool/smt.js'
 /* verifier-role2 is the node-side witness generator (it reads its fixtures
@@ -350,7 +350,7 @@ const actions = {
     /* v8 ignore start — the proving half is exercised end-to-end by the
        web-platform chipnet acceptance (scripts/pool-accept.mjs pins the
        witness byte-exactly); the store gates are unit-tested above. */
-    async submitRole2Action({ dispatch, state, rootGetters }, { action, amount, recipientDeliveryPoint, onStage, poolId = 'chipnet-pusd-role2', standingFuel = null, standingWalk = null }) {
+    async submitRole2Action({ dispatch, state, rootGetters }, { action, amount, recipientDeliveryPoint, onStage, poolId = 'chipnet-pusd-role2', standingFuel = null, standingWalk = null, standingHoldings = null, standingSlot = null }) {
         const entropyHex = rootGetters['profile/getMasterSeed']
 
         if (!entropyHex) {
@@ -440,6 +440,11 @@ const actions = {
            seeds — the empty genesis tree), the FT rides fuel0 exactly like a
            shield (sign=0). */
         const isV3 = pool.variant === 'v3' || pool.txInputCount === 5
+        /* v4h (the C architecture — the MAINNET Preview v0 pool): the 7-input
+           shape; the categories SPLIT (the pool's own category for the
+           state/blanks; the HELD asset — real PUSD — for the deposit/holdings
+           line). */
+        const isV4H = pool.variant === 'v4h' || pool.txInputCount === 7
         const shield = action === 'shield' || action === 'unshield' || action === 'deposit' ? BigInt(amount) : 0n
         const transferAmount = action === 'transfer' ? BigInt(amount) : 0n
         const sign = action === 'unshield' ? 1n : 0n
@@ -450,6 +455,18 @@ const actions = {
         const stateUtxo = tip
             ? poolUtxos.find((u) => u.txid === tip.txid && u.vout === 1)
             : null
+
+        /* v4h — the holdings line (in5): the PRIOR action's out2 (the H-locked
+           FT carrying the committed balance — the scan already validated
+           out2's amount == the committed balance, so the outpoint is
+           CONSTRUCTED from the scan's chain, not re-queried: the H locking is
+           a different scripthash from the pool's); the genesis flag (the first
+           action ever — its lock funds the tokenless in5 slot). */
+        const genesisNow = scanned.scan.actions.length === 0
+        let holdings = null
+        if (isV4H && tip) {
+            holdings = { txid: tip.txid, vout: 2, sats: Number(pool.holdingsSats || 1000) }
+        }
 
         if (!stateUtxo || !stateUtxo.token?.nft?.commitment) {
             const error = new Error('The role-2 state UTXO was not found at the pool address.')
@@ -546,7 +563,13 @@ const actions = {
             /* Accumulate the plain UTXOs (largest first) until the fuel +
                fee fit — the lock signs every input with the same key. The v3
                lock needs 2×23,000 fuel + 2×2,000 walk dust + fee. */
-            const fundingNeed = isV3 ? 2n * BigInt(pool.fuelSats || 23000) + 2n * BigInt(pool.walkSats || 2000) + 600n : 32000n
+            /* The v4h lock also funds the H pair (in6 always + in5 at genesis). */
+            const genesisNow = scanned.scan.actions.length === 0
+            const fundingNeed = isV3
+                ? 2n * BigInt(pool.fuelSats || 23000) + 2n * BigInt(pool.walkSats || 2000) + 600n
+                : isV4H
+                    ? 2n * BigInt(pool.fuelSats || 23000) + 2n * BigInt(pool.walkSats || 2000) + (genesisNow ? 2n : 1n) * BigInt(pool.holdingsSats || 1000) + 600n
+                    : 32000n
             const funding = []
             let fundTotal = 0n
 
@@ -559,15 +582,19 @@ const actions = {
             /* Only a SHIELD/DEPOSIT moves FT through the lock; an UNSHIELD's
                payout comes from the STATE (a deposit would double the FT and
                break the program's conservation check). */
-            const supply = (action === 'shield' || (isV3 && action === 'deposit')) && shield > 0n
-                ? utxos.find((u) => u.token && u.token.category === pool.assetCategory && !u.token.nft && u.token.amount >= shield)
+            /* The deposit SUPPLY: the HELD asset on v4h (the user pre-sends
+               their real PUSD to their wallet — the Hush's §3 answer), the
+               pool category on the legacy pools. */
+            const supplyCategory = isV4H ? (pool.heldCategory ?? pool.assetCategory) : pool.assetCategory
+            const supply = (action === 'shield' || ((isV3 || isV4H) && action === 'deposit')) && shield > 0n
+                ? utxos.find((u) => u.token && u.token.category === supplyCategory && !u.token.nft && u.token.amount >= shield)
                 : null
 
             if (!blanks) continue
 
             if (funding.length === 0 || fundTotal < fundingNeed - 2000n) continue
 
-            if (action === 'shield' && shield > 0n && !supply) continue
+            if ((action === 'shield' || action === 'deposit') && shield > 0n && !supply) continue
 
             lockSet = { address, account: funding[0].account, blanks, funding, supply }
             break
@@ -683,6 +710,103 @@ const actions = {
                 outNotes = [await selfNote(outSum), await selfNote(0n)]
             } else {
                 outNotes = [await selfNote(outSum), await selfNote(0n)]
+            }
+
+            /* ── THE V4H (the C architecture) PATH — the holdings pipeline ── */
+            if (isV4H) {
+                /* The witness binds the HELD asset (the real PUSD — the circuit's
+                   category witness; the check-6 lesson). */
+                const { input, cm, newMerkleRoot, nf } = await buildPoolWitnessV3({
+                    inNotes: action === 'deposit' ? null : inNotes,
+                    outNotes: outNotes.map(({ value, ownerPub, rho, r }) => ({ value, ownerPub, rho, r })),
+                    leaves,
+                    publicValueAbs: shield,
+                    publicValueSign: sign,
+                    assetCategory: BigInt('0x' + pool.heldCategory),
+                    isDeposit: action === 'deposit',
+                })
+
+                const { proof, publicSignals } = await generateProof(input, PROVING_WASM_V3_URL, PROVING_ZKEY_V3_URL)
+
+                const carrier = encodeRole2Carrier({
+                    nf0: nf[0], nf1: nf[1], cm0: cm[0], cm1: cm[1], cm2: cm[2],
+                    newRoot: newMerkleRoot, pv: shield, sign,
+                }, 3)
+
+                /* The walk data: the SCAN's spent-key set + this action's keys. */
+                const leHexOf = (value) => {
+                    const bytes = new Uint8Array(32)
+                    let x = BigInt(value)
+                    for (let i = 0; i < 32; i += 1) { bytes[i] = Number(x & 0xffn); x >>= 8n }
+                    return Array.from(bytes, (b) => b.toString(16).padStart(2, '0')).join('')
+                }
+                const walk = nullifierWalkData({
+                    spentKeys: scanned.scan.spentKeys || [],
+                    kA: leHexOf(nf[0]),
+                    kB: leHexOf(nf[1]),
+                })
+
+                /* The balance: the scan's VALIDATED chain (the state NFT is
+                   FT-less in v4h — the authenticated balance is the
+                   commitment's third field, which the scan re-derived). */
+                const priorActions = scanned.scan.actions || []
+                const balance = priorActions.length ? priorActions[priorActions.length - 1].newBalance : 0n
+                const newBalance = balance + shield - 2n * sign * shield
+
+                const scenarioArgs = {
+                    sc: { nf0: nf[0], nf1: nf[1], cm0: cm[0], cm1: cm[1], cm2: cm[2], newRoot: newMerkleRoot, pv: shield, sign },
+                    n0: BigInt(publicSignals[0]),
+                    nullSet: walk,
+                    balance,
+                    categoryDisplay: pool.assetCategory,
+                    assetCategoryDisplay: pool.heldCategory,
+                }
+
+                const { produceRole2InputsV4h, v4hHUnlocking, v4hHoldingsCovenant } = await import('@/lib/pool/verifier-role2-v4h.js')
+                /* The H covenant: rebuilt from the deployed pins + asserted
+                   against the registry record (the drift guard). */
+                const hc = v4hHoldingsCovenant({
+                    progLockingHashHex: pool.program.progLockingHash,
+                    walkAHashHex: pool.program.walkPins[0],
+                    walkBHashHex: pool.program.walkPins[1],
+                })
+                if (hc.lockingHex !== pool.program.hLockingHex) throw new Error('pool: the H covenant drifted from the deployed record')
+                const hUnlocking = v4hHUnlocking({
+                    progLockingHashHex: pool.program.progLockingHash,
+                    walkAHashHex: pool.program.walkPins[0],
+                    walkBHashHex: pool.program.walkPins[1],
+                })
+
+                const { unlockings, walkUnlockings } = produceRole2InputsV4h({
+                    proof,
+                    publicSignals,
+                    categoryOnChain: pool.categoryOnChain,
+                    assetCategoryOnChain: pool.assetCategoryOnChain,
+                    walkAHash: pool.program.walkPins[0],
+                    walkBHash: pool.program.walkPins[1],
+                    hScript: hc.script,
+                    hLocking: hexToBytes(hc.lockingHex),
+                    scenarioArgs,
+                })
+
+                /* The 96-B commitment: LE32(newRoot) ‖ finalNullRoot ‖ LE32(newBalance). */
+                const rootLE = new Uint8Array(32)
+                let rootValue = newMerkleRoot
+                for (let i = 0; i < 32; i += 1) { rootLE[i] = Number(rootValue & 0xffn); rootValue >>= 8n }
+                const bal32 = new Uint8Array(32)
+                let balValue = newBalance
+                for (let i = 0; i < 32; i += 1) { bal32[i] = Number(balValue & 0xffn); balValue >>= 8n }
+
+                return {
+                    carrier,
+                    unlockings,
+                    walkUnlockings,
+                    hUnlocking,
+                    newRoot: rootLE,
+                    finalNullRoot: hexToBytes(walk.finalNullRoot),
+                    newBalance,
+                    outNotes,
+                }
             }
 
             /* ── THE V3 (pool4) PATH — the walk-data pipeline ── */
@@ -827,11 +951,18 @@ const actions = {
                         /* The v3 standing lock: the fuel pair AND the walk pair
                            (the sweep tool supplies both). */
                         ? { standing: { fuel: standingFuel, walk: standingWalk } }
-                        : { standingFuel })
+                        : isV4H
+                            /* The v4h standing lock: fuel + walks + the H
+                               pair (holdings + slot — the sweep tool). */
+                            ? { standing: { fuel: standingFuel, walk: standingWalk, holdings: standingHoldings, slot: standingSlot } }
+                            : { standingFuel })
                     : {
                     blanks: lockSet.blanks,
                     funding: lockSet.funding,
                     supply: lockSet.supply,
+                    /* v4h: the holdings line (the prior action's out2) + the
+                       genesis flag (the first action's lock funds in5). */
+                    ...(isV4H ? { holdings, isGenesis: genesisNow } : {}),
                 }),
                 /* The lock's DEPOSIT (a shield/deposit only) — the public
                    value rides the proof/carrier separately. */
@@ -858,9 +989,11 @@ const actions = {
                 ...extra,
             })
 
-            result = isV3
-                ? await submit(submitRole2ActionV3Lib)
-                : await submit(submitRole2ActionLib)
+            result = isV4H
+                ? await submit(submitRole2ActionV4HLib)
+                : isV3
+                    ? await submit(submitRole2ActionV3Lib)
+                    : await submit(submitRole2ActionLib)
         } catch (error) {
             dispatch('displayError', error, { root: true })
             throw error

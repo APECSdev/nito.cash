@@ -412,8 +412,8 @@ export async function buildRole2LockV4h({
     /* The categories SPLIT in v4h: the fuel/blanks ride the POOL category; the
        deposit slot + the FT change ride the HELD asset (the real PUSD). */
     const poolCategoryBytes = hexToBin(pool.assetCategory)
-    const assetCategoryBytes = hexToBin(pool.heldCategoryOnChain ?? pool.assetCategoryOnChain)
-    if (!assetCategoryBytes || assetCategoryBytes.length !== 32) throw new Error('role2-lock: the v4h pool needs the HELD asset category (heldCategoryOnChain)')
+    const assetCategoryBytes = hexToBin(pool.heldCategory ?? pool.assetCategory)
+    if (!assetCategoryBytes || assetCategoryBytes.length !== 32) throw new Error('role2-lock: the v4h pool needs the HELD asset category (heldCategory, display order)')
     const programLocking = hexToBin(pool.program.lockingBytecode)
     const hLocking = hexToBin(pool.program.hLockingHex)
     const walkA = hexToBin(walkLockings[0])

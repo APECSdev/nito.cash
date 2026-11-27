@@ -531,8 +531,9 @@ describe('pool scan edge + guard paths', () => {
     })
 
     it('registry: getPools/getDefaultPool lookups + malformed pool throws', () => {
-        expect(getPools('mainnet').length).toEqual(1)
-        expect(getDefaultPool('mainnet').id).toEqual('mainnet-pusd-pool')
+        /* the mainnet list: the legacy demo pool + the v4h Preview v0 pool. */
+        expect(getPools('mainnet').length).toEqual(2)
+        expect(getDefaultPool('mainnet').id).toEqual('mainnet-role2-pool4-v4h')
         expect(getPools('nonexistent-network')).toEqual([])
         expect(getDefaultPool('nonexistent-network')).toBeNull()
 
@@ -995,6 +996,132 @@ describe('pool scan — the v3 nullifier-SMT reconstruction', () => {
         const hexA = buildV3ActionTx({ txid: TXIDS[0], prevoutTxid: DEPLOY_TXID, args: argsA, n0: n0A, n1: n1A, stateCommitment: commitA, balance: 777n })
 
         await expect(scanPoolActions({ cluster: v3Cluster([hexA]), pool: V3POOL, networkId: 'chipnet' }))
+            .rejects.toThrow(/balance mismatch/)
+    })
+})
+
+describe('pool scan — the v4h nullifier-SMT + balance-chain reconstruction (the C architecture)', () => {
+    const V4HPOOL = getPools('mainnet').find((p) => p.variant === 'v4h')
+
+    /* One v4h action tx (7 inputs — the H pair at 5/6 carries the bare redeem
+       push; the scan only reads the STMT at 2, the carrier, out1's 96-B
+       commitment and out2's holdings FT). */
+    const buildV4HActionTx = ({ txid, prevoutTxid, args, n0, n1, commitment, balance }) => {
+        const dummy = (hashByte) => ({
+            outpointIndex: 0,
+            outpointTransactionHash: new Uint8Array(32).fill(hashByte),
+            sequenceNumber: 0xffffffff,
+            unlockingBytecode: new Uint8Array([0x00]),
+        })
+        const stmt = new Uint8Array(642)
+        stmt.set(le32(n0), 256)
+        stmt.set(le32(n1), 288)
+        const stmtPush = new Uint8Array([0x4d, 0x82, 0x02, ...stmt])
+
+        const inputs = [
+            dummy(0xa1), dummy(0xa2),
+            { outpointIndex: 0, outpointTransactionHash: hexToBin(prevoutTxid), sequenceNumber: 0xffffffff, unlockingBytecode: stmtPush },
+            dummy(0xa3), dummy(0xa4), dummy(0xa5), dummy(0xa6),
+        ]
+        const payload = concatBytes(
+            le32(args.nf0), le32(args.nf1), le32(args.cm0), le32(args.cm1), le32(args.cm2),
+            le32(args.newMerkleRoot), le32(args.publicValueAbs).slice(0, 8), new Uint8Array([Number(args.isUnshield)]),
+        )
+        const outputs = [
+            { lockingBytecode: new Uint8Array([0x6a, 0x4c, payload.length, ...payload]), valueSatoshis: 0n },
+            /* out1 — the new state: the POOL category, NFT-only, 96-B commitment. */
+            {
+                lockingBytecode: poolLockingBytecode(V4HPOOL),
+                valueSatoshis: 10000n,
+                token: { category: hexToBin(V4HPOOL.assetCategory), amount: 0n, nft: { capability: 'mutable', commitment: hexToBin(commitment) } },
+            },
+            /* out2 — the new holdings: the ASSET FT == the balance at H. */
+            {
+                lockingBytecode: hexToBin(V4HPOOL.program.hLockingHex),
+                valueSatoshis: 1000n,
+                token: { category: hexToBin(V4HPOOL.heldCategory), amount: BigInt(balance), nft: undefined },
+            },
+        ]
+        return binToHex(encodeTransactionBCH({ version: 2, inputs, outputs, locktime: 0 }))
+    }
+
+    const mkArgs = async (leaves, nf0, nf1, pv, sign, out) => ({
+        nf0, nf1,
+        cm0: out[0], cm1: out[1], cm2: out[2],
+        newMerkleRoot: await computeRoot([...leaves, ...out]),
+        publicValueAbs: pv, isUnshield: sign,
+    })
+
+    const v4hCluster = (hexes, txids) => ({
+        getScripthashHistory: async () => hexes.map((_, i) => ({ tx_hash: txids[i], height: 979220 + i })),
+        getTransaction: async (id) => hexes[txids.indexOf(id)],
+    })
+
+    const V4H_DEPLOY = '61022b8b46087f2a5c5b49ae9782d05a316807726cc078995b2291e500efc944'
+    const TXIDS = ['cc' + '00'.repeat(30) + '01', 'cc' + '00'.repeat(30) + '02']
+
+    beforeAll(async () => {
+        await getPoseidon()
+    })
+
+    it('VERIFIES the honest v4h chain (the 96-B commitment halves + the out2 cross-check + the balance chain)', async () => {
+        /* action 1 — a DEPOSIT 1,000 from the EMPTY genesis (the balance 0 → 1,000). */
+        const cmA = [9100001n, 9100002n, 9100003n]
+        const argsA = await mkArgs([], 9001001n, 9001002n, 1000n, 0n, cmA)
+        const cat = BigInt('0x' + V4HPOOL.heldCategory) /* the ASSET — the circuit witness binds it */
+        const n1A = actionHash3out({ ...argsA, publicValueSign: 0n, assetCategory: cat, newMerkleRoot: argsA.newMerkleRoot })
+        const n0A = leHexToBig(V4HPOOL.genesisRootLE)
+        const walkA1 = nullifierWalkData({ spentKeys: [], kA: binToHex(le32(argsA.nf0)), kB: binToHex(le32(argsA.nf1)) })
+        /* the 96-B commitment: LE32(root) ‖ finalNullRoot ‖ LE32(balance) */
+        const commitA = binToHex(le32(argsA.newMerkleRoot)) + walkA1.finalNullRoot + binToHex(le32(1000n))
+
+        /* action 2 — an UNSHIELD 300 (the balance 1,000 → 700). */
+        const cmB = [9200001n, 9200002n, 9200003n]
+        const argsB = await mkArgs(cmA, 9002001n, 9002002n, 300n, 1n, cmB)
+        const n1B = actionHash3out({ ...argsB, publicValueSign: 1n, assetCategory: cat, newMerkleRoot: argsB.newMerkleRoot })
+        const walkB1 = nullifierWalkData({ spentKeys: [binToHex(le32(argsA.nf0)), binToHex(le32(argsA.nf1))], kA: binToHex(le32(argsB.nf0)), kB: binToHex(le32(argsB.nf1)) })
+        const commitB = binToHex(le32(argsB.newMerkleRoot)) + walkB1.finalNullRoot + binToHex(le32(700n))
+
+        const hexA = buildV4HActionTx({ txid: TXIDS[0], prevoutTxid: V4H_DEPLOY, args: argsA, n0: n0A, n1: n1A, commitment: commitA, balance: 1000n })
+        const hexB = buildV4HActionTx({ txid: TXIDS[1], prevoutTxid: TXIDS[0], args: argsB, n0: argsA.newMerkleRoot, n1: n1B, commitment: commitB, balance: 700n })
+
+        const result = await scanPoolActions({ cluster: v4hCluster([hexA, hexB], TXIDS), pool: V4HPOOL, networkId: 'mainnet' })
+
+        expect(result.actions).toHaveLength(2)
+        expect(result.actions[0].stateCommitment).toBe(commitA)
+        expect(result.actions[0].newBalance).toBe(1000n)
+        expect(result.actions[0].holdingsAmount).toBe(1000n)
+        expect(result.actions[1].newBalance).toBe(700n)
+        expect(result.spentKeys).toHaveLength(4)
+    })
+
+    it('REJECTS a holdings line (out2) that does not match the committed balance', async () => {
+        const cmA = [9100001n, 9100002n, 9100003n]
+        const argsA = await mkArgs([], 9001001n, 9001002n, 1000n, 0n, cmA)
+        const cat = BigInt('0x' + V4HPOOL.heldCategory)
+        const n1A = actionHash3out({ ...argsA, publicValueSign: 0n, assetCategory: cat, newMerkleRoot: argsA.newMerkleRoot })
+        const n0A = leHexToBig(V4HPOOL.genesisRootLE)
+        const walkA1 = nullifierWalkData({ spentKeys: [], kA: binToHex(le32(argsA.nf0)), kB: binToHex(le32(argsA.nf1)) })
+        const commitA = binToHex(le32(argsA.newMerkleRoot)) + walkA1.finalNullRoot + binToHex(le32(1000n))
+        /* out2 carries 777 — the commitment says 1,000 */
+        const hexA = buildV4HActionTx({ txid: TXIDS[0], prevoutTxid: V4H_DEPLOY, args: argsA, n0: n0A, n1: n1A, commitment: commitA, balance: 777n })
+
+        await expect(scanPoolActions({ cluster: v4hCluster([hexA], TXIDS), pool: V4HPOOL, networkId: 'mainnet' }))
+            .rejects.toThrow(/holdings line at out2/)
+    })
+
+    it('REJECTS a forged balance in the 96-B commitment (the balance chain)', async () => {
+        const cmA = [9100001n, 9100002n, 9100003n]
+        const argsA = await mkArgs([], 9001001n, 9001002n, 1000n, 0n, cmA)
+        const cat = BigInt('0x' + V4HPOOL.heldCategory)
+        const n1A = actionHash3out({ ...argsA, publicValueSign: 0n, assetCategory: cat, newMerkleRoot: argsA.newMerkleRoot })
+        const n0A = leHexToBig(V4HPOOL.genesisRootLE)
+        const walkA1 = nullifierWalkData({ spentKeys: [], kA: binToHex(le32(argsA.nf0)), kB: binToHex(le32(argsA.nf1)) })
+        /* the THIRD field lies: 777 instead of 1,000 */
+        const commitA = binToHex(le32(argsA.newMerkleRoot)) + walkA1.finalNullRoot + binToHex(le32(777n))
+        const hexA = buildV4HActionTx({ txid: TXIDS[0], prevoutTxid: V4H_DEPLOY, args: argsA, n0: n0A, n1: n1A, commitment: commitA, balance: 777n })
+
+        await expect(scanPoolActions({ cluster: v4hCluster([hexA], TXIDS), pool: V4HPOOL, networkId: 'mainnet' }))
             .rejects.toThrow(/balance mismatch/)
     })
 })

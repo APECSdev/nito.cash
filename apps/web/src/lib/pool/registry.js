@@ -43,7 +43,7 @@ import { binToHex, lockingBytecodeToCashAddress, sha256 } from '@bitauth/libauth
 import { DEPLOYED_PROGRAM, STEP_LOCKINGS, WALLET_PROGRAM, WALLET_STEP_LOCKINGS } from './verifier-program.js'
 import { GENERALIZED_WALLET_PROGRAM, GENERALIZED_WALLET_STEP_LOCKINGS } from './verifier-program-generalized.js'
 import { BENCH_PROGRAM, BENCH_STEP_LOCKINGS } from './verifier-program-bench.js'
-import { ROLE2_GUARD, ROLE2_GUARD_3OUT, ROLE2_GUARD_V3, ROLE2_PROGRAM, ROLE2_PROGRAM_3OUT, ROLE2_PROGRAM_V3, ROLE2_VENDING } from './verifier-program-role2.js'
+import { ROLE2_GUARD, ROLE2_GUARD_3OUT, ROLE2_GUARD_V3, ROLE2_GUARD_V4H, ROLE2_PROGRAM, ROLE2_PROGRAM_3OUT, ROLE2_PROGRAM_V3, ROLE2_PROGRAM_V4H, ROLE2_VENDING } from './verifier-program-role2.js'
 
 import { getNetwork } from '../bch/networks.js'
 
@@ -68,6 +68,55 @@ import { getNetwork } from '../bch/networks.js'
  */
 const POOLS = {
     mainnet: [
+        {
+            id: 'mainnet-role2-pool4-v4h',
+            name: 'ParyonUSD shielded pool — Preview v0 (the holdings architecture)',
+            network: 'mainnet',
+            variant: 'v4h',
+            /* The user's BINDING stage name (never 'Release Candidate'/'RC' in
+               user-facing copy) — the Wallet panel renders it VERBATIM. */
+            stageLabel: 'Preview v0',
+            shape: 'role2-tagged-v4h',
+            lockingBytecode: 'aa2006d764d4a149900fe8cbe2a0b01753643b21bda74b0fc76018172bfc098dc3c987',
+            /* The C architecture's category SPLIT: the pool's OWN fresh
+               valueless category (the state NFT + the blanks — our key, no
+               third party) + the HELD asset (real ParyonUSD — a category we
+               do NOT own and can never mint; it rides the H-covenant
+               holdings pair, never minted by us). */
+            assetCategory: '324b1dbfb05c605937f7e68f62210102beacc8b0ece0537e5bde04e90a875814',
+            categoryOnChain: '1487580a9ee0b5e73c50e0eab0c8acbe02012162f8e67f739505cb0fbd412b32',
+            heldCategory: '2469acc5afa4b10cb5b5c04afb89c3a3ffd61c5da9c01e26d00951cae2a02544',
+            assetCategoryOnChain: '4425a0e2ca5109d0261ec0a95d1cd6ffa3c389fb4ac0b5b50cb1a4afc5ac6924',
+            genesisRootLE: '3e1f1922dfb671d3f912f7ea461e0a88ee848fdde12b6c18ab1ad2c56ae73421',
+            genesisLeafCount: 0,
+            /* the 96-B genesis commitment: LE32(rootLE) ‖ EMPTY_NULL_SET_ROOT ‖ LE32(0) */
+            genesisStateCommitment: '3e1f1922dfb671d3f912f7ea461e0a88ee848fdde12b6c18ab1ad2c56ae73421e579b9be0b8f58daacc4f66c959ed3ec903884d1914e11e7e0c3bbf2a5627b430000000000000000000000000000000000000000000000000000000000000000',
+            /* flips when the store wiring is COMPLETE + the M2 release is
+               mirrored (the Worker's /assets pool4 pins currently serve the
+               CHIPNET trio — the mainnet flow needs the POST-MPC trio at M2)
+               — then the mainnet browser acceptance runs. */
+            walletProverCompatible: false,
+            status: 'live',
+            deployTxid: '61022b8b46087f2a5c5b49ae9782d05a316807726cc078995b2291e500efc944',
+            categoryAnchorTxid: '324b1dbfb05c605937f7e68f62210102beacc8b0ece0537e5bde04e90a875814',
+            mintTxid: 'f72aec0114299647454664a5d40ac0e3f853aafa649563f72698218e650be7cc',
+            fundingAddress: 'bitcoincash:qrqj0azraqskmsyh8fkaj70p0a8lrw20fcnrhvnvh8',
+            /* THE EMPTY GENESIS TREE — no bootstrap seeds; the first action
+               MUST be a DEPOSIT (the phantom in-note path). */
+            genesisLeaves: [],
+            bootstrapNotes: [],
+            stepLockings: [],
+            program: ROLE2_PROGRAM_V4H,
+            guard: ROLE2_GUARD_V4H,
+            txInputCount: 7,
+            outputs: 3,
+            carrierBytes: 201,
+            fuelSats: 23000,
+            walkSats: 2000,
+            holdingsSats: 1000,
+            blanksPerLock: 2,
+            notes: 'THE MAINNET PREVIEW v0 POOL — deployed 2026-11-27T16:56Z (anchor 324b1dbf… = the pool\'s own fresh valueless category; mint f72aec01…; deploy 61022b8b… h 979,219; program 8,078 B sha256 4f096247… pieces 4151/3927; born guarded — the guard batch 48994625… K=16 confirmed h 979,219). THE C ARCHITECTURE (the no-issuer fix): the pool keeps its own category (state NFT + blanks — no third party) and the REAL ParyonUSD (2469acc5…) rides the H-covenant holdings pair (in5 = the prior action\'s out2 / the genesis lock-funded tokenless slot; in6 = the deposit slot, lock-funded every action). The 96-B state commitment [noteRoot ‖ nullSetRoot ‖ balance32] carries the AUTHENTICATED balance chain (hook checks 5/9/9h — the holdings line is unforgeable); check 6 binds the ASSET category (the Hush fix after the Nito review caught the live bug). BOTH DRAINS CLOSED AT CONSENSUS + the MPC: the VK is the THREE-CONTRIBUTION chain (Nito ba66883d… → Hush 2cb3aa50… → user e982459d…; pool4_0003_user.zkey de7875e3…; VK f6b49cc0…; the chain VERIFIES ZKey Ok! — both sides ran zkey verify). Gates: acceptance 42/42 under the 3-VK, red team 164/0, the sweep re-mint in flight (the last M2 gate). The client reproduction gates: the program/walks/H covenant reproduce byte-exactly (pool-verifier-role2-v4h.spec.js). AWAITING: the M2 release (the post-MPC trio under role2-proving-assets-v3-v1 + the Worker /assets re-pin — a B4 data edit) + the store wiring + the mainnet browser acceptance (the video, per Option C: born-guarded, demo-scale, the user\'s test PUSD at the funding address).',
+        },
         {
             id: 'mainnet-pusd-pool',
             name: 'Mainnet PUSD pool (demo)',

@@ -273,7 +273,7 @@ export async function buildRole2ActionV3({
  * check 9h make the holdings line unforgeable on-chain.
  *
  * @param {object} params — the v3 shape + holdingsUtxo (in5), depositSlotUtxo
- *   (in6), hUnlocking (the bare H redeem push), heldCategoryOnChain (the ASSET
+ *   (in6), hUnlocking (the bare H redeem push), heldCategory (the ASSET
  *   category, on-chain byte order), stateSats/holdingsSats/payoutSats overrides
  * @returns {Promise<object>} { transaction, hex, txid, fee, sign, publicValue,
  *   carrierBytes, txInputCount, txOutputCount, newStateCommitment, newHoldings }
@@ -321,8 +321,8 @@ export async function buildRole2ActionV4h({
      * category; the holdings + the payout carry the HELD asset (the real
      * PUSD — a category we do not own and can never mint). */
     const poolCategoryBytes = hexToBin(pool.assetCategory)
-    const assetCategoryBytes = hexToBin(pool.heldCategoryOnChain ?? pool.assetCategoryOnChain)
-    if (!assetCategoryBytes || assetCategoryBytes.length !== 32) throw new Error('role2-action: the v4h pool needs the HELD asset category (heldCategoryOnChain)')
+    const assetCategoryBytes = hexToBin(pool.heldCategory ?? pool.assetCategory)
+    if (!assetCategoryBytes || assetCategoryBytes.length !== 32) throw new Error('role2-action: the v4h pool needs the HELD asset category (heldCategory, display order)')
 
     const sign = carrier[carrier.length - 1] === 1 ? 1n : 0n
     let pv = 0n

@@ -127,7 +127,11 @@ export async function scanPoolActions({ cluster, pool, networkId }) {
     }
 
     /* ── per-action validation + leaf-index bookkeeping ─────────────────── */
-    const assetCategory = BigInt('0x' + pool.assetCategory)
+    /* The actionHash's category witness: the HELD asset on v4h (the C
+       architecture — the circuit + the hook's check 6 bind the ASSET; the
+       Nito-review fix), the pool category on the legacy pools (where the pool
+       category IS the asset). */
+    const assetCategory = BigInt('0x' + (pool.heldCategory ?? pool.assetCategory))
 
     /* Genesis root: registry stores the 32-byte LE VM-number form. */
     const genesisRootBig = pool.genesisRootLE
@@ -144,6 +148,11 @@ export async function scanPoolActions({ cluster, pool, networkId }) {
        chain). The R2 replay dies HERE too — nullifierWalkData throws on a
        key already in the set (the client-side mirror of walkA's 0-walk). */
     const isV3 = pool.variant === 'v3' || pool.txInputCount === 5
+    /* v4h (the C architecture): the 7-input shape — the 96-B commitment
+       [noteRoot ‖ nullSetRoot ‖ balance32]; the balance is the commitment's
+       THIRD field (the authenticated chain — the state NFT is FT-less; the
+       real balance rides the H-covenant holdings line at out2). */
+    const isV4H = pool.variant === 'v4h' || pool.txInputCount === 7
     const EMPTY_NULL_HEX = binToHex(EMPTY_NULL_SET_ROOT)
     let spentKeys = []
     let prevNullRoot = EMPTY_NULL_HEX
@@ -154,6 +163,14 @@ export async function scanPoolActions({ cluster, pool, networkId }) {
            the SMT anchor chain starts at the empty set. */
         if (pool.genesisStateCommitment.slice(64) !== EMPTY_NULL_HEX) {
             throw new Error('pool scan: the v3 genesis commitment is not rootLE ‖ EMPTY_NULL_ROOT')
+        }
+    }
+
+    if (isV4H && pool.genesisStateCommitment) {
+        /* the genesis 96-B commitment = LE32(zh[20]) ‖ EMPTY_NULL_SET_ROOT ‖
+           LE32(0) — the balance chain starts at 0 with the empty set. */
+        if (pool.genesisStateCommitment.slice(64, 128) !== EMPTY_NULL_HEX) {
+            throw new Error('pool scan: the v4h genesis commitment is not rootLE ‖ EMPTY_NULL_ROOT ‖ balance')
         }
     }
 
@@ -244,9 +261,10 @@ export async function scanPoolActions({ cluster, pool, networkId }) {
               half; the commitment's FIRST half must equal the carrier's
               newMerkleRoot (the hook's check-10 mirror). A key already in
               the set THROWS (the replay guard). */
-        if (isV3) {
-            if (!action.stateCommitment || action.stateCommitment.length !== 128) {
-                throw new Error(`pool scan: the v3 action ${action.txid} carries no 64-B state commitment`)
+        if (isV3 || isV4H) {
+            const commitHexLen = isV4H ? 192 : 128
+            if (!action.stateCommitment || action.stateCommitment.length !== commitHexLen) {
+                throw new Error(`pool scan: the ${isV4H ? 'v4h action carries no 96-B' : 'v3 action carries no 64-B'} state commitment (${action.txid})`)
             }
 
             const kA = bigToLeHex(args.nf0)
@@ -257,7 +275,9 @@ export async function scanPoolActions({ cluster, pool, networkId }) {
                 throw new Error(`pool scan: nullSetRoot continuity break at ${action.txid}`)
             }
 
-            const onChainNullRoot = action.stateCommitment.slice(64)
+            /* the nullSetRoot half: [64..128) hex in BOTH forms (the v4h
+               commitment's third field — the balance — sits at [128..192)). */
+            const onChainNullRoot = isV4H ? action.stateCommitment.slice(64, 128) : action.stateCommitment.slice(64)
 
             if (walk.finalNullRoot !== onChainNullRoot) {
                 throw new Error(`pool scan: SMT mismatch at ${action.txid} — the walked finalNullRoot is not the new state commitment's second half`)
@@ -269,11 +289,17 @@ export async function scanPoolActions({ cluster, pool, networkId }) {
                 throw new Error(`pool scan: the new state commitment's note-root half != the carrier newMerkleRoot at ${action.txid}`)
             }
 
-            /* Step 6 — the balance: out1's FT must equal balance + pv − 2·sign·pv. */
+            /* Step 6 — the balance chain: the v3 reads out1's FT; the v4h
+               reads the commitment's THIRD field (the authenticated chain)
+               and cross-checks the H-covenant holdings line at out2. */
             const expectedBalance = v3Balance + args.publicValueAbs - 2n * args.isUnshield * args.publicValueAbs
 
             if (action.newBalance !== expectedBalance) {
-                throw new Error(`pool scan: balance mismatch at ${action.txid} — out1 carries ${action.newBalance} FT, the arithmetic expects ${expectedBalance}`)
+                throw new Error(`pool scan: balance mismatch at ${action.txid} — the commitment carries ${action.newBalance}, the arithmetic expects ${expectedBalance}`)
+            }
+
+            if (isV4H && action.holdingsAmount !== null && action.holdingsAmount !== action.newBalance) {
+                throw new Error(`pool scan: the holdings line at out2 (${action.holdingsAmount}) != the committed balance (${action.newBalance}) at ${action.txid}`)
             }
 
             spentKeys = [...spentKeys, kA, kB]

@@ -107,6 +107,64 @@ export const ROLE2_PROGRAM_V3 = {
     hookChecks: '1–11 + 4w (the walk-locking pins); the fold check 7 GONE — the SMT replaces it; check 10 splits the 64-B commitment',
 }
 
+/* ── THE V4H (the C architecture — the MAINNET Preview v0 pool) ─────────────
+ * The "no-issuer" fix: the pool keeps its OWN fresh valueless category (the
+ * state NFT + the blanks — our key, no third party) and the ASSET (a category
+ * we do NOT own — real ParyonUSD 2469acc5…) rides the H-covenant holdings
+ * pair (in5/in6). The 96-B state commitment [noteRoot ‖ nullSetRoot ‖
+ * balance32] carries the AUTHENTICATED balance chain; the check-6 category
+ * field binds the ASSET (the Hush fix after the Nito review caught the live
+ * bug). The program is per-category (the deployed mainnet build of record —
+ * role2-pool4-state.mainnet-v4h.json, h 979,219) and VK-BOUND to the
+ * THREE-CONTRIBUTION post-MPC chain (Nito → Hush → user). */
+export const ROLE2_PROGRAM_V4H = {
+    id: 'role2-v4h',
+    lockingBytecode: 'aa2006d764d4a149900fe8cbe2a0b01753643b21bda74b0fc76018172bfc098dc3c987',
+    programBytes: 8078,
+    codePin: '4f096247c5b56ab682119cb4446289598b48d374bb30d10e9ad43ee23dab4493',
+    codePieces: [4151, 3927],
+    txInputCount: 7,
+    outputs: 3,
+    carrierBytes: 201,
+    progLockingHash: '90f104a34677e1abf90a2e1ad6eddaeece258f6d647b41c94ee563fa0e4946cb',
+    /* the commit96 walks (282/295 B) + the wraps + the pins (sha256 of each wrap). */
+    walkLockings: [
+        'aa20cf645a0a3d532c3ea8c485a349e2550bde67725dc8cc3ef3cbbb9a67bec3fc6587',
+        'aa2045a64214753dac303d84bb9e55cff327d1d9b2bc1d1e820822ca02fac955b09687',
+    ],
+    walkPins: [
+        '1255489f8168c4110094b0701617278133aa31f43ae4cb341f2f7bdb0f21a002',
+        'b476695026823fb3466d543ec61bf468fbe434a9c1c861233f3ca2ff09ad8312',
+    ],
+    walkSats: 2000,
+    fuelSats: 23000,
+    holdingsSats: 1000,
+    /* the H covenant (211-B script; inputs 5/6 pinned to each other by
+       byte-compare — the theft-guard shape pin: H pins the program by hash,
+       the program never pins H — no circular hash). */
+    hLockingHex: 'aa2006fa0f9ebadd88eaac1b8801c69329c6c3e6d9209bced65ed01340a6e4e19b2087',
+    hScriptBytes: 211,
+    /* THE POST-MPC THREE-CONTRIBUTION TRIO (Nito → Hush → user; the mainnet
+       pool's VK): zkey pool4_0003_user.zkey, VK verification_key_user3.json.
+       The wasm NEVER changes (a phase-2 MPC never touches the circuit). These
+       are the M2 release targets — the Worker's /assets pool4 pins re-point
+       at M2 (the current pins serve the CHIPNET trio). */
+    vkSha256: 'f6b49cc06c474fd25fe749d5b1cf42947696fe0bfa6eecec2b4c25a1c08b9148',
+    zkeySha256: 'de7875e33fa1625daad812fbeddc82901aef0e6adedd11dbf58c53bfad3844cc',
+    wasmSha256: 'a9b4b03d17c614ba920c45df5c34949e26ce8cdbdeb3d6b145476a2857289395',
+    fixturesSha256: 'e74555dd84811e84c9c18c9a5f71bba0d2742957803d9f2a6e6878f1fb45c9a6',
+    hookChecks: '1–11 + 4w (the walk pins) + the holdings checks (5/9/9h: the 96-B balance chain + out2) + the check-6 ASSET category; the fold check 7 GONE',
+}
+
+/* The mainnet pool's minting guard (born-guarded at the deploy, batch
+   48994625…: 16 blanks minted + confirmed — pool-agnostic shape,
+   category-pinned). */
+export const ROLE2_GUARD_V4H = {
+    lockingBytecode: 'aa20cdbef76ccc03f58dd62ad31f6ca0e233935f8533ea88d43fc0398979f56ec18087',
+    redeemBytes: 1359,
+    batchSize: 16,
+}
+
 /* The v3 pool's minting guard (born-guarded at the deploy, batch a98ee616…:
    64 blanks minted + confirmed — pool-agnostic shape, category-pinned). */
 export const ROLE2_GUARD_V3 = {
