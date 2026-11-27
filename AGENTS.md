@@ -807,6 +807,55 @@ SHIELD `9b3aac2c…` (348,956) → TRANSFER `abbb3dc7…` (348,960) → UNSHIELD
 (348,966), state 788 FT; registry `b7e2786`, CI `45920677809`). The Concierge labels are
 accurate. The video is deferred until the blockers close.
 
+**THE DECISION (2026-11-27, the user — Option C, binding):** after the Hush disclosed
+R3-FREE-NEWROOT (below), the user REJECTED any demo of a drainable pool in the strongest
+terms ("WE ARE NOT GOING TO DEMO A WALLET THAT CAN BE DRAINED!! THAT MUST BE RESOLVED
+FIRST!!"). The plan is **Option C**: the video records the **v3 pool deployed on MAINNET
+with REAL PUSD** — both drains closed at consensus level BEFORE a single real PUSD enters
+any pool. No current-hook pool (mainnet OR chipnet) ever holds valued assets for any
+demo. The user's side HOLDS a real-PUSD test supply for the mainnet demo — provide a
+receive address to the user AT DEPLOY TIME (the funds arrive only after the v3 pool is
+deployed and gated; keep the exposure window minimal). The demo-scale amount only.
+
+**R3-FREE-NEWROOT (disclosed by the Hush 2026-11-27,
+`hushyourmoney/docs/POOL-UPDATE-NITO-2026-11-27.md` — verified by us):** a SECOND,
+independent, simpler full-balance drain on EVERY current-hook pool. `newMerkleRoot` is a
+FREE WITNESS INPUT (bound into the actionHash, but nothing verifies it equals the old root
++ the action's own commitments): action A "plant" = an honest TRANSFER whose newRoot is a
+FAKE tree containing two fabricated notes (one = the pool's ENTIRE balance); action B
+"drain" = an UNSHIELD of the fabricated notes — the hook's own balance arithmetic passes.
+Two ordinary proofs, no forgery, verified against our deployed 3-out VK (evidence
+`/home/apecs/cov/role2-probe-freeroot-drain-3out.json`); the probe is PUBLIC
+(`pusd-shielded-pool/spike-nullset/probe-freeroot-drain.mjs`, commits 653a692/7f03e55/
+1528993). The NULLIFIER SMT ALONE DOES NOT STOP IT (a fabricated note's nullifier is
+fresh) — the v3 circuit's append-proof is a SECOND mandatory consensus fix. Our scan's
+root check is continuity-only (verified: `scan.js` recomputes actionHash + checks n0 ==
+prev newRoot, never recomputes the append) — a planted root passes it; the scan APPEND-
+RECOMPUTE STOPGAP (detect + halt) is a Nito ship item. The mainnet gate is therefore THE
+V3 POOL ITSELF (append-proof + nullifier SMT + nf0≠nf1 + deposit path), not "current hook
++ nullifier set".
+
+**The v3 stack (the Hush's build, all measured, `docs/V3-BUILD-2026-11-27.md`, commit
+3da4322):** circuit pool4 247,120 c (+33.9% over pool3, 15,024 under the pot18 wall),
+nPublic 2, the three fixes (DenseAppend chain root→r1→r2→newRoot; deposit path — genesis
+tree EMPTY, bootstrap seeds GONE; nf0≠nf1); ceremony done (VK `07638f10…`, zkey
+`942f8fc5…` 104,040,332 B, wasm `a9b4b03d…`); 5 fixtures incl. the first DEPOSIT proof;
+walk scripts walkA 278 B / walkB 291 B loop-form (the 11,656-B unrolled spike exceeded
+the 10-K locking cap), unlockings 8,164/8,131 B; v3 hooked program 7,998 B; acceptance
+**29/29** incl. the 6 new rejection classes (replay, both nullSetRoot halves, 4-input pin,
+walk-locking pins). VM landmines recorded: BIN2NUM of bare [0x80] → zero; RSHIFTNUM
+truncates toward zero. Their remaining gates: red team (151 scenarios, 5-input shape) →
+liveness sweep + hook cost re-measure → chipnet demo deploy (born-guarded, DEPOSIT →
+TRANSFER → UNSHIELD, every input VM-ACCEPTED) → proving-assets release → the full
+integration handoff. Their estimate: one further working session (their words: "a
+projection, not a measurement"). The action grows to 5 inputs / 3 outputs (in3/in4 = walkA/
+walkB dust UTXOs at fixed deployed lockings, witness-supplied siblings) and ~45 KB →
+~47–48k sats/action; browser prove time UNMEASURED. Client carry-over (their §3): the
+9-field actionHash, the 201-B carrier, nPublic 2, the prover pipeline, fuel tags, guard,
+vending — UNCHANGED; the state commitment's second half becomes nullSetRoot; onboarding
+becomes DEPOSIT-first-time; the scan gains the nullifier-SMT reconstruction; reference
+witness JS: `pusd-shielded-pool/role2-op-witness-v3.mjs`.
+
 **B1 — the nullifier-set service (R2-NULLIFIER-DOUBLING).** The Hush MEASURED (not
 broadcast) a full-balance drain: one note used as both in-notes yields valid proofs
 against BOTH deployed VKs (the 2-out's 762,400 FT in ONE action). The program's check 7
@@ -867,8 +916,18 @@ hashes (2-out `4a4e2543…` / `8595b434…` / `05250429…`; 3-out `b0177dbe…`
 + the Nito 2N UI missing) and **B6 — the real multi-peer CashShuffle round** — both await
 `blackhost` (Hush-owned; the user directed the delay).
 
-**Recommended order:** B2 (fast; the live theft risk) → B4 (hours) → B1 (the main block)
-→ B3 (after B1) → B5/B6 (when blackhost is online) → the video.
+**Recommended order (updated 2026-11-27 for Option C):** B2 DONE. Now, Nito-side in
+parallel with the Hush's remaining v3 gates: B4 (the asset pinning) → the scan
+append-recompute stopgap (R3 detection; a subset of the v3 scan work) → the v3 client-swap
+PREP against their committed reference `role2-op-witness-v3.mjs` (5-input builder, walk
+data, deposit path, SMT scan reconstruction, registry v3 entry + fuel economics ~47–48k
+sats/action). When their handoff lands (red team + sweep + chipnet demo deploy + assets
+release): the client swap → VM-gated → our chipnet acceptance (DEPOSIT → TRANSFER →
+UNSHIELD through the real UI) → the v3 MAINNET deploy (born-guarded) → fund with the
+user's real-PUSD test supply (address provided at deploy time) → record THE video (the
+v3 mainnet pool with real PUSD — the last step). B5/B6 (when blackhost is online) remain
+separate. NO valued asset in ANY current-hook pool, ever (the user's binding order + the
+Hush's standing rule, now doubly mandated by R2 + R3).
 
 ## Vue 3 Migration (phased) — A–C and E DONE; Phase D in progress
 
