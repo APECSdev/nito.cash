@@ -170,7 +170,10 @@ export async function buildRole2ActionV3({
     payoutLocking,
 }) {
     if (!pool?.program?.lockingBytecode) throw new Error('role2-action: pool program locking missing')
-    if (!Array.isArray(pool.walkLockings) || pool.walkLockings.length !== 2) throw new Error('role2-action: the v3 pool needs exactly TWO walk lockings (the P2SH32 wraps)')
+    /* The walk wraps are pinned INSIDE the deployed program — the descriptor
+       is the source of truth; a top-level pool entry override also works. */
+    const walkLockings = pool.walkLockings ?? pool.program.walkLockings
+    if (!Array.isArray(walkLockings) || walkLockings.length !== 2) throw new Error('role2-action: the v3 pool needs exactly TWO walk lockings (the P2SH32 wraps)')
     if (!carrier || carrier.length !== ROLE2_CARRIER_BYTES_3OUT) throw new Error(`role2-action: the v3 carrier must be ${ROLE2_CARRIER_BYTES_3OUT} bytes`)
     if (!Array.isArray(fuelUtxos) || fuelUtxos.length !== 2) throw new Error('role2-action: exactly TWO fuel UTXOs are required')
     if (!Array.isArray(walkUtxos) || walkUtxos.length !== 2) throw new Error('role2-action: exactly TWO walk-data UTXOs are required')

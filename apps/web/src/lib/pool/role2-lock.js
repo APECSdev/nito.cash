@@ -236,7 +236,11 @@ export async function buildRole2LockV3({
     walkSats = ROLE2_V3_WALK_SATS,
 }) {
     if (!pool?.program?.lockingBytecode) throw new Error('role2-lock: pool program locking missing')
-    if (!Array.isArray(pool.walkLockings) || pool.walkLockings.length !== 2) throw new Error('role2-lock: the v3 pool needs exactly TWO walk lockings (the P2SH32 wraps)')
+    /* The walk wraps are a DEPLOYED-PROGRAM property (they're pinned inside
+       the program's graph) — they live on the program descriptor; a pool
+       entry may also carry them at the top level (the spec fixture shape). */
+    const walkLockings = pool.walkLockings ?? pool.program.walkLockings
+    if (!Array.isArray(walkLockings) || walkLockings.length !== 2) throw new Error('role2-lock: the v3 pool needs exactly TWO walk lockings (the P2SH32 wraps)')
     if (!tag || tag.length !== 32) throw new Error('role2-lock: a 32-byte deposit tag is required')
     if (!Array.isArray(blanks) || blanks.length !== 2) throw new Error('role2-lock: exactly TWO blanks are required')
     const fundingUtxos = Array.isArray(fundingUtxo) ? fundingUtxo : [fundingUtxo]
@@ -246,8 +250,8 @@ export async function buildRole2LockV3({
     const secp = await instantiateSecp256k1()
     const categoryBytes = hexToBin(pool.assetCategory)
     const programLocking = hexToBin(pool.program.lockingBytecode)
-    const walkA = hexToBin(pool.walkLockings[0])
-    const walkB = hexToBin(pool.walkLockings[1])
+    const walkA = hexToBin(walkLockings[0])
+    const walkB = hexToBin(walkLockings[1])
     const changeLocking = cashAddressToLockingBytecode(changeAddress).bytecode
     const pub = publicKey || secp.derivePublicKeyCompressed(privateKey)
     if (typeof pub === 'string') throw new Error('role2-lock: public-key derivation failed: ' + pub)
