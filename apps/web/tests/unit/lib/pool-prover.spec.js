@@ -1,4 +1,6 @@
 /* Import libraries. */
+import { readFileSync } from 'node:fs'
+import { join } from 'node:path'
 import { beforeAll, describe, expect, it, vi } from 'vitest'
 
 /* Import pool lib. */
@@ -149,30 +151,47 @@ describe('pool prover (release asset distribution)', () => {
     })
 
     it('fetches + caches the committed verifying key (app-served default path)', async () => {
-        const vkey = { vk: 'fixture' }
+        /* B4: the vkey bytes are sha256-PINNED before parsing — the REAL
+           committed file (byte-exact the pin) is the fixture; a hand-made
+           { vk: 'fixture' } JSON no longer passes verification. Resolved
+           via process.cwd() (the vitest root = apps/web) — the
+           new URL(literal, import.meta.url) pattern is rewritten by Vite's
+           import analysis to a jsdom http://localhost URL for resolvable
+           assets and breaks under fileURLToPath. */
+        const vkeyBytes = new Uint8Array(readFileSync(join(process.cwd(), 'public/proving/verification_key.json')))
+        const vkeyJson = JSON.parse(new TextDecoder().decode(vkeyBytes))
 
-        const fetchMock = vi.fn(async () => ({ ok: true, json: async () => vkey }))
+        const fetchMock = vi.fn(async () => ({
+            ok: true,
+            arrayBuffer: async () => {
+                const copy = new Uint8Array(vkeyBytes.length)
+                copy.set(vkeyBytes)
+                return copy.buffer
+            },
+        }))
 
         vi.stubGlobal('fetch', fetchMock)
 
         try {
-            /* First call fetches. */
-            expect(await fetchVerifyingKey()).toBe(vkey)
+            /* First call fetches (+ verifies the pin, + parses). */
+            const first = await fetchVerifyingKey()
+            expect(first).toEqual(vkeyJson)
             expect(fetchMock).toHaveBeenCalledTimes(1)
             expect(fetchMock.mock.calls[0][0]).toBe('proving/verification_key.json')
 
             /* Second call is served from the module cache. */
-            expect(await fetchVerifyingKey()).toBe(vkey)
+            expect(await fetchVerifyingKey()).toBe(first)
             expect(fetchMock).toHaveBeenCalledTimes(1)
 
-            /* An explicit URL bypasses the cache. */
-            expect(await fetchVerifyingKey(VERIFYING_KEY_URL)).toBe(vkey)
+            /* An explicit URL bypasses the cache (a fresh parse). */
+            expect(await fetchVerifyingKey(VERIFYING_KEY_URL)).toEqual(vkeyJson)
             expect(fetchMock).toHaveBeenCalledTimes(2)
             expect(fetchMock.mock.calls[1][0]).toBe(VERIFYING_KEY_URL)
 
-            /* A failing fetch surfaces a presentable error. */
+            /* A failing fetch on a PINNED location surfaces a presentable
+               error (B4: an unpinned location refuses BEFORE fetching). */
             fetchMock.mockResolvedValueOnce({ ok: false, status: 404 })
-            await expect(fetchVerifyingKey('proving/other.json')).rejects.toThrow(/404/)
+            await expect(fetchVerifyingKey(VERIFYING_KEY_URL)).rejects.toThrow(/404/)
         } finally {
             vi.unstubAllGlobals()
         }
