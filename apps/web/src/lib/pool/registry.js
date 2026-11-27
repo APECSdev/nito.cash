@@ -200,10 +200,13 @@ const POOLS = {
             genesisRootLE: '3e1f1922dfb671d3f912f7ea461e0a88ee848fdde12b6c18ab1ad2c56ae73421',
             genesisLeafCount: 0,
             genesisStateCommitment: '3e1f1922dfb671d3f912f7ea461e0a88ee848fdde12b6c18ab1ad2c56ae73421e579b9be0b8f58daacc4f66c959ed3ec903884d1914e11e7e0c3bbf2a5627b43',
-            /* flips with the store wiring + OUR browser acceptance (the 3-out
-               pattern) — the client paths (parts 1/2a/2b) are BUILT; the
-               store branch is the remaining piece */
-            walletProverCompatible: false,
+            /* The v3 client swap is COMPLETE (the vendored build chain, the
+               witness builder, the lock/action/orchestrator, the scan's SMT
+               steps, the store branch, the DEPOSIT UI) and the chipnet proving
+               trio is live on the prover mirror — the flag opens the flows
+               for the web-platform acceptance run (the 3-out pattern: the
+               registry note records the run's txids when it lands). */
+            walletProverCompatible: true,
             status: 'live',
             deployTxid: '23909dc28ff10c8753d1c60b8775ad163481baac3b652db00094985e7200703a',
             categoryAnchorTxid: 'e56c0a8583e36092f20e54c9247f6b8e5a6afd391027aa70ae109c3c42377930',
