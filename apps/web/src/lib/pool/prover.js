@@ -30,8 +30,8 @@ import * as snarkjs from 'snarkjs'
 
 import { binToHex, sha256 } from '@bitauth/libauth'
 
-import { noteCommitment, nullifier, actionHash, actionHash3out } from './notes.js'
-import { computeRoot, merklePath } from './merkle.js'
+import { noteCommitment, nullifier, actionHash, actionHash3out, randomField, deriveOwnerPub, TREE_DEPTH, poseidonHash } from './notes.js'
+import { computeRoot, merklePath, zeroHashes } from './merkle.js'
 
 /* Proving assets (served as static files, fetched on demand by snarkjs). */
 export const PROVING_WASM = 'proving/pool.wasm'
@@ -366,6 +366,174 @@ export async function buildPoolWitness3out({
         outRho: [ S(outNotes[0].rho), S(outNotes[1].rho), S(outNotes[2].rho) ],
         outR: [ S(outNotes[0].r), S(outNotes[1].r), S(outNotes[2].r) ],
     }
+}
+
+/**
+ * The v3 (pool4) witness — the deposit path + the APPEND witness.
+ *
+ * Ported 1:1 from `pusd-shielded-pool/role2-op-witness-v3.mjs` (their FINAL
+ * generator — the shape is frozen by the M4 contract; the MPC changes only
+ * the zkey/VK). The three v3 fixes, all enforced here at the JS layer exactly
+ * as the generator does (the circuit enforces the same in-circuit):
+ *   - DEPOSIT (the onboarding): phantom in-notes (value 0, fresh secrets,
+ *     zeroed paths; membership gated OFF in-circuit) — no imported notes, no
+ *     bootstrap seeds, genesis tree EMPTY;
+ *   - the APPEND witness (R3-FREE-NEWROOT closed at circuit level):
+ *     appendIndex (the fill count) + three sequential frontier sibling paths,
+ *     each asserted against the DENSE-SHAPE rule (sibling[d] == zh[d] iff the
+ *     slot's bit d is 0) and each old-walk fold equal to the current tree
+ *     root (with the prior cms already appended) — newMerkleRoot is now
+ *     CIRCUIT-CONSTRAINED, not a free input;
+ *   - nf0 != nf1 (R2) — the builder refuses duplicates before any fuel burns.
+ *
+ * Conservation (unchanged): inSum + (sign ? -pv : +pv) === outSum over the
+ * three out-notes.
+ *
+ * Returns { input, cm, newMerkleRoot, appendIndex, nf } — `input` is the
+ * circuit witness (all fields stringified), the extras feed the op JSON /
+ * the lock tag / the notes records in the actions layer.
+ */
+export async function buildPoolWitnessV3({
+    inNotes, outNotes, leaves, publicValueAbs, publicValueSign, assetCategory, isDeposit = false,
+}) {
+    if (!Array.isArray(outNotes) || outNotes.length !== 3) throw new Error('prover: the v3 witness needs exactly 3 out-notes')
+
+    const zeros = await zeroHashes()
+    const nf = []
+    const paths = []
+    const effectiveIn = []
+
+    if (isDeposit) {
+        /* The onboarding path: phantom in-notes (value 0, fresh secrets); the
+         * circuit gates membership off (isDeposit=1) and pins both values to
+         * zero. The phantom secrets are discarded after the witness. */
+        for (let i = 0; i < 2; i++) {
+            const nk = randomField()
+            const ownerPub = await deriveOwnerPub(nk)
+            const rho = randomField()
+            const r = randomField()
+
+            effectiveIn.push({ note: { value: 0n, ownerPub, rho, r }, nk, index: -1 })
+            nf.push(await nullifier(nk, rho))
+            /* unused, boolean-safe */
+            paths.push({ pathElements: Array(TREE_DEPTH).fill(0n), pathBits: Array(TREE_DEPTH).fill(0) })
+        }
+    } else {
+        if (!Array.isArray(inNotes) || inNotes.length !== 2) throw new Error('prover: the v3 witness spends exactly 2 in-notes')
+
+        for (let i = 0; i < 2; i++) {
+            const { note, nk, index } = inNotes[i]
+
+            nf.push(await nullifier(nk, note.rho))
+            paths.push(await merklePath(leaves, index))
+            effectiveIn.push({ note, nk, index })
+        }
+    }
+
+    /* R2, client-side, BEFORE fuel burns: nf0 == nf1 is forbidden by the v3
+     * circuit (and by walkB at consensus — nf0's slot is filled in midRoot). */
+    if (nf[0] === nf[1]) throw new Error('prover: nf0 == nf1 — the v3 circuit forbids nullifier doubling')
+
+    const cm = []
+
+    for (let j = 0; j < 3; j++) {
+        const o = outNotes[j]
+
+        cm.push(await noteCommitment(o.value, o.ownerPub, o.rho, o.r))
+    }
+
+    /* Conservation: inSum + (sign ? -pv : +pv) === outSum (deposits: inSum 0). */
+    const inSum = effectiveIn.reduce((a, n) => a + BigInt(n.note.value), 0n)
+    const outSum = outNotes.reduce((a, o) => a + BigInt(o.value), 0n)
+
+    if (outSum !== inSum + (publicValueSign === 1n ? -publicValueAbs : publicValueAbs)) {
+        throw new Error(`prover: conservation violated — in ${inSum}, out ${outSum}, pv ${publicValueAbs}, sign ${publicValueSign}`)
+    }
+
+    const oldRoot = await computeRoot(leaves)
+
+    /* ── the APPEND witness: three sequential frontier inserts ── */
+    const appendIndex = leaves.length
+    const appendSiblings = []
+    const treeLeaves = leaves.slice()
+
+    for (let k = 0; k < 3; k++) {
+        const slot = appendIndex + k
+        const p = await merklePath(treeLeaves, slot)
+
+        appendSiblings.push(p.pathElements)
+
+        /* The old-walk fold: the ZERO leaf at the frontier slot must fold up
+         * the supplied siblings to the CURRENT tree root (with cm[0..k-1]
+         * already appended) — the exact check noteappend.circom constrains. */
+        let cur = 0n
+
+        for (let d = 0; d < TREE_DEPTH; d++) {
+            const bit = (slot >> d) & 1
+
+            cur = bit === 1
+                ? await poseidonHash([p.pathElements[d], cur])
+                : await poseidonHash([cur, p.pathElements[d]])
+        }
+
+        const curRoot = await computeRoot(treeLeaves)
+
+        if (cur !== curRoot) throw new Error(`prover: append ${k} old-walk does not fold to the current tree root`)
+        if (k === 0 && curRoot !== oldRoot) throw new Error('prover: append 0 fold != the stored pool root')
+
+        /* Dense-shape rule (the circuit enforces the same): sibling[d] == zh[d]
+         * iff bit d == 0 — a zero sibling under a 1-bit means a HOLE (the slot
+         * is not the frontier); a non-zero sibling under a 0-bit means the
+         * slot is not empty. */
+        for (let d = 0; d < TREE_DEPTH; d++) {
+            const bit = (slot >> d) & 1
+            const isZh = p.pathElements[d] === zeros[d]
+
+            if (bit === 0 && !isZh) throw new Error(`prover: append ${k} level ${d}: bit=0 but sibling != zh — the slot is not the frontier`)
+            if (bit === 1 && isZh) throw new Error(`prover: append ${k} level ${d}: bit=1 but sibling == zh — the left neighbor is empty (hole)`)
+        }
+
+        treeLeaves.push(cm[k])
+    }
+
+    /* The chain: oldRoot -(cm0)-> r1 -(cm1)-> r2 -(cm2)-> newMerkleRoot. */
+    const newMerkleRoot = await computeRoot([...leaves, ...cm])
+
+    const aHash = actionHash3out({
+        nf0: nf[0], nf1: nf[1], cm0: cm[0], cm1: cm[1], cm2: cm[2],
+        publicValueAbs, publicValueSign, assetCategory, newMerkleRoot,
+    })
+
+    const assetCategoryHi = assetCategory >> 128n
+    const assetCategoryLo = assetCategory & ((1n << 128n) - 1n)
+
+    const input = {
+        merkleRoot: S(oldRoot),
+        actionHash: S(aHash),
+        nf: [S(nf[0]), S(nf[1])],
+        cm: [S(cm[0]), S(cm[1]), S(cm[2])],
+        publicValueAbs: S(publicValueAbs),
+        publicValueSign: S(publicValueSign),
+        assetCategoryHi: S(assetCategoryHi),
+        assetCategoryLo: S(assetCategoryLo),
+        newMerkleRoot: S(newMerkleRoot),
+        isDeposit: S(isDeposit ? 1n : 0n),
+        appendIndex: S(BigInt(appendIndex)),
+        appendSiblings: appendSiblings.map((sib) => sib.map(S)),
+        inValue: effectiveIn.map((n) => S(n.note.value)),
+        inOwnerPub: effectiveIn.map((n) => S(n.note.ownerPub)),
+        inRho: effectiveIn.map((n) => S(n.note.rho)),
+        inR: effectiveIn.map((n) => S(n.note.r)),
+        nk: effectiveIn.map((n) => S(n.nk)),
+        inPathElements: paths.map((p) => p.pathElements.map(S)),
+        inPathBits: paths.map((p) => p.pathBits.map(S)),
+        outValue: outNotes.map((o) => S(o.value)),
+        outOwnerPub: outNotes.map((o) => S(o.ownerPub)),
+        outRho: outNotes.map((o) => S(o.rho)),
+        outR: outNotes.map((o) => S(o.r)),
+    }
+
+    return { input, cm, newMerkleRoot, appendIndex, nf }
 }
 
 /**
