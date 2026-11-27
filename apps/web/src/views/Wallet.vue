@@ -63,6 +63,13 @@
                         <Button v-if="deliveryPointHex" @click.native="copyDeliveryPoint"
                             :label="deliveryPointCopied ? 'Copied \u2713' : 'Copy'" />
                     </div>
+                    <!-- What this string IS (first-time visitors have no
+                         idea what a "delivery point" is — make the send/`receive
+                         roles explicit). -->
+                    <div class="mt-[6px] text-[11px] font-medium text-muted leading-[16px]">
+                        This is your SHIELDED payment address — share it with the sender to receive
+                        private PUSD. It is NOT your BCH address (use Receive for that).
+                    </div>
                 </div>
 
                 <!-- Role-2 tagged pools: the SELECTOR, the selected pool's blank
@@ -100,7 +107,9 @@
                         Machine {{role2Pool.vending.lockingBytecode}}
                     </div>
                     <p v-if="!role2Pool.walletProverCompatible" class="mt-[8px] text-[12px] font-semibold text-warning-text leading-[18px]">
-                        The proving assets are live on prover.nito.cash — awaiting the web-platform chipnet SHIELD → TRANSFER → UNSHIELD acceptance.
+                        {{role2Pool.stageLabel || 'This pool'}} — the proving-asset release is being
+                        finalized. Shielding opens here shortly; the Chipnet pilot is live now
+                        (Settings → Network → Chipnet).
                     </p>
                 </div>
 
@@ -123,6 +132,12 @@
                         Available to shield:
                         <span class="text-fg">{{pusdBalance}} PUSD</span>
                         <span class="text-muted font-medium">(your transparent balance)</span>
+                    </p>
+                    <!-- The first-time visitor's "where do I even get PUSD?"
+                         — CashTokens arrive at the regular BCH address. -->
+                    <p v-if="activeAction === 'Shield' && !pusdBalanceRaw" class="mt-[4px] text-[11px] font-medium text-muted leading-[16px]">
+                        No PUSD yet? ParyonUSD (PUSD) is a Bitcoin Cash CashToken — have it sent to
+                        your regular BCH address (Receive screen) and it will show up here.
                     </p>
 
                     <label class="block mt-[12px] text-[12px] font-semibold text-muted">

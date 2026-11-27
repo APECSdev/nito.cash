@@ -12,6 +12,13 @@
             {{getAddress('BCH')}}
         </div>
 
+        <!-- First-time visitors look for a separate "PUSD address" — there
+             is none: CashTokens ride the SAME BCH address. Say it. -->
+        <div class="text-[11px] font-medium text-muted text-center mt-[10px] px-[24px] leading-[16px]">
+            This ONE address receives BOTH Bitcoin Cash (BCH) and ParyonUSD
+            (PUSD) — send either to it.
+        </div>
+
         <Footer>
             <Button @click.native="copyAddress" label="Copy shareable link" />
         </Footer>

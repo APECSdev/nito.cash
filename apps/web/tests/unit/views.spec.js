@@ -459,6 +459,14 @@ describe('views/Receive', () => {
         /* The temporary textarea is removed again. */
         expect(document.querySelectorAll('textarea').length).toBe(0)
     })
+
+    it('explains that ONE address receives BOTH BCH and PUSD (CashTokens)', async () => {
+        const wrapper = mountView(Receive)
+        await waitFor(() => !!wrapper.vm.getAddress('BCH'))
+
+        /* The first-time visitor's #1 question: "where is my PUSD address?" */
+        expect(wrapper.text()).toContain('ONE address receives BOTH Bitcoin Cash (BCH) and ParyonUSD')
+    })
 })
 
 describe('views/Send', () => {
@@ -738,6 +746,43 @@ describe('views/Wallet', () => {
 
         expect(ok).toBe(true)
         expect(wrapper.text()).toContain('Your Nito Cash address')
+        /* The first-time-visitor explanation: WHAT the 64-hex string is. */
+        expect(wrapper.text()).toContain('your SHIELDED payment address')
+    })
+
+    it('explains the PUSD acquisition when there is nothing to shield', async () => {
+        const wrapper = mountView(Wallet)
+        await new Promise((r) => setTimeout(r, 60))
+
+        wrapper.vm.toggleAction('Shield')
+        await wrapper.vm.$nextTick()
+
+        /* The mocked cluster returns no token UTXOs → balance 0 → the
+           "where do I get PUSD" hint renders under the balance context. */
+        expect(wrapper.text()).toContain('Available to shield')
+        expect(wrapper.text()).toContain('No PUSD yet?')
+        expect(wrapper.text()).toContain('sent to')
+        expect(wrapper.text()).toContain('your regular BCH address')
+    })
+
+    it('shows the PREVIEW-V0 gate message for a not-yet-compatible pool', async () => {
+        getPoolsMock.mockReturnValue([{
+            id: 'mainnet-role2-pool4-v4h',
+            name: 'Preview v0',
+            shape: 'role2-tagged',
+            stageLabel: 'Preview v0',
+            walletProverCompatible: false,
+            vending: { priceSats: 1000, lockingBytecode: 'aa' },
+        }])
+
+        const wrapper = mountView(Wallet)
+        await new Promise((r) => setTimeout(r, 60))
+
+        /* The gate message: the stageLabel VERBATIM + the honest "opening
+           shortly" state + the live Chipnet pilot pointer. */
+        expect(wrapper.text()).toContain('Preview v0')
+        expect(wrapper.text()).toContain('proving-asset release is being finalized')
+        expect(wrapper.text()).toContain('Chipnet pilot is live now')
     })
 
     it('validates the amount + recipient locally BEFORE dispatching', async () => {
