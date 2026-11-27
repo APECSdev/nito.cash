@@ -363,9 +363,9 @@ sender, receiver, and amount are all masked. Design decisions locked:
   commitments, 3-leaf append, cm2); the store `submitRole2Action` takes an
   optional `poolId` and branches on `pool.outputs === 3` (3-out witness, 3-out
   assets, 3-out unlockings, `leafIndexBase * 3`); the registry entry
-  `chipnet-pusd-role2-3out` is present with `walletProverCompatible: false`
-  (awaiting the browser store acceptance). Tests **692/692**; coverage 89.04%
-  statements / 89.99% lines (both above the ratchet); `pnpm build` OK. The
+  `chipnet-pusd-role2-3out` is LIVE (`walletProverCompatible: true` /
+  `status: 'live'` — the acceptance below). Tests **693/693**; coverage above
+  the ratchet; `pnpm build` OK. The
   3-out proving assets are published in the `role2-proving-assets-3out-v1`
   release and served at `https://prover.nito.cash/assets/` (pool3.wasm
   3,380,815 B, pool3_final.zkey 98,190,141 B, verification_key_3out.json
@@ -795,6 +795,49 @@ POOL-V2 / FOLLOW-UP-SESSION text below, which is history):**
 - **Heavy compute** (circuit compile, Groth16 setup, proving, benchmarks) runs ONLY on the
   dedicated `bch-infra` VPS — never on the dev host.
 
+## CURRENT MISSION (2026-11-27) — ALL BLOCKERS BEFORE THE VIDEO
+
+The user's order: **resolve every blocker below BEFORE recording the "working solution"
+video.** The video is the LAST step. Full detail + recipes:
+`docs/HANDOFF-2026-11-27-NEXT-MISSION.md`.
+
+**State:** both role-2 pools are LIVE (`chipnet-pusd-role2` 2-out — the tip action
+`a722ef3b…` (348,514), state 762,400 FT; `chipnet-pusd-role2-3out` 3-out — the acceptance
+SHIELD `9b3aac2c…` (348,956) → TRANSFER `abbb3dc7…` (348,960) → UNSHIELD `5a4d6b85…`
+(348,966), state 788 FT; registry `b7e2786`, CI `45920677809`). The Concierge labels are
+accurate. The video is deferred until the blockers close.
+
+**B1 — the nullifier-set service (R2-NULLIFIER-DOUBLING).** The Hush MEASURED (not
+broadcast) a full-balance drain: one note used as both in-notes yields valid proofs
+against BOTH deployed VKs (the 2-out's 762,400 FT in ONE action). The program's check 7
+only folds `newNull = SHA256(oldNull ‖ nf0 ‖ nf1)` — no set membership. **NO VALUED ASSET
+may enter any role-2 pool until the v3 nullifier set ships** (a mainnet gate beside the
+Gate-7 MPC ceremony).
+
+**B2 — the standing locks.** `3db76294…` (3-out, 1,000 FT + 30,000 sats) is tagged with
+the PUBLIC bootstrap pair (the tag `9b15436a…`, recomputed from `bootstrapNotes`) — anyone
+can spend it; we can sweep it (needs a standing-fuel path: `submitRole2Action` always
+builds a fresh lock). `d95e5b97…` (2-out, 1,000 FT + 30,000 sats, tag `f7fa6ad1…`) is the
+Hush's notes — ask them to complete/sweep. `10f26fa3…`, `1946084e…`, `c3e21c7a…`,
+`dff42ddb…` (3-out) are stuck (the lost nullifiers).
+
+**B3 — the off-chain note delivery.** Both pools' TRANSFER recipient notes are
+undeliverable (the 169/201-B action carrier carries no encrypted note). `lib/pool/carrier.js`
+has the NP01 note packet from the ORIGINAL pool; the role-2 action builder must add the
+NP01 output and the program must tolerate it (a VM gate). The 2N round needs it.
+
+**B4 — the proving-asset pinning.** The store passes the mirror URLs but verifies no
+bytes; the local `public/proving/pool_final.zkey` is the old `b2398d85…`. Pin the six
+hashes (2-out `4a4e2543…` / `8595b434…` / `05250429…`; 3-out `b0177dbe…` / `c806e561…` /
+`d4ed12ee…`) before trusting any proof.
+
+**B5 — the 2N round** (the Hush's `round-2n.js` + `role2-round.js` exist; the network loop
++ the Nito 2N UI missing) and **B6 — the real multi-peer CashShuffle round** — both await
+`blackhost` (Hush-owned; the user directed the delay).
+
+**Recommended order:** B2 (fast; the live theft risk) → B4 (hours) → B1 (the main block)
+→ B3 (after B1) → B5/B6 (when blackhost is online) → the video.
+
 ## Vue 3 Migration (phased) — A–C and E DONE; Phase D in progress
 
 Plan: **Vue 3 + Vite + Pinia + vue-router 4 + vue-i18n 11 + Vitest + Tailwind v4**, executed in
@@ -1061,8 +1104,9 @@ build clean):
    research display) and the AnyHedge lend side.
 4. **Spend** — the CardsRelay card payments; the shielded-addresses scheme (topic 03)
    and the CoinJoin (topic 04) implementations.
-5. **The video demo** — the assets + the click-through script (the handoff:
-   `docs/CONCIERGE-VIDEO-DEMO-HANDOFF-2026-11-26.md`).
+5. **The video demo** — DEFERRED by the user's order (2026-11-27): ALL blockers in
+   "CURRENT MISSION" must close first. The click-through script + the assets:
+   `docs/CONCIERGE-VIDEO-DEMO-HANDOFF-2026-11-26.md`.
 
 The 2026-11-22 sections below are HISTORY where they say "It is a MOCKUP" / "no relay is
 contacted" — the CashShuffle transport is now live (opt-in), the role-2 pool is live, and
