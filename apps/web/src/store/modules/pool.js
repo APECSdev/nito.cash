@@ -450,11 +450,13 @@ const actions = {
         const sign = action === 'unshield' ? 1n : 0n
         const outs = pool.outputs === 3 || pool.carrierBytes === 201 ? 3 : 2
 
-        /* The state UTXO is the tip action's out1 (the new state NFT). */
+        /* The state UTXO is the tip action's out1 (the new state NFT); at
+           TRUE genesis (no actions yet) it is the DEPLOY's out1 (the seeded
+           state — the very first action spends it). */
         const tip = scanned.scan.actions[scanned.scan.actions.length - 1]
         const stateUtxo = tip
             ? poolUtxos.find((u) => u.txid === tip.txid && u.vout === 1)
-            : null
+            : poolUtxos.find((u) => u.txid === pool.deployTxid && u.vout === 0) || null
 
         /* v4h — the holdings line (in5): the PRIOR action's out2 (the H-locked
            FT carrying the committed balance — the scan already validated
@@ -634,7 +636,7 @@ const actions = {
                 /* A v3 DEPOSIT spends NO in-notes (the phantom path — the
                    empty-genesis onboarding): the selection must be skipped
                    entirely, else it throws before the witness can engage. */
-                : isV3 && action === 'deposit'
+                : (isV3 || isV4H) && action === 'deposit'
                     ? { picked: null }
                     : selectInNotes({
                 action,
