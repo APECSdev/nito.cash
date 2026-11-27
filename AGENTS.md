@@ -839,16 +839,57 @@ V3 POOL ITSELF (append-proof + nullifier SMT + nf0≠nf1 + deposit path), not "c
 3da4322):** circuit pool4 247,120 c (+33.9% over pool3, 15,024 under the pot18 wall),
 nPublic 2, the three fixes (DenseAppend chain root→r1→r2→newRoot; deposit path — genesis
 tree EMPTY, bootstrap seeds GONE; nf0≠nf1); ceremony done (VK `07638f10…`, zkey
-`942f8fc5…` 104,040,332 B, wasm `a9b4b03d…`); 5 fixtures incl. the first DEPOSIT proof;
+`942f8fc5…` 120,818,048 B on disk — the handover doc's 104,040,332-B figure disagrees;
+the HASH is the authority — wasm `a9b4b03d…`); 5 fixtures incl. the first DEPOSIT proof;
 walk scripts walkA 278 B / walkB 291 B loop-form (the 11,656-B unrolled spike exceeded
 the 10-K locking cap), unlockings 8,164/8,131 B; v3 hooked program 7,998 B; acceptance
 **29/29** incl. the 6 new rejection classes (replay, both nullSetRoot halves, 4-input pin,
 walk-locking pins). VM landmines recorded: BIN2NUM of bare [0x80] → zero; RSHIFTNUM
-truncates toward zero. Their remaining gates: red team (151 scenarios, 5-input shape) →
-liveness sweep + hook cost re-measure → chipnet demo deploy (born-guarded, DEPOSIT →
-TRANSFER → UNSHIELD, every input VM-ACCEPTED) → proving-assets release → the full
-integration handoff. Their estimate: one further working session (their words: "a
-projection, not a measurement"). The action grows to 5 inputs / 3 outputs (in3/in4 = walkA/
+truncates toward zero (+ the 10-item full list in the integration handoff §12).
+
+**M4 DELIVERED (2026-11-27 overnight, hours after our morning ask): the FULL v3
+INTEGRATION HANDOFF** — `hushyourmoney/docs/POOL-V3-INTEGRATION-HANDOFF-2026-11-27.md`
+(copied to our docs/) + their morning response (same dir). Records, verified by us:
+- **M1 red team: PASSED — 164 runs, 0 accepted** (consensus + standard; both positive
+  controls accepted; `wip-role2-hook/pool-redteam-v3-report.json` — the runs/accepted
+  counts verified directly). **M1c hook cost: PASSED** (v3 hook 41,567 std op, +2,485
+  over the 3-out; walk inputs ~66% of budget; fills [0,0,203]). **M1b sweep: IN
+  FLIGHT** (64 seeded real proofs; measured v3 prove ≈ 130–220 s at 247,120 c under
+  VM contention).
+- **M3: the chipnet v3 pool DEPLOYED** (state file 2026-11-27T05:14Z: id
+  `chipnet-role2-pool4-v3`, anchor/category `03af2eda…` (the CHIPNET stand-in), mint
+  `934be668…`, deploy `89f0829e…`, program locking `aa207453…` (the chipnet-category
+  build), the walk lockings in the state file). Their §9/§10 deploy + fuel-economics
+  records land with the demo lifecycle (PENDING in the doc as written).
+- **THE MINI-MPC IS AGREED FOR MAINNET (the user's order + the Hush recommendation)**:
+  2–3 independent contributions with UNPUBLISHED entropy — **the NITO side contributes
+  FIRST** (`snarkjs zkey contribute` on `pool4_0000.zkey` on the shared VM, ~10 min
+  measured; the entropy NEVER recorded — not repo/doc/commit/message; record only the
+  printed contribution hash), then the Hush's, then `zkey verify` + the VK export.
+  **The POST-MPC trio = M2 (the release) + the B4 pin target**; the current
+  `942f8fc5…` trio stays CHIPNET-ONLY (published entropy — the testnet norm). Our
+  committed v3 pins are therefore the chipnet pins (inert for mainnet — correct by
+  design).
+- **ONE USER DECISION OPEN: confirm the mainnet pool runs the ASSET category
+  `2469acc5…`** — their entire v3 stack already pins it (the witness generator, the
+  fixtures, the hook ctor, the 7,998-B program `d98c1d2a…`); if confirmed, tonight's
+  program IS the category-correct mainnet candidate (a different category = one
+  rebuild). The full mainnet mint txid they requested:
+  `9c938f53eb97e089c72c47e9e5cf5f68ad23fd5eb4cb579c5266f04bba4b4d62` (our on-chain
+  verification, height 948,416).
+- Their corrections, adopted: the walk lockings are RAW scripts (NO P2SH32 — the
+  ~8.2-KB sibling witness must not push a redeem under the 10-KB unlocking cap; pinned
+  by SHA256 in the graph + the hook's 4w); blanks stay 2/action (the walk UTXOs are
+  plain ~300–600-sat dust, permissionless, NOT blanks); `role2-op-witness-v3.mjs` is
+  FINAL in shape (the MPC changes only zkey/VK).
+- Our prep already matches the contract: `src/lib/pool/smt.js` reproduces their §3
+  walk-data contract byte-exact (the 5-fixture oracle, commit `6c30347`); the R3 scan
+  stopgap is their scan contract's step 3 ("a strict subset" — their words); the scan's
+  SMT reconstruction = step 4 (smt.js); the pool-accept 5-input oracle = §11.
+  REMAINING SWAP WORK (per `docs/V3-CLIENT-SWAP-PREP-2026-11-27.md`):
+  buildPoolWitnessV3 (isDeposit/appendIndex/appendSiblings), the 5-input action
+  builder, the scan SMT steps 4–6, the registry v3 entry (the chipnet-deployed
+  values), the DEPOSIT UI flow. The action grows to 5 inputs / 3 outputs (in3/in4 = walkA/
 walkB dust UTXOs at fixed deployed lockings, witness-supplied siblings) and ~45 KB →
 ~47–48k sats/action; browser prove time UNMEASURED. Client carry-over (their §3): the
 9-field actionHash, the 201-B carrier, nPublic 2, the prover pipeline, fuel tags, guard,
