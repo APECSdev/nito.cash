@@ -861,22 +861,23 @@ INTEGRATION HANDOFF** — `hushyourmoney/docs/POOL-V3-INTEGRATION-HANDOFF-2026-1
   `934be668…`, deploy `89f0829e…`, program locking `aa207453…` (the chipnet-category
   build), the walk lockings in the state file). Their §9/§10 deploy + fuel-economics
   records land with the demo lifecycle (PENDING in the doc as written).
-- **THE MINI-MPC IS AGREED FOR MAINNET (the user's order + the Hush recommendation)**:
-  2–3 independent contributions with UNPUBLISHED entropy — **the NITO side contributes
-  FIRST** (`snarkjs zkey contribute` on `pool4_0000.zkey` on the shared VM, ~10 min
-  measured; the entropy NEVER recorded — not repo/doc/commit/message; record only the
-  printed contribution hash), then the Hush's, then `zkey verify` + the VK export.
-  **The POST-MPC trio = M2 (the release) + the B4 pin target**; the current
-  `942f8fc5…` trio stays CHIPNET-ONLY (published entropy — the testnet norm). Our
-  committed v3 pins are therefore the chipnet pins (inert for mainnet — correct by
-  design).
-- **ONE USER DECISION OPEN: confirm the mainnet pool runs the ASSET category
-  `2469acc5…`** — their entire v3 stack already pins it (the witness generator, the
-  fixtures, the hook ctor, the 7,998-B program `d98c1d2a…`); if confirmed, tonight's
-  program IS the category-correct mainnet candidate (a different category = one
-  rebuild). The full mainnet mint txid they requested:
-  `9c938f53eb97e089c72c47e9e5cf5f68ad23fd5eb4cb579c5266f04bba4b4d62` (our on-chain
-  verification, height 948,416).
+- **THE MINI-MPC — THE USER AGREED (2026-11-27)** to the 2–3-independent-contributions
+  scheme with UNPUBLISHED entropy (including the user-side contribution the Hush
+  proposed). **The NITO side contributes FIRST** (`snarkjs zkey contribute` on
+  `pool4_0000.zkey` on the shared VM, ~10 min measured; the entropy NEVER recorded —
+  not repo/doc/commit/message; record only the printed contribution hash), then the
+  Hush's, then `zkey verify` + the VK export. **The POST-MPC trio = M2 (the release)
+  + the B4 pin target**; the current `942f8fc5…` trio stays CHIPNET-ONLY (published
+  entropy — the testnet norm). Our committed v3 pins are therefore the chipnet pins
+  (inert for mainnet — correct by design). The only remaining step: the Hush names
+  the contribution window once their sweep finishes.
+- **THE CATEGORY — CONFIRMED BY THE USER (2026-11-27): the mainnet v3 pool runs the
+  ASSET category `2469acc5…`** — their entire v3 stack pins it (the witness generator,
+  the fixtures, the hook ctor, the 7,998-B program `d98c1d2a…`); tonight's program is
+  the LOCKED mainnet candidate — no category rebuild; the only program rebuild left
+  is their measured post-MPC cascade (the new vk.ic[0]). The full mainnet mint txid
+  they requested: `9c938f53eb97e089c72c47e9e5cf5f68ad23fd5eb4cb579c5266f04bba4b4d62`
+  (our on-chain verification, height 948,416).
 - Their corrections, adopted: the walk lockings are RAW scripts (NO P2SH32 — the
   ~8.2-KB sibling witness must not push a redeem under the 10-KB unlocking cap; pinned
   by SHA256 in the graph + the hook's 4w); blanks stay 2/action (the walk UTXOs are

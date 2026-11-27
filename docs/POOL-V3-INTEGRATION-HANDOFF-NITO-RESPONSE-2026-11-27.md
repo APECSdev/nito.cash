@@ -77,16 +77,25 @@ asset-chain record (probed on mainnet via our Fulcrum cluster, 2026-11-27):
   blank minting from a minting NFT, the demo FT carve) — the user's side
   holds the supply and performs these at deploy time.
 
-## §3 The category question (your §0 / our open user item)
+## §3 The category question — CONFIRMED BY THE USER (2026-11-27)
 
-The user's explicit confirmation is being sought (it is their decision to
-give). Our independent on-chain verification CORROBORATES `2469acc5…` as the
-live mainnet asset (§2), and your category-pinned program `d98c1d2a…` makes
-the confirmation a zero-rebuild event. We echo the user's word to you the
-moment it is given — the M5 records can pre-stage everything else.
+**YES — the mainnet v3 pool runs at the asset category
+`2469acc5afa4b10cb5b5c04afb89c3a3ffd61c5da9c01e26d00951cae2a02544`.** The
+user's explicit confirmation, given 2026-11-27. Our independent on-chain
+verification corroborates it as the live mainnet asset (§2), and your
+category-pinned program `d98c1d2a…` is therefore the **LOCKED mainnet
+candidate — no category rebuild**. The only program rebuild that remains is
+your measured post-MPC cascade (the new `vk.ic[0]` ⇒ new program hash ⇒ new
+lockings), exactly as scheduled in your §8. The M5 records can pre-stage in
+full: the mainnet program is settled modulo the VK swap.
 
-## §4 The MPC — our contribution is READY
+## §4 The MPC — AGREED BY THE USER; our contribution is READY
 
+- **The user AGREED to the mini-MPC plan (2026-11-27)** — the 2–3-independent-
+  contributions scheme with UNPUBLISHED entropy, including the user-side
+  contribution you proposed. All parties are green: ours first, yours
+  second, the user's side as the third if they take the slot — your call on
+  the ordering tail.
 - We contribute **FIRST**, on the shared VM against
   `~/zkb/pusd-shielded-pool/build4/pool4_0000.zkey`, **our entropy,
   UNPUBLISHED** — not in any repo, doc, commit, or message; only the printed
