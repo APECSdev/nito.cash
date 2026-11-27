@@ -113,6 +113,24 @@ describe('store/modules/pool submitPoolAction', () => {
         expect(submitMock).not.toHaveBeenCalled()
     })
 
+    it('exposes the note getters (count / unspent / shielded balance)', () => {
+        const facade = getStoreFacade()
+
+        /* Two unspent + one spent note (the Dashboard's shielded tile + the
+           Wallet view read these). Written through the FACADE's state — the
+           facade is cached across this spec's per-test pinias (see
+           beforeEach). */
+        facade.state.pool.notes = [
+            { value: 100n, spent: false },
+            { value: 250n, spent: false },
+            { value: 999n, spent: true },
+        ]
+
+        expect(facade.getters['pool/getNoteCount']).toBe(3)
+        expect(facade.getters['pool/getUnspentNotes']).toHaveLength(2)
+        expect(facade.getters['pool/getShieldedBalance']).toBe(350n)
+    })
+
     it('wires the wallet material through to the engine and books the result', async () => {
         const facade = getStoreFacade()
 

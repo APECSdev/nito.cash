@@ -277,6 +277,24 @@ describe('views/Dashboard', () => {
         expect(wrapper.vm.showWizardConnect).toBe(true)
     })
 
+    it('opens WizardConnect from the ?connect=1 deep link (created path)', () => {
+        /* A direct mount with the deep-link query — mountView's fixed $route
+           mock has no query. */
+        const wrapper = shallowMount(Dashboard, {
+            global: {
+                mocks: {
+                    $store: getStoreFacade(),
+                    $router: router,
+                    $route: { params: {}, query: { connect: '1' } },
+                    $t: (key) => key,
+                },
+                stubs,
+            },
+        })
+
+        expect(wrapper.vm.showWizardConnect).toBe(true)
+    })
+
     it('renders the fiat-primary / BCH-secondary display helpers', () => {
         const wrapper = mountView(Dashboard)
 
