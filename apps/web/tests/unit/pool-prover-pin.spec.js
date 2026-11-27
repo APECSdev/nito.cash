@@ -3,7 +3,7 @@
 // B4 — the proving-asset sha256 pins (lib/pool/prover.js).
 //
 // Coverage contract:
-//   1. The PIN TABLE: all 12 canonical locations (6 assets x local-path +
+//   1. The PIN TABLE: all canonical locations (each asset x local-path +
 //      mirror-URL) map to the EXACT documented hashes — hard-coded here as a
 //      second copy of the truth so an accidental pin edit fails loudly.
 //   2. fetchVerifiedAsset: pinned-success (synthetic pin), MISMATCH refusal,
@@ -32,8 +32,9 @@ const sha256Hex = (bytes) => createHash('sha256').update(bytes).digest('hex')
 
 vi.mock('snarkjs', () => ({ groth16: { fullProve: vi.fn() } }))
 
-/* The six canonical asset hashes (2026-11-27; verified against the VM
-   ~/zkb/pusd-shielded-pool/build{,3} artifacts + the live mirror). */
+/* The canonical asset hashes (2026-11-27; verified against the VM
+   ~/zkb/pusd-shielded-pool/build{,3,4} artifacts + the live mirror — the
+   v3/pool4 trio hash-verified against build4/ the same day). */
 const CANONICAL = {
     wasm2out: '8595b43409370c83f371e16408cde85d88382f6fa66f406404071fb38efa7a48',
     zkey2out: '4a4e2543dbe640de7a59e23cc652b89a50034898757efff22242eafec0f7b7c0',
@@ -41,6 +42,9 @@ const CANONICAL = {
     wasm3out: 'c806e561d9466ec25f437d6dfe659ce97e73a3f65359449bcc35deb9c81910fb',
     zkey3out: 'b0177dbe5bb1bf7e9122a00953a2facd3d05b0405fee6c1a59d0da55cfb81659',
     vkey3out: 'd4ed12eefea550d20fb17b34303fa1446af204b182d58c4807f36944f0d04861',
+    wasmV3: 'a9b4b03d17c614ba920c45df5c34949e26ce8cdbdeb3d6b145476a2857289395',
+    zkeyV3: '942f8fc5327191da4a98bfbd81b74f87bd6f79267efb2d3067ac6cd0175a723a',
+    vkeyV3: '07638f101038418d7b97ba46871476edaf3f6c63086fa9e984a2aa33e530b704',
 }
 
 /* The REAL committed verifying key (byte-exact the pin — asserted live in
@@ -92,12 +96,14 @@ describe('lib/pool/prover B4 — the proving-asset pins', () => {
         vi.clearAllMocks()
     })
 
-    it('pins ALL 12 canonical locations to the exact documented hashes', () => {
+    it('pins ALL canonical locations to the exact documented hashes', () => {
         const {
             PROVING_WASM, PROVING_ZKEY, VERIFYING_KEY,
             PROVING_WASM_3OUT, PROVING_ZKEY_3OUT, VERIFYING_KEY_3OUT,
             PROVING_WASM_URL, PROVING_ZKEY_URL, VERIFYING_KEY_URL,
             PROVING_WASM_3OUT_URL, PROVING_ZKEY_3OUT_URL, VERIFYING_KEY_3OUT_URL,
+            PROVING_WASM_V3, PROVING_ZKEY_V3, VERIFYING_KEY_V3,
+            PROVING_WASM_V3_URL, PROVING_ZKEY_V3_URL, VERIFYING_KEY_V3_URL,
         } = prover
 
         expect(prover.PROVING_ASSET_SHA256[PROVING_WASM]).toBe(CANONICAL.wasm2out)
@@ -112,9 +118,15 @@ describe('lib/pool/prover B4 — the proving-asset pins', () => {
         expect(prover.PROVING_ASSET_SHA256[PROVING_WASM_3OUT_URL]).toBe(CANONICAL.wasm3out)
         expect(prover.PROVING_ASSET_SHA256[PROVING_ZKEY_3OUT_URL]).toBe(CANONICAL.zkey3out)
         expect(prover.PROVING_ASSET_SHA256[VERIFYING_KEY_3OUT_URL]).toBe(CANONICAL.vkey3out)
+        expect(prover.PROVING_ASSET_SHA256[PROVING_WASM_V3]).toBe(CANONICAL.wasmV3)
+        expect(prover.PROVING_ASSET_SHA256[PROVING_ZKEY_V3]).toBe(CANONICAL.zkeyV3)
+        expect(prover.PROVING_ASSET_SHA256[VERIFYING_KEY_V3]).toBe(CANONICAL.vkeyV3)
+        expect(prover.PROVING_ASSET_SHA256[PROVING_WASM_V3_URL]).toBe(CANONICAL.wasmV3)
+        expect(prover.PROVING_ASSET_SHA256[PROVING_ZKEY_V3_URL]).toBe(CANONICAL.zkeyV3)
+        expect(prover.PROVING_ASSET_SHA256[VERIFYING_KEY_V3_URL]).toBe(CANONICAL.vkeyV3)
 
         /* 12 entries, no strays. */
-        expect(Object.keys(prover.PROVING_ASSET_SHA256)).toHaveLength(12)
+        expect(Object.keys(prover.PROVING_ASSET_SHA256)).toHaveLength(18)
     })
 
     it('keeps the committed vkey byte-exact to its pin and the old local zkey OUT of the table', () => {

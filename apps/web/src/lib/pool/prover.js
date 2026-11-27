@@ -69,6 +69,26 @@ export const VERIFYING_KEY_URL = ASSETS_BASE + 'verification_key.json'
 export const PROVING_WASM_3OUT_URL = ASSETS_BASE + 'pool3.wasm'
 export const PROVING_ZKEY_3OUT_URL = ASSETS_BASE + 'pool3_final.zkey'
 export const VERIFYING_KEY_3OUT_URL = ASSETS_BASE + 'verification_key_3out.json'
+/*
+ * THE V3 POOL (circuit pool4 — the append-proof + nullifier-SMT + deposit-path
+ * revision; the chipnet v3 pool `chipnet-role2-pool4-v3` is DEPLOYED — anchor
+ * 03af2eda…, deploy 89f0829e…, program locking aa207453…). The asset hashes
+ * below are VERIFIED against the ceremony artifacts on the VM
+ * (~/zkb/pusd-shielded-pool/build4/) on 2026-11-27 — the zkey measured
+ * 120,818,048 B on disk (the handover doc's 104,040,332-B figure disagrees;
+ * the HASH is the authority). These constants + pins are INERT until the v3
+ * registry entry lands with the Hush's proving-assets release (M2): the
+ * mirror FILENAMES follow the release's own names — adjust here at M2 if
+ * they differ from the artifact names. The VK note from the state file:
+ * "CHIPNET-ONLY until the mini-MPC settles" — mainnet funding stays gated
+ * on the ceremony decision regardless.
+ */
+export const PROVING_WASM_V3 = 'proving/pool4.wasm'
+export const PROVING_ZKEY_V3 = 'proving/pool4_final.zkey'
+export const VERIFYING_KEY_V3 = 'proving/verification_key_4out.json'
+export const PROVING_WASM_V3_URL = ASSETS_BASE + 'pool4.wasm'
+export const PROVING_ZKEY_V3_URL = ASSETS_BASE + 'pool4_final.zkey'
+export const VERIFYING_KEY_V3_URL = ASSETS_BASE + 'verification_key_4out.json'
 
 /*
  * B4 — THE PROVING-ASSET sha256 PINS (2026-11-27).
@@ -115,6 +135,13 @@ export const PROVING_ASSET_SHA256 = {
     [PROVING_WASM_3OUT_URL]: 'c806e561d9466ec25f437d6dfe659ce97e73a3f65359449bcc35deb9c81910fb',
     [PROVING_ZKEY_3OUT_URL]: 'b0177dbe5bb1bf7e9122a00953a2facd3d05b0405fee6c1a59d0da55cfb81659',
     [VERIFYING_KEY_3OUT_URL]: 'd4ed12eefea550d20fb17b34303fa1446af204b182d58c4807f36944f0d04861',
+    /* The v3 (pool4) trio — hash-verified against build4/ on 2026-11-27. */
+    [PROVING_WASM_V3]: 'a9b4b03d17c614ba920c45df5c34949e26ce8cdbdeb3d6b145476a2857289395',
+    [PROVING_ZKEY_V3]: '942f8fc5327191da4a98bfbd81b74f87bd6f79267efb2d3067ac6cd0175a723a',
+    [VERIFYING_KEY_V3]: '07638f101038418d7b97ba46871476edaf3f6c63086fa9e984a2aa33e530b704',
+    [PROVING_WASM_V3_URL]: 'a9b4b03d17c614ba920c45df5c34949e26ce8cdbdeb3d6b145476a2857289395',
+    [PROVING_ZKEY_V3_URL]: '942f8fc5327191da4a98bfbd81b74f87bd6f79267efb2d3067ac6cd0175a723a',
+    [VERIFYING_KEY_V3_URL]: '07638f101038418d7b97ba46871476edaf3f6c63086fa9e984a2aa33e530b704',
 }
 
 /* The pinned sha256 for a canonical asset location (null = unpinned). */

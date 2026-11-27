@@ -1,0 +1,79 @@
+{
+  "id": "chipnet-role2-pool4-v3",
+  "network": "chipnet",
+  "deployed": "2026-11-27T05:14:19.090Z",
+  "program": {
+    "codeSha256": "da484534a83d8cce9b13fc57567de3919b237c61374a6a54c499719bed98d093",
+    "codeLength": 7998,
+    "redeemHex": "00ca0209157f77020f107f7551ca02eb157f77022f0f7f757e76a820da484534a83d8cce9b13fc57567de3919b237c61374a6a54c499719bed98d093885189518a",
+    "pieces": [
+      4111,
+      3887
+    ],
+    "locking": "aa207453d2718a70493d654ee9923c6ce0ecf82dce4dcc0a2a9bcf4b603f6cf2694887",
+    "vk": "the v3 1-of-1 demo setup (build4/pool4_final.zkey sha256 942f8fc5327191da4a98bfbd81b74f87bd6f79267efb2d3067ac6cd0175a723a — CHIPNET-ONLY until the mini-MPC settles)",
+    "walkAHash": "81a280e9bf57a06f6eb307eb5f1171116fe218b2d96c35a3bd33aa555809867c",
+    "walkBHash": "6c10186454b6fbf254b7850ac86ca95fa0f25c4c7e16e1ec1151533f45e4e723",
+    "walkALockingHex": "c2529dc0539d52ce219dd076c986b9c41301aebdba4d84990eddcbfd3890cad2a3c18738c0da2eaf03018800cd8202cc009d537f7c036a4cc98801207f7552cf01207f7720000000000000000000000000000000000000000000000000000000000000000020010000000000000000000000000000000000000000000000000000000000000000557a8202c01f9d5579517f7501007e810002fe00577a597a597a597a597a567a597a587a587a597a6501207f537956798e52976378587a7ea87b577a7ea86778587a7c7ea8577a537a7ea868567a8b76589c637500567a8b5779787f517f757701007e81577a7567567a567a68567a8c76009c577a7c66567a597a88557a577a88557a75547a75537a757b75777551",
+    "walkBLockingHex": "c2529dc0549d52ce219dd076c986b9c41301aebdba4d84990eddcbfd3890cad2a3c18738c0da2eaf03018800cd8202cc009d537f7c036a4cc98801207f7701207f7553ca517f7701207f752000000000000000000000000000000000000000000000000000000000000000002001000000000000000000000000000000000000000000000000000000000000000051d201207f77567a8202c01f9d5679517f7501007e810002fe00587a557a597a597a597a567a597a587a587a597a6501207f537956798e52976378587a7ea87b577a7ea86778587a7c7ea8577a537a7ea868567a8b76589c637500567a8b5779787f517f757701007e81577a7567567a567a68567a8c76009c577a7c66567a597a88557a577a88557a75547a75537a757b75777551",
+    "walkASize": 278,
+    "walkBSize": 291
+  },
+  "category": "03af2edac03887c1a3d2ca9038fdcbdd0e99844dbabdae0113c4b986c976d09d",
+  "anchorTxid": "03af2edac03887c1a3d2ca9038fdcbdd0e99844dbabdae0113c4b986c976d09d",
+  "mintTxid": "934be668e3c27dcf852e8c3e780b916ba138230416ee0bb9435df6801df6ce0a",
+  "deployTxid": "89f0829eb42a366180f887565b0edbf38608a788621090c0c14ea6a1ecf26006",
+  "outpoints": {
+    "state": {
+      "txid": "89f0829eb42a366180f887565b0edbf38608a788621090c0c14ea6a1ecf26006",
+      "vout": 0,
+      "sats": 10000,
+      "ftAmount": "0",
+      "nft": "mutable",
+      "commitment": "3e1f1922dfb671d3f912f7ea461e0a88ee848fdde12b6c18ab1ad2c56ae73421e579b9be0b8f58daacc4f66c959ed3ec903884d1914e11e7e0c3bbf2a5627b43"
+    },
+    "actionInputs": [],
+    "mintingNFT": {
+      "txid": "89f0829eb42a366180f887565b0edbf38608a788621090c0c14ea6a1ecf26006",
+      "vout": 1,
+      "nft": "minting"
+    },
+    "guard": {
+      "adoptTxid": "89f0829eb42a366180f887565b0edbf38608a788621090c0c14ea6a1ecf26006",
+      "txid": "89f0829eb42a366180f887565b0edbf38608a788621090c0c14ea6a1ecf26006",
+      "vout": 1,
+      "sats": 1000,
+      "locking": "aa2017e74695ea7c8705fc51a9095b88784b396b676ad7b780c0183f1158a3523f9987",
+      "redeemLength": 5103,
+      "K": 64,
+      "bornGuarded": true,
+      "policy": "only possible spend: recreate the minting NFT at the guard + mint K NFT-only empty-commitment blanks to the operator; burn and FT-mint are consensus-impossible (minting-guard.mjs 14/14)"
+    },
+    "supply": {
+      "txid": "89f0829eb42a366180f887565b0edbf38608a788621090c0c14ea6a1ecf26006",
+      "vout": 2,
+      "ftAmount": "100000000"
+    }
+  },
+  "pool": {
+    "root": "15019797232609675441998260052101280400536945603062888308240081994073687793470",
+    "rootLE": "3e1f1922dfb671d3f912f7ea461e0a88ee848fdde12b6c18ab1ad2c56ae73421",
+    "commitmentHex": "3e1f1922dfb671d3f912f7ea461e0a88ee848fdde12b6c18ab1ad2c56ae73421e579b9be0b8f58daacc4f66c959ed3ec903884d1914e11e7e0c3bbf2a5627b43",
+    "balance": "0",
+    "leaves": [],
+    "notes": []
+  },
+  "nullSet": [],
+  "fundingAddress": "bchtest:qzzu85xnl99u534d9z40yu7c494hknppx5lu29gl8t",
+  "guard": {
+    "adoptTxid": "89f0829eb42a366180f887565b0edbf38608a788621090c0c14ea6a1ecf26006",
+    "txid": "89f0829eb42a366180f887565b0edbf38608a788621090c0c14ea6a1ecf26006",
+    "vout": 1,
+    "sats": 1000,
+    "locking": "aa2017e74695ea7c8705fc51a9095b88784b396b676ad7b780c0183f1158a3523f9987",
+    "redeemLength": 5103,
+    "K": 64,
+    "bornGuarded": true,
+    "policy": "only possible spend: recreate the minting NFT at the guard + mint K NFT-only empty-commitment blanks to the operator; burn and FT-mint are consensus-impossible (minting-guard.mjs 14/14)"
+  }
+}
