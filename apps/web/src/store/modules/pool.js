@@ -633,7 +633,9 @@ const actions = {
                 return modr(BigInt('0x' + [...bytes].map((b) => b.toString(16).padStart(2, '0')).join('')))
             }
 
-            const inSum = inNotes.reduce((sum, n) => sum + n.note.value, 0n)
+            /* A v3 deposit carries NO in-notes (the phantom path) — the sum
+               is the empty 0n, not a null crash. */
+            const inSum = (inNotes || []).reduce((sum, n) => sum + n.note.value, 0n)
             const outSum = inSum + (sign ? -shield : shield)
             if (outSum < 0n) throw new Error('The selected notes do not cover the unshield amount.')
 
