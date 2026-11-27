@@ -153,6 +153,18 @@ const RELEASE_ASSETS = {
     "https://github.com/APECSdev/pusd-shielded-pool/releases/download/role2-proving-assets-3out-v1/pool3_final.zkey",
   "verification_key_3out.json":
     "https://github.com/APECSdev/pusd-shielded-pool/releases/download/role2-proving-assets-3out-v1/verification_key_3out.json",
+  /* pool4 (v3 — the nullifier-SMT + deposit-path circuit), 2026-11-27: the
+     CHIPNET 1-of-1 trio (the deployed chipnet pool's VK; published demo
+     entropy — the chipnet testnet norm). These pins move to the post-MPC
+     trio under role2-proving-assets-v3-v1 when the Hush ships M2 (the
+     three-contribution chain: Nito -> Hush -> user); the wasm NEVER changes
+     (a phase-2 MPC never touches the circuit), only the zkey + VK move. */
+  "pool4.wasm":
+    "https://github.com/APECSdev/pusd-shielded-pool/releases/download/role2-proving-assets-pool4-chipnet-v1/pool4.wasm",
+  "pool4_final.zkey":
+    "https://github.com/APECSdev/pusd-shielded-pool/releases/download/role2-proving-assets-pool4-chipnet-v1/pool4_final.zkey",
+  "verification_key_4out.json":
+    "https://github.com/APECSdev/pusd-shielded-pool/releases/download/role2-proving-assets-pool4-chipnet-v1/verification_key_4out.json",
 };
 
 async function handleAsset(url) {
