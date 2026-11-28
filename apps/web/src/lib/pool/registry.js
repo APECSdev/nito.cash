@@ -76,6 +76,19 @@ const POOLS = {
             /* The user's BINDING stage name (never 'Release Candidate'/'RC' in
                user-facing copy) — the Wallet panel renders it VERBATIM. */
             stageLabel: 'Preview v0',
+            /* G5 — the MAINNET v4h vending machine (VENDING-NITO-RESPONSE-
+               2026-11-28.md §2; LIVE 2026-11-28: the guard batch c9cca1e4
+               minted 16 fresh blanks, the load 5bd64412… confirmed h 979,287
+               — 16 blanks = 8 visitor SHIELDs, scripthash-verified). Same
+               covenant + price as the chipnet machine; the operator P2PKH
+               differs. */
+            vending: {
+                lockingBytecode: 'aa2073ad0a1e681fa123d80754164fd34bdcb0f6ea3c26784b36f6d8778a8b0a945087',
+                priceSats: 1000,
+                operatorAddress: 'bitcoincash:qrqj0azraqskmsyh8fkaj70p0a8lrw20fcnrhvnvh8',
+                operatorLockingHex: '76a914c127f443e8216dc0973a6dd979e17f4ff1b94f4e88ac',
+                loadTxid: '5bd644121ad69fbe48bd852c094d2fafad8d34506200404a06fe47af0c3c3c00',
+            },
             shape: 'role2-tagged-v4h',
             lockingBytecode: 'aa2006d764d4a149900fe8cbe2a0b01753643b21bda74b0fc76018172bfc098dc3c987',
             /* The C architecture's category SPLIT: the pool's OWN fresh
@@ -243,6 +256,21 @@ const POOLS = {
             network: 'chipnet',
             variant: 'v3',
             stageLabel: 'Chipnet pilot',
+            /* G5 — the CHIPNET v3 vending machine (the Hush handover
+               VENDING-NITO-RESPONSE-2026-11-28.md §1; LOADED + live, the
+               wallet's rehearsal path): permissionless, first-come-first-
+               served — the buyer's tokenless funding input pays the exact
+               1,000-sat price + the blank lands at the funding input's own
+               locking. The redeem is reproduced BYTE-EXACTLY from the
+               vendored covenant (lib/pool/blank-vending.js) — the spec
+               asserts p2sh32(redeem) == this locking. */
+            vending: {
+                lockingBytecode: 'aa207bd03b1c57afff2715d61031e82a25dff54a6819b1bc16e545ddcfcd026a8bc987',
+                priceSats: 1000,
+                operatorAddress: 'bchtest:qzzu85xnl99u534d9z40yu7c494hknppx5lu29gl8t',
+                operatorLockingHex: '76a91485c3d0d3f94bca46ad28aaf273d8a96b7b4c213588ac',
+                loadTxid: 'ead5d00051ec2aa25a1d93444e185b7f85226d59f60ae89dafb407b2fa36ff46',
+            },
             lockingBytecode: 'aa206dc915cef6f1343b7d170caaf79346072222d66fd3285fcb4d506f184069e8cb87',
             assetCategory: 'e56c0a8583e36092f20e54c9247f6b8e5a6afd391027aa70ae109c3c42377930',
             categoryOnChain: '307937423c9c10ae70aa271039fd6a5a8e6b7f24c9540ef29260e383850a6ce5',
@@ -445,20 +473,24 @@ export function getPools(networkId) {
  * B3 — the off-chain note delivery (the Nostr note mailbox; see
  * docs/B3-NOTE-DELIVERY-DESIGN-2026-11-27.md §3.1 + lib/pool/note-mailbox.js).
  * Per network: the relay set + the two event kinds. The relay set is a
- * DEPLOYMENT DECISION (swappable here, never a code constant) — the same
- * G1 relay pair the Hush research pages verified live (damus.io + nos.lol).
+ * DEPLOYMENT DECISION (swappable here, never a code constant). Measured
+ * reachability 2026-11-27 (the apecsdev VM, the b3 acceptance probe):
+ * nos.lol + nostr.mom + relay.primal.net OPEN; relay.damus.io 503s,
+ * relay.offchain.pub + relay.nostr.band dead. (nos.lol is the Hush G1
+ * verified pair's survivor; mom + primal are the CashShuffle research's
+ * live dry-run trio.)
  * A network with NO entry runs wallet-to-wallet transfers WITHOUT the
  * off-chain delivery (the on-chain backstop remains a separate decision
  * pending the program-tolerance answer).
  */
 export const NOTE_MAILBOX = {
     mainnet: {
-        relays: ['wss://relay.damus.io', 'wss://nos.lol'],
+        relays: ['wss://nos.lol', 'wss://nostr.mom', 'wss://relay.primal.net'],
         noteKind: 4321,
         receiptKind: 4322,
     },
     chipnet: {
-        relays: ['wss://relay.damus.io', 'wss://nos.lol'],
+        relays: ['wss://nos.lol', 'wss://nostr.mom', 'wss://relay.primal.net'],
         noteKind: 4321,
         receiptKind: 4322,
     },
