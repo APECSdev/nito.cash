@@ -247,6 +247,9 @@ export async function submitRole2Action({
         tag: lock ? lock.tag : tagHex,
         stages: lock ? STAGES : STAGES_STANDING,
         fee: action.fee,
+        /* B3 — the recipient's out-note material (the delivery hook's input;
+           previously only the saveNotes callback saw it). */
+        outNotes: proof.outNotes || [],
     }
 }
 
@@ -376,6 +379,9 @@ export async function submitRole2ActionV3({
         tag: lock ? lock.tag : tagHex,
         stages: lock ? STAGES : STAGES_STANDING,
         fee: action.fee,
+        /* B3 — the recipient's out-note material (the delivery hook's input;
+           previously only the saveNotes callback saw it). */
+        outNotes: proof.outNotes || [],
     }
 }
 
@@ -514,5 +520,8 @@ export async function submitRole2ActionV4h({
         stages: lock ? STAGES : STAGES_STANDING,
         fee: action.fee,
         newHoldings: action.newHoldings,
+        /* B3 — the recipient's out-note material (the delivery hook's input;
+           previously only the saveNotes callback saw it). */
+        outNotes: proof.outNotes || [],
     }
 }

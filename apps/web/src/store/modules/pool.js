@@ -233,10 +233,10 @@ const actions = {
         /* B3 — the outbox sweep: clear acknowledged entries, re-publish the
            rest (the SAME event ids — relays dedupe; the re-publish covers
            relays that evicted or were down at send time). Fire-and-forget. */
-        if (mailbox && state.outbox.length > 0) {
+        if (mailbox && (state.outbox || []).length > 0) {
             ;(async () => {
                 try {
-                    const pending = state.outbox.filter((e) => !e.receiptSeen)
+                    const pending = (state.outbox || []).filter((e) => !e.receiptSeen)
                     const seen = await fetchReceipts({ mailbox, packets: pending.map((e) => hexToBytes(e.packetHex)) })
                     const cleared = pending.filter((e) => seen.has(packetTag(hexToBytes(e.packetHex))))
 
@@ -253,7 +253,7 @@ const actions = {
                     }
 
                     if (cleared.length > 0) {
-                        commit('SET_OUTBOX', { outbox: state.outbox.filter((e) => !seen.has(packetTag(hexToBytes(e.packetHex)))) })
+                        commit('SET_OUTBOX', { outbox: (state.outbox || []).filter((e) => !seen.has(packetTag(hexToBytes(e.packetHex)))) })
                     }
                 } catch (err) {
                     console.error('note-mailbox outbox sweep failed:', err) // eslint-disable-line no-console
@@ -339,7 +339,7 @@ const actions = {
         /* Build + persist FIRST (the outbox owns durability), then publish. */
         const { event, keys } = buildNoteEvent({ mailbox, recipientDeliveryPoint, packet, actionTxid: result.actionTxid })
 
-        commit('SET_OUTBOX', { outbox: [...state.outbox, {
+        commit('SET_OUTBOX', { outbox: [...(state.outbox || []), {
             packetHex: bytesToHex(packet),
             actionTxid: result.actionTxid,
             dpTag: dpTag(parseDeliveryPoint(recipientDeliveryPoint)),
@@ -374,7 +374,7 @@ const actions = {
             return null
         }
 
-        for (const entry of state.outbox) {
+        for (const entry of (state.outbox || [])) {
             if (entry.receiptSeen) continue
 
             try {
@@ -584,7 +584,9 @@ const actions = {
         /* Scan THE SELECTED pool — the state UTXO, the action chain and the
            witness tree all come from the scan, so a 3-out submission must
            never scan the (2-out) default pool. */
+        console.log('submit: the pre-action scan starting…') // eslint-disable-line no-console
         const scanned = await dispatch('scanPool', { poolId: pool.id })
+        console.log('submit: the scan done —', scanned?.scan?.actions?.length ?? '?', 'actions') // eslint-disable-line no-console
 
         if (!scanned || !scanned.scan) {
             const error = new Error('The pool scan returned no action chain — try again.')
@@ -813,6 +815,7 @@ const actions = {
             throw error
         }
 
+        console.log('submit: the funding', lockSet ? 'FOUND at ' + lockSet.address.slice(0, 20) + '…' : 'NOT FOUND (standing)', '', standingFuel ? 'standing' : '') // eslint-disable-line no-console
         if (lockSet) {
             /* The lock signs with the selected address's HD key — the pool spend
                key is NOT a BCH key and must never sign P2PKH inputs. */
@@ -1142,6 +1145,7 @@ const actions = {
             return { carrier, unlockings, newRoot: rootLE, newNull, newBalance, outNotes }
         }
 
+        console.log('submit: the payoutAddress', payoutAddress, '— the orchestrator starting…') // eslint-disable-line no-console
         let result
         try {
             const submit = async (lib, extra = {}) => lib({
@@ -1248,7 +1252,7 @@ const actions = {
 
         /* B3 — re-publish any pending outbox notes at boot (fire-and-forget:
            relays dedupe by event id; unlockPool must not block on them). */
-        if (state.outbox.length > 0) {
+        if ((state.outbox || []).length > 0) {
             dispatch('republishOutbox').catch((err) => {
                 console.error('note-mailbox boot republish failed:', err) // eslint-disable-line no-console
             })
