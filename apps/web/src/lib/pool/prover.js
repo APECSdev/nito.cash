@@ -166,11 +166,17 @@ export async function fetchVerifiedAsset(url, { expectedSha256 = pinnedSha256Of(
         throw new Error(`prover: REFUSING unpinned proving asset '${url}' — no sha256 pin (B4)`)
     }
 
+    console.log(`prover: fetching ${url} …`) // eslint-disable-line no-console
+    const fetchStart = Date.now()
     const res = await fetch(url)
     if (!res.ok) throw new Error(`prover: cannot fetch proving asset (${res.status} ${url})`)
 
     const bytes = new Uint8Array(await res.arrayBuffer())
+    console.log(`prover: fetched ${url} — ${bytes.length} B in ${Math.round((Date.now() - fetchStart) / 1000)}s; hashing…`) // eslint-disable-line no-console
+
+    const hashStart = Date.now()
     const actual = binToHex(sha256.hash(bytes))
+    console.log(`prover: hashed ${url} in ${Math.round((Date.now() - hashStart) / 1000)}s`) // eslint-disable-line no-console
 
     if (actual !== expectedSha256) {
         throw new Error(`prover: proving-asset sha256 MISMATCH for '${url}' — expected ${expectedSha256}, got ${actual} (B4: refusing wrong proving assets; the old local public/proving/pool_final.zkey is b2398d85… — replace it or use the mirror URLs)`)
@@ -555,7 +561,11 @@ export async function generateProof(input, wasmUrl = PROVING_WASM_URL, zkeyUrl =
 
     /* A NULL result = the allowUnpinned pass-through: snarkjs's fastfile
        reads the original location (a node path or URL) itself. */
-    return snarkjs.groth16.fullProve(input, wasm ?? wasmUrl, zkey ?? zkeyUrl)
+    console.log('prover: assets ready — groth16 fullProve starting…') // eslint-disable-line no-console
+    const proveStart = Date.now()
+    const result = await snarkjs.groth16.fullProve(input, wasm ?? wasmUrl, zkey ?? zkeyUrl)
+    console.log(`prover: fullProve DONE in ${Math.round((Date.now() - proveStart) / 1000)}s`) // eslint-disable-line no-console
+    return result
 }
 
 /* Verify a proof against the verifying key (sanity check / tests). */

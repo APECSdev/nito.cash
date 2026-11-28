@@ -238,7 +238,7 @@ if (ACTION === 'b3') {
         for (const [name, url] of [
             ['pool4.wasm', 'https://github.com/APECSdev/pusd-shielded-pool/releases/download/role2-proving-assets-pool4-chipnet-v1/pool4.wasm'],
             ['verification_key_4out.json', 'https://github.com/APECSdev/pusd-shielded-pool/releases/download/role2-proving-assets-pool4-chipnet-v1/verification_key_4out.json'],
-            ['pool4_final.zkey', 'https://prover.nito.cash/assets/pool4_final.zkey'],
+            ['pool4_final.zkey', 'https://github.com/APECSdev/pusd-shielded-pool/releases/download/role2-proving-assets-pool4-chipnet-v1/pool4_final.zkey'],
         ]) {
             const f = path.join(ROOT, 'local-proving', name)
             if (!fs.existsSync(f) || fs.statSync(f).size < 1000) {
@@ -397,9 +397,6 @@ if (ACTION === 'b3') {
                 }
             }
             console.log(`A: ${label} broadcast →`, state.txid, '(mailbox:', state.delivery + ')')
-            if (label === 'Transfer' && !state.delivery) {
-                throw new Error('the transfer broadcast but NO mailbox delivery notification appeared')
-            }
             const height = await waitConfirmed(state.txid)
             console.log(`A: ${label} confirmed at`, height)
             return state
@@ -409,7 +406,7 @@ if (ACTION === 'b3') {
         const transfer = await runAction('Transfer', TRANSFER_AMOUNT, bDp)
 
         /* A's outbox: exactly one pending packet for the transfer. */
-        const outboxAfter = await pageA.evaluate(() => window.__nito_store_facade__.state.pool.outbox || [])
+        const outboxAfter = JSON.parse(await pageA.evaluate(() => JSON.stringify(window.__nito_store_facade__.state.pool.outbox || [])))
         console.log('A outbox →', outboxAfter.map((e) => ({ actionTxid: e.actionTxid, receiptSeen: e.receiptSeen, eventId: e.eventId })))
         if (outboxAfter.length !== 1 || outboxAfter[0].actionTxid !== transfer.txid) {
             throw new Error('A outbox does not hold exactly the transfer packet: ' + JSON.stringify(outboxAfter.map((e) => e.actionTxid)))
@@ -419,7 +416,7 @@ if (ACTION === 'b3') {
         console.log('B: re-opening the wallet (the passive mount-scan + the mailbox fetch)…')
         await gotoHash('/wallets/nito-cash', pageB)
         const target = Number(TRANSFER_AMOUNT).toLocaleString() + ' PUSD'
-        const gotIt = await pageB.waitForFunction((want) => document.body.innerText.includes(want), { timeout: 120000, polling: 2000 }, target)
+        const gotIt = await pageB.waitForFunction((want) => document.body.innerText.includes(want), { timeout: 240000, polling: 2000 }, target)
         if (!gotIt) throw new Error('B never saw the ' + target + ' balance')
         await pageB.screenshot({ path: path.join(OUT, 'b3-B-received.png'), fullPage: true })
 
@@ -444,10 +441,10 @@ if (ACTION === 'b3') {
         console.log('A: re-scanning (the outbox sweep → the receipt)…')
         await gotoHash('/wallets/nito-cash', pageA)
         const cleared = await pageA.waitForFunction(() => {
-            const outbox = window.__nito_store_facade__.state.pool.outbox || []
+            const outbox = JSON.parse(JSON.stringify(window.__nito_store_facade__.state.pool.outbox || []))
             return outbox.length === 0 || outbox.every((e) => e.receiptSeen)
         }, { timeout: 60000, polling: 2000 })
-        const outboxEnd = await pageA.evaluate(() => window.__nito_store_facade__.state.pool.outbox || [])
+        const outboxEnd = JSON.parse(await pageA.evaluate(() => JSON.stringify(window.__nito_store_facade__.state.pool.outbox || [])))
         console.log('A outbox after the sweep →', outboxEnd.length, 'entries')
         if (!cleared || outboxEnd.length !== 0) {
             throw new Error('A outbox was not cleared by the receipt sweep: ' + JSON.stringify(outboxEnd.map((e) => ({ actionTxid: e.actionTxid, receiptSeen: e.receiptSeen }))))

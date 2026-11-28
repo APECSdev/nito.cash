@@ -165,6 +165,10 @@ const actions = {
             return null
         }
 
+        /* B3 — the scan's pool target (the receive leg is pool-scoped: the
+           packets + transfer actions live in the SELECTED pool's chain). */
+        console.log('scanPool: scanning pool', pool ? pool.id : '(none)') // eslint-disable-line no-console
+
         /* Initialize the Fulcrum cluster + the wallet's pool spend key. */
         const cluster = await getCluster(network)
 
@@ -183,6 +187,9 @@ const actions = {
                 const ownDeliveryPoint = await deriveDeliveryPoint(spendKey)
 
                 mailboxPackets = await fetchNotePackets({ mailbox, ownDeliveryPoint })
+                /* B3 — the fetched packet count + their action txids (the
+                   receive leg's visibility line). */
+                console.log('note-mailbox: fetched', mailboxPackets.length, 'packet(s)', mailboxPackets.map((p) => (p.actionTxid || '').slice(0, 10)).join(',')) // eslint-disable-line no-console
             } catch (err) {
                 console.error('note-mailbox fetch failed:', err) // eslint-disable-line no-console
             }
@@ -197,6 +204,10 @@ const actions = {
             notes: state.notes,
             mailboxPackets,
         })
+
+        /* B3 — the scan's completion marker (separates a slow scan from a
+           completed-but-empty one when debugging the receive leg). */
+        console.log('scanPool: lib done —', result?.actions?.length ?? '?', 'actions, received', result?.received?.length ?? '?') // eslint-disable-line no-console
 
         /* Record received notes (dedupe by commitment — a rescan must not
            double-record). */

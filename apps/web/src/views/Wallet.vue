@@ -545,12 +545,20 @@ export default {
     },
     watch: {
         /* The pool selector: switching pools resets the transient action
-           state and re-counts the blanks against the new pool's category. */
+           state, re-counts the blanks against the new pool's category, and
+           re-runs the passive receive scan FOR THE NEW POOL (the notes +
+           mailbox packets are pool-scoped — a scan of the wrong pool finds
+           neither; the single-flight map dedupes a mount-time race). */
         role2PoolId() {
             this.activeAction = null
             this.actionError = null
             this.actionResult = null
             this.refreshPoolBlankInfo()
+            if (this.wallet && this.wallet.id === 'nito-cash' && this.getMasterSeed && this.role2PoolId) {
+                this.$store.dispatch('pool/scanPool', { poolId: this.role2PoolId }).catch((err) => {
+                    console.error('Passive pool scan failed:', err) // eslint-disable-line no-console
+                })
+            }
         },
     },
     created: async function () {
@@ -631,8 +639,18 @@ export default {
            transfer the moment they open their Nito Cash wallet. Guarded
            fire-and-forget: a scan failure never blocks the view (the
            single-flight scanPool reuses any in-flight promise). */
+        /* B3 — the passive receive leg: on the SHIELDED wallet, run a pool
+           scan on mount — FOR THE SELECTED POOL (the registry DEFAULT is the
+           old 2-out pool; the role-2 packets + the transfer actions live in
+           the selected pool's chain, so a default-pool scan finds NEITHER).
+           The scan fetches the note mailbox (the off-chain NP01 packets
+           addressed to this wallet's delivery point) and records any
+           received notes — the recipient sees an incoming transfer the
+           moment they open their Nito Cash wallet. Guarded fire-and-forget:
+           a scan failure never blocks the view (the single-flight scanPool
+           reuses any in-flight promise for the SAME pool). */
         if (this.wallet.id === 'nito-cash' && this.getMasterSeed) {
-            this.$store.dispatch('pool/scanPool').catch((err) => {
+            this.$store.dispatch('pool/scanPool', { poolId: this.role2PoolId || undefined }).catch((err) => {
                 console.error('Passive pool scan failed:', err) // eslint-disable-line no-console
             })
         }

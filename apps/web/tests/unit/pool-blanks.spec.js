@@ -95,10 +95,11 @@ describe('lib/pool/blanks — the role-2 blank shape', () => {
 
 describe('lib/pool/registry — the role-2 tagged pool', () => {
     const pools = getPools('chipnet')
-    const role2 = pools[0]
+    const role2 = pools.find((pool) => pool.id === 'chipnet-pusd-role2')
 
-    it('is the first chipnet pool and carries the handoff facts', () => {
-        expect(role2.id).toBe('chipnet-pusd-role2')
+    it("is a chipnet pool and carries the handoff facts (the registry's first entry is now the CURRENT pool4 v3 — getDefaultPool + getProverPool resolve to it; the 2-out tagged original sits behind it)", () => {
+        expect(pools[0].id).toBe('chipnet-role2-pool4-v3')
+        expect(role2).toBeTruthy()
         expect(role2.assetCategory).toBe(CATEGORY)
         expect(role2.lockingBytecode).toBe(ROLE2_PROGRAM.lockingBytecode)
         expect(role2.program).toBe(ROLE2_PROGRAM)
@@ -116,10 +117,13 @@ describe('lib/pool/registry — the role-2 tagged pool', () => {
 
     it('is LIVE after the Hush proving assets + the web-platform acceptance', () => {
         /* The browser SHIELD -> TRANSFER -> UNSHIELD passed on chipnet
-           (1ca58773... -> 50644d00... -> f52008f4...) — the flag flips. */
+           (1ca58773... -> 50644d00... -> f52008f4...) — the flag flips.
+           getProverPool returns the FIRST compatible pool — the registry's
+           head — which is now the pool4 v3 (the current generation); the
+           2-out tagged original remains compatible behind it. */
         expect(role2.walletProverCompatible).toBe(true)
         expect(role2.status).toBe('live')
-        expect(getProverPool('chipnet')).toBe(role2)
+        expect(getProverPool('chipnet').id).toBe('chipnet-role2-pool4-v3')
         expect(getProverPool('mainnet')).toBeNull()
     })
 
